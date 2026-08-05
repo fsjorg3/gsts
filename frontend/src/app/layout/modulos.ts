@@ -10,10 +10,11 @@ export interface Modulo {
   roles: RolSicef[];
 }
 
+// Finanzas y Dirección ya no viven aquí: se trasladaron a la aplicación del
+// sistema Finanzas, que corre aparte con su propio backend. Dirección consume
+// los indicadores de SICEF vía `GET /direccion/metricas`.
 export const MODULOS: Modulo[] = [
   { to: '/ventanilla', icon: 'assignment_ind', label: 'Ventanilla', roles: ['ventanilla'] },
-  { to: '/finanzas', icon: 'payments', label: 'Finanzas', roles: ['finanzas'] },
-  { to: '/direccion', icon: 'monitoring', label: 'Dirección', roles: ['direccion'] },
   { to: '/administracion', icon: 'settings', label: 'Administración', roles: ['ti'] },
   { to: '/bitacora', icon: 'history', label: 'Bitácora', roles: ['ti'] },
 ];

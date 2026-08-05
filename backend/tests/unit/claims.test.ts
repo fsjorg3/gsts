@@ -27,8 +27,16 @@ describe('resolveSicefClaims', () => {
   it('separa correctamente roles de cliente y de realm en un token mixto', () => {
     expect(resolveSicefClaims({
       sub: 'subject-3',
-      resource_access: { sicef: { roles: ['ventanilla', 'ti', 'finanzas'] } },
-      realm_access: { roles: ['direccion', 'finanzas'] },
-    })).toEqual({ sub: 'subject-3', roles: ['ventanilla', 'finanzas', 'direccion'] });
+      resource_access: { sicef: { roles: ['ventanilla', 'ti', 'consulta-cobros'] } },
+      realm_access: { roles: ['direccion', 'consulta-cobros'] },
+    })).toEqual({ sub: 'subject-3', roles: ['ventanilla', 'consulta-cobros', 'direccion'] });
+  });
+
+  it('ya no reconoce el rol finanzas: pertenece al sistema de facturación', () => {
+    // Tras el recorte, un token que sólo traiga `finanzas` no autentica en SICEF.
+    expect(() => resolveSicefClaims({
+      sub: 'subject-4',
+      resource_access: { sicef: { roles: ['finanzas'] } },
+    })).toThrow('rol autorizado');
   });
 });

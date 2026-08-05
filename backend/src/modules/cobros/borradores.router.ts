@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { guardarBorradorCobroSchema } from '@sicef/contracts';
 import { prisma, withBusinessTransaction } from '../../infrastructure/database/prisma.js';
@@ -77,8 +76,8 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
         const borrador = await tx.borradorCobro.findUniqueOrThrow({ where: { id: borradorId } });
         if (borrador.estado !== 'ABIERTO') throw new AppError(409, 'DRAFT_NOT_OPEN', 'Sólo un borrador ABIERTO puede aplicarse');
         if (borrador.tramiteId !== tramiteId) throw new AppError(404, 'NOT_FOUND', 'El borrador no pertenece al trámite');
-        if (!borrador.tarifaId || !borrador.formaPago || !borrador.metodoPago || borrador.requiereFactura === null) {
-          throw new AppError(422, 'DRAFT_INCOMPLETE', 'El borrador requiere tarifa, forma de pago, método de pago y requiereFactura antes de aplicarse');
+        if (!borrador.tarifaId || !borrador.formaPago || !borrador.metodoPago || borrador.facturaSolicitadaEnVentanilla === null) {
+          throw new AppError(422, 'DRAFT_INCOMPLETE', 'El borrador requiere tarifa, forma de pago, método de pago y facturaSolicitadaEnVentanilla antes de aplicarse');
         }
         const tarifa = await tx.tarifa.findUniqueOrThrow({ where: { id: borrador.tarifaId } });
         // Un único origen de valores para garantizar la coincidencia exacta que exige el trigger.
@@ -88,17 +87,16 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
         const moneda = borrador.moneda ?? 'MXN';
         const pago = {
           tarifaId: tarifa.id, montoBase, motivoReduccionId: borrador.motivoReduccionId, porcentajeReduccion, montoFinal,
-          formaPago: borrador.formaPago, metodoPago: borrador.metodoPago, moneda, requiereFactura: borrador.requiereFactura, referenciaPago: borrador.referenciaPago,
+          formaPago: borrador.formaPago, metodoPago: borrador.metodoPago, moneda, facturaSolicitadaEnVentanilla: borrador.facturaSolicitadaEnVentanilla, referenciaPago: borrador.referenciaPago,
           // El comprobante ya se subió a NFS al guardar el borrador; aquí solo se copia la referencia, sin tocar NFS de nuevo.
           comprobanteArchivoUuid: borrador.comprobanteArchivoUuid, comprobanteNombreOriginal: borrador.comprobanteNombreOriginal, comprobanteHashSha256: borrador.comprobanteHashSha256, comprobanteMimeType: borrador.comprobanteMimeType, comprobanteTamanoBytes: borrador.comprobanteTamanoBytes,
         };
 
         const cobro = await tx.cobro.create({ data: { tramiteId, cobradoPorId: context.actorId, ...pago } });
         const borradorAplicado = await tx.borradorCobro.update({ where: { id: borrador.id }, data: { ...pago, estado: 'APLICADO', cobroId: cobro.id, actualizadoPorId: context.actorId } });
-        const factura = borrador.requiereFactura ? await tx.factura.create({ data: { cobroId: cobro.id, idempotencyKey: request.header('idempotency-key') ?? randomUUID() } }) : undefined;
         const tramite = await tx.tramite.update({ where: { id: tramiteId }, data: { estado: 'COBRO' } });
-        await auditarUsuario(tx, context, { entidad: 'borrador_cobro', entidadId: borrador.id, accion: 'APLICAR', estadoAnterior: 'ABIERTO', estadoNuevo: 'APLICADO', detalle: { cobroId: cobro.id, facturaId: factura?.id, tramiteEstado: tramite.estado } });
-        return { borrador: borradorAplicado, cobro, factura };
+        await auditarUsuario(tx, context, { entidad: 'borrador_cobro', entidadId: borrador.id, accion: 'APLICAR', estadoAnterior: 'ABIERTO', estadoNuevo: 'APLICADO', detalle: { cobroId: cobro.id, tramiteEstado: tramite.estado } });
+        return { borrador: borradorAplicado, cobro };
       });
       response.status(201).json({ data, requestId: request.id });
     } catch (error) { next(error); }

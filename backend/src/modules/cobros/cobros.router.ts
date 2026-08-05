@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { withBusinessTransaction } from '../../infrastructure/database/prisma.js';
@@ -9,7 +8,7 @@ import { routeParam } from '../../api/shared/params.js';
 import { resolverMotivoReduccion } from './motivo-reduccion.js';
 
 const comprobanteSchema = z.object({ base64: z.string().min(1), nombreOriginal: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(100) });
-const schema = z.object({ tarifaId: z.string().uuid(), motivoReduccionId: z.string().uuid().nullable().optional(), formaPago: z.string().trim().min(1).max(10), metodoPago: z.enum(['PUE', 'PPD']), moneda: z.literal('MXN').default('MXN'), requiereFactura: z.boolean().default(false), referenciaPago: z.string().trim().min(1).max(255).optional(), comprobante: comprobanteSchema.optional() });
+const schema = z.object({ tarifaId: z.string().uuid(), motivoReduccionId: z.string().uuid().nullable().optional(), formaPago: z.string().trim().min(1).max(10), metodoPago: z.enum(['PUE', 'PPD']), moneda: z.literal('MXN').default('MXN'), facturaSolicitadaEnVentanilla: z.boolean().default(false), referenciaPago: z.string().trim().min(1).max(255).optional(), comprobante: comprobanteSchema.optional() });
 
 export function createCobrosRouter(storage: NfsStorage): Router {
   const router = Router({ mergeParams: true });
@@ -28,15 +27,14 @@ export function createCobrosRouter(storage: NfsStorage): Router {
         const cobro = await tx.cobro.create({
           data: {
             tramiteId, tarifaId: tarifa.id, montoBase, motivoReduccionId, porcentajeReduccion, montoFinal,
-            formaPago: input.formaPago, metodoPago: input.metodoPago, moneda: input.moneda, requiereFactura: input.requiereFactura, referenciaPago: input.referenciaPago,
+            formaPago: input.formaPago, metodoPago: input.metodoPago, moneda: input.moneda, facturaSolicitadaEnVentanilla: input.facturaSolicitadaEnVentanilla, referenciaPago: input.referenciaPago,
             ...(archivo ? { comprobanteArchivoUuid: archivo.archivoUuid, comprobanteNombreOriginal: input.comprobante!.nombreOriginal, comprobanteHashSha256: archivo.hashSha256, comprobanteMimeType: input.comprobante!.mimeType, comprobanteTamanoBytes: archivo.tamanoBytes } : {}),
             cobradoPorId: context.actorId,
           },
         });
-        const factura = input.requiereFactura ? await tx.factura.create({ data: { cobroId: cobro.id, idempotencyKey: request.header('idempotency-key') ?? randomUUID() } }) : undefined;
         const tramite = await tx.tramite.update({ where: { id: tramiteId }, data: { estado: 'COBRO' } });
-        await auditarUsuario(tx, context, { entidad: 'cobro', entidadId: cobro.id, accion: 'COBRAR', estadoAnterior: 'APROBADO', estadoNuevo: tramite.estado, detalle: { facturaId: factura?.id } });
-        return { cobro, factura };
+        await auditarUsuario(tx, context, { entidad: 'cobro', entidadId: cobro.id, accion: 'COBRAR', estadoAnterior: 'APROBADO', estadoNuevo: tramite.estado });
+        return { cobro };
       });
       response.status(201).json({ data, requestId: request.id });
     } catch (error) { if (archivo) await storage.remove(archivo.ruta).catch(() => undefined); next(error); }

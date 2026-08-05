@@ -129,146 +129,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/public/facturas/solicitudes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Enviar datos fiscales para solicitar factura de una constancia ya emitida */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["SolicitudFacturaPublica"];
-                };
-            };
-            responses: {
-                /** @description Solicitud registrada en PENDIENTE_REVISION */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["SolicitudFactura"];
-                            requestId?: string;
-                        };
-                    };
-                };
-                /** @description No encontrado */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Entrada inválida */
-                422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Límite de tasa excedido */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/public/facturas/{folio}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Consultar CFDI por folio y RFC (sin detalle técnico de timbrado) */
-        get: {
-            parameters: {
-                query: {
-                    rfc: string;
-                };
-                header?: never;
-                path: {
-                    folio: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Estado y archivos del CFDI, si existen */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["ConsultaFacturaPublica"];
-                            requestId?: string;
-                        };
-                    };
-                };
-                /** @description No encontrado */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Entrada inválida */
-                422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description Límite de tasa excedido */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/public/constancias/{folio}/verificar/{token}": {
         parameters: {
             query?: never;
@@ -2633,7 +2493,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Crear cobro directo (sin borrador) y factura pendiente opcional */
+        /** Crear cobro directo (sin borrador) y pasar el trámite a COBRO */
         post: {
             parameters: {
                 query?: never;
@@ -2845,35 +2705,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/facturas/solicitudes/{id}/aceptar": {
+    "/constancias/{folio}/cobro": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /** Aceptar solicitud pública y crear factura pendiente (rol finanzas) */
-        post: {
+        /**
+         * Consultar el cobro de una constancia por su folio (rol consulta-cobros)
+         * @description Se llavea por el folio de la constancia porque es único, va impreso en el documento que el ciudadano se lleva y ya lo usa el QR de verificación. `cobro.referenciaPago` es texto libre y sin unicidad: no sirve como llave. La respuesta no incluye datos personales. Responde 404 mientras la constancia no se haya emitido.
+         */
+        get: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
-                    id: string;
+                    folio: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Solicitud aceptada */
+                /** @description Datos del cobro asociado al folio */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            data: components["schemas"]["AceptarSolicitudRespuesta"];
+                            data: components["schemas"]["CobroPorFolio"];
                             requestId?: string;
                         };
                     };
@@ -2905,58 +2766,45 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description La solicitud ya fue resuelta */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
             };
         };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/facturas/solicitudes/{id}/rechazar": {
+    "/constancias/{folio}/cobro/comprobante": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /** Rechazar solicitud de factura (rol finanzas; requiere motivo) */
-        post: {
+        /**
+         * Descargar el comprobante de pago adjuntado al cobrar (rol consulta-cobros)
+         * @description El ticket de la terminal bancaria o el comprobante de la transferencia, tal como se adjuntó en ventanilla. Va en su propia ruta —y no incrustado en el JSON— para que quede claro cuándo se solicita el documento y no sólo sus metadatos. Devuelve los bytes con su content-type, sin la envolvente { data }.
+         */
+        get: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
-                    id: string;
+                    folio: string;
                 };
                 cookie?: never;
             };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ResolucionFacturaRequest"];
-                };
-            };
+            requestBody?: never;
             responses: {
-                /** @description Solicitud rechazada */
+                /** @description Contenido del comprobante */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            data: components["schemas"]["SolicitudFactura"];
-                            requestId?: string;
-                        };
+                        "application/octet-stream": string;
                     };
                 };
                 /** @description No autenticado */
@@ -2986,8 +2834,62 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description La solicitud ya fue resuelta */
-                409: {
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/direccion/metricas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Indicadores del tablero de Dirección (roles direccion o consulta-metricas)
+         * @description Devuelve los seis KPIs que SICEF puede calcular sobre sus propios datos, más la serie mensual de constancias por tipo y la distribución de trámites por estado. El éxito de timbrado y las cancelaciones de CFDI no están aquí: son del sistema Finanzas, que los agrega al componer el tablero. Sin parámetros, el periodo son los últimos 12 meses.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    desde?: string;
+                    hasta?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Indicadores del periodo */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MetricasDireccion"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3006,6 +2908,8 @@ export interface paths {
                 };
             };
         };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3054,7 +2958,7 @@ export interface components {
                 /** Format: uuid */
                 personaId: string;
                 /** @enum {string} */
-                rol: "TITULAR" | "REPRESENTANTE" | "APODERADO" | "RECEPTOR_FISCAL";
+                rol: "TITULAR" | "REPRESENTANTE" | "APODERADO";
             }[];
         };
         CrearCatalogo: {
@@ -3087,21 +2991,13 @@ export interface components {
             formaPago?: string;
             /** @enum {string} */
             metodoPago?: "PUE" | "PPD";
-            requiereFactura?: boolean;
+            facturaSolicitadaEnVentanilla?: boolean;
             referenciaPago?: string;
             comprobante?: {
                 base64: string;
                 nombreOriginal: string;
                 mimeType: string;
             };
-        };
-        SolicitudFacturaPublica: {
-            folio: string;
-            receptorRfc: string;
-            receptorNombre: string;
-            receptorCp: string;
-            receptorRegimen: string;
-            usoCfdi: string;
         };
         GrupoRequest: {
             clave: string;
@@ -3154,8 +3050,11 @@ export interface components {
              * @enum {string}
              */
             moneda: "MXN";
-            /** @default false */
-            requiereFactura: boolean;
+            /**
+             * @description Dato informativo de la ventanilla; la factura vive en el sistema Finanzas
+             * @default false
+             */
+            facturaSolicitadaEnVentanilla: boolean;
             referenciaPago?: string;
             comprobante?: {
                 /** @description Comprobante de pago (voucher) codificado en Base64 */
@@ -3166,7 +3065,6 @@ export interface components {
         };
         PlazosRequest: {
             plazoPagoDias: number;
-            plazoSolicitudFacturaDias: number;
             /** @default true */
             activa: boolean;
         };
@@ -3176,9 +3074,6 @@ export interface components {
             firmanteCargo: string;
             oficioPrefijo: string;
         };
-        ResolucionFacturaRequest: {
-            motivoRechazo?: string;
-        };
         /** @description Sólo se usa en la acción "rechazar" */
         TransicionTramiteRequest: {
             motivo?: string;
@@ -3186,7 +3081,7 @@ export interface components {
         ActorMe: {
             /** Format: uuid */
             actorId: string;
-            roles: ("ventanilla" | "finanzas" | "ti" | "direccion")[];
+            roles: ("ventanilla" | "ti" | "direccion" | "consulta-cobros" | "consulta-metricas")[];
         };
         Persona: {
             /** Format: uuid */
@@ -3334,7 +3229,6 @@ export interface components {
             /** @enum {string} */
             id: "PLAZOS_OPERATIVOS";
             plazoPagoDias: number;
-            plazoSolicitudFacturaDias: number;
             activa: boolean;
             /** Format: uuid */
             actualizadoPorId: string;
@@ -3416,7 +3310,7 @@ export interface components {
                 /** Format: uuid */
                 personaId: string;
                 /** @enum {string} */
-                rol: "TITULAR" | "REPRESENTANTE" | "APODERADO" | "RECEPTOR_FISCAL";
+                rol: "TITULAR" | "REPRESENTANTE" | "APODERADO";
                 createdAt: string;
             }[];
         };
@@ -3455,7 +3349,7 @@ export interface components {
                 /** Format: uuid */
                 personaId: string;
                 /** @enum {string} */
-                rol: "TITULAR" | "REPRESENTANTE" | "APODERADO" | "RECEPTOR_FISCAL";
+                rol: "TITULAR" | "REPRESENTANTE" | "APODERADO";
                 createdAt: string;
                 persona: {
                     /** Format: uuid */
@@ -3531,7 +3425,7 @@ export interface components {
                 /** @enum {string} */
                 metodoPago: "PUE" | "PPD";
                 moneda: string;
-                requiereFactura: boolean;
+                facturaSolicitadaEnVentanilla: boolean;
                 referenciaPago: string | null;
                 /** Format: uuid */
                 comprobanteArchivoUuid: string | null;
@@ -3615,7 +3509,7 @@ export interface components {
             /** @enum {string|null} */
             metodoPago: "PUE" | "PPD" | null;
             moneda: string | null;
-            requiereFactura: boolean | null;
+            facturaSolicitadaEnVentanilla: boolean | null;
             referenciaPago: string | null;
             /** Format: uuid */
             comprobanteArchivoUuid: string | null;
@@ -3653,7 +3547,7 @@ export interface components {
             /** @enum {string} */
             metodoPago: "PUE" | "PPD";
             moneda: string;
-            requiereFactura: boolean;
+            facturaSolicitadaEnVentanilla: boolean;
             referenciaPago: string | null;
             /** Format: uuid */
             comprobanteArchivoUuid: string | null;
@@ -3682,7 +3576,7 @@ export interface components {
                 /** @enum {string} */
                 metodoPago: "PUE" | "PPD";
                 moneda: string;
-                requiereFactura: boolean;
+                facturaSolicitadaEnVentanilla: boolean;
                 referenciaPago: string | null;
                 /** Format: uuid */
                 comprobanteArchivoUuid: string | null;
@@ -3693,31 +3587,6 @@ export interface components {
                 /** Format: uuid */
                 cobradoPorId: string;
                 cobradoAt: string;
-            };
-            factura?: {
-                /** Format: uuid */
-                id: string;
-                /** Format: uuid */
-                cobroId: string;
-                /** @enum {string} */
-                estado: "PENDIENTE" | "TIMBRADO_EN_PROCESO" | "TIMBRADO" | "TIMBRADO_FALLIDO" | "CANCELADO";
-                receptorRfc: string | null;
-                receptorNombre: string | null;
-                receptorCp: string | null;
-                receptorRegimen: string | null;
-                usoCfdi: string | null;
-                idempotencyKey: string;
-                uuid: string | null;
-                xmlRuta: string | null;
-                pdfRuta: string | null;
-                intentos: number;
-                ultimoError: string | null;
-                timbradaAt: string | null;
-                canceladaAt: string | null;
-                motivoCancelacion: string | null;
-                uuidSustituto: string | null;
-                createdAt: string;
-                updatedAt: string;
             };
         };
         AplicarBorradorRespuesta: {
@@ -3737,7 +3606,7 @@ export interface components {
                 /** @enum {string|null} */
                 metodoPago: "PUE" | "PPD" | null;
                 moneda: string | null;
-                requiereFactura: boolean | null;
+                facturaSolicitadaEnVentanilla: boolean | null;
                 referenciaPago: string | null;
                 /** Format: uuid */
                 comprobanteArchivoUuid: string | null;
@@ -3775,7 +3644,7 @@ export interface components {
                 /** @enum {string} */
                 metodoPago: "PUE" | "PPD";
                 moneda: string;
-                requiereFactura: boolean;
+                facturaSolicitadaEnVentanilla: boolean;
                 referenciaPago: string | null;
                 /** Format: uuid */
                 comprobanteArchivoUuid: string | null;
@@ -3786,31 +3655,6 @@ export interface components {
                 /** Format: uuid */
                 cobradoPorId: string;
                 cobradoAt: string;
-            };
-            factura?: {
-                /** Format: uuid */
-                id: string;
-                /** Format: uuid */
-                cobroId: string;
-                /** @enum {string} */
-                estado: "PENDIENTE" | "TIMBRADO_EN_PROCESO" | "TIMBRADO" | "TIMBRADO_FALLIDO" | "CANCELADO";
-                receptorRfc: string | null;
-                receptorNombre: string | null;
-                receptorCp: string | null;
-                receptorRegimen: string | null;
-                usoCfdi: string | null;
-                idempotencyKey: string;
-                uuid: string | null;
-                xmlRuta: string | null;
-                pdfRuta: string | null;
-                intentos: number;
-                ultimoError: string | null;
-                timbradaAt: string | null;
-                canceladaAt: string | null;
-                motivoCancelacion: string | null;
-                uuidSustituto: string | null;
-                createdAt: string;
-                updatedAt: string;
             };
         };
         Constancia: {
@@ -3832,115 +3676,51 @@ export interface components {
             anulada: boolean;
             urlVerificacion: string | null;
         };
-        Factura: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            cobroId: string;
+        CobroPorFolio: {
+            folioConstancia: string;
             /** @enum {string} */
-            estado: "PENDIENTE" | "TIMBRADO_EN_PROCESO" | "TIMBRADO" | "TIMBRADO_FALLIDO" | "CANCELADO";
-            receptorRfc: string | null;
-            receptorNombre: string | null;
-            receptorCp: string | null;
-            receptorRegimen: string | null;
-            usoCfdi: string | null;
-            idempotencyKey: string;
-            uuid: string | null;
-            xmlRuta: string | null;
-            pdfRuta: string | null;
-            intentos: number;
-            ultimoError: string | null;
-            timbradaAt: string | null;
-            canceladaAt: string | null;
-            motivoCancelacion: string | null;
-            uuidSustituto: string | null;
-            createdAt: string;
-            updatedAt: string;
-        };
-        SolicitudFactura: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            cobroId: string;
-            /** Format: uuid */
-            facturaId: string | null;
+            tipoConstancia: "NO_ADEUDO" | "NO_REGISTRO";
+            emitidaAt: string;
+            concepto: string;
+            montoFinal: string;
+            moneda: string;
+            cobradoAt: string;
+            formaPago: string;
             /** @enum {string} */
-            estado: "PENDIENTE_REVISION" | "ACEPTADA" | "RECHAZADA";
-            receptorRfc: string;
-            receptorNombre: string;
-            receptorCp: string;
-            receptorRegimen: string;
-            usoCfdi: string;
-            fechaLimite: string;
-            solicitadaAt: string;
-            /** Format: uuid */
-            resueltaPorId: string | null;
-            resueltaAt: string | null;
-            motivoRechazo: string | null;
+            metodoPago: "PUE" | "PPD";
+            referenciaPago: string | null;
+            comprobante: {
+                nombreOriginal: string | null;
+                mimeType: string | null;
+                tamanoBytes: number | null;
+                hashSha256: string | null;
+            } | null;
         };
-        AceptarSolicitudRespuesta: {
-            solicitud: {
-                /** Format: uuid */
-                id: string;
-                /** Format: uuid */
-                cobroId: string;
-                /** Format: uuid */
-                facturaId: string | null;
+        MetricasDireccion: {
+            periodo: {
+                desde: string;
+                hasta: string;
+            };
+            kpis: {
+                clave: string;
+                etiqueta: string;
+                valor: number;
                 /** @enum {string} */
-                estado: "PENDIENTE_REVISION" | "ACEPTADA" | "RECHAZADA";
-                receptorRfc: string;
-                receptorNombre: string;
-                receptorCp: string;
-                receptorRegimen: string;
-                usoCfdi: string;
-                fechaLimite: string;
-                solicitadaAt: string;
-                /** Format: uuid */
-                resueltaPorId: string | null;
-                resueltaAt: string | null;
-                motivoRechazo: string | null;
+                unidad: "CONTEO" | "PORCENTAJE" | "MINUTOS";
+            }[];
+            constanciasPorMes: {
+                meses: string[];
+                series: {
+                    /** @enum {string} */
+                    tipo: "NO_ADEUDO" | "NO_REGISTRO";
+                    valores: number[];
+                }[];
             };
-            factura: {
-                /** Format: uuid */
-                id: string;
-                /** Format: uuid */
-                cobroId: string;
+            tramitesPorEstado: {
                 /** @enum {string} */
-                estado: "PENDIENTE" | "TIMBRADO_EN_PROCESO" | "TIMBRADO" | "TIMBRADO_FALLIDO" | "CANCELADO";
-                receptorRfc: string | null;
-                receptorNombre: string | null;
-                receptorCp: string | null;
-                receptorRegimen: string | null;
-                usoCfdi: string | null;
-                idempotencyKey: string;
-                uuid: string | null;
-                xmlRuta: string | null;
-                pdfRuta: string | null;
-                intentos: number;
-                ultimoError: string | null;
-                timbradaAt: string | null;
-                canceladaAt: string | null;
-                motivoCancelacion: string | null;
-                uuidSustituto: string | null;
-                createdAt: string;
-                updatedAt: string;
-            };
-        };
-        ConsultaFacturaPublica: {
-            /** @enum {string} */
-            estado: "PENDIENTE" | "TIMBRADO_EN_PROCESO" | "TIMBRADO" | "TIMBRADO_FALLIDO" | "CANCELADO";
-            uuid?: string;
-            xml?: {
-                /** Format: uuid */
-                archivoUuid: string;
-                mimeType: string;
-            };
-            pdf?: {
-                /** Format: uuid */
-                archivoUuid: string;
-                mimeType: string;
-            };
-            disponible: boolean;
+                estado: "CAPTURA" | "EN_VALIDACION" | "APROBADO" | "RECHAZADO" | "EXPIRADO" | "COBRO" | "FINALIZADO";
+                total: number;
+            }[];
         };
         VerificacionConstanciaPublica: {
             /** @enum {boolean} */

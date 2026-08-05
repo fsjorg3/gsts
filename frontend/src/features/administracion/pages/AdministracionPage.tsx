@@ -48,7 +48,6 @@ function PanelPlazos() {
   const vigente = useQuery(plazosOptions);
   const guardar = useGuardarPlazos();
   const [pago, setPago] = useState('');
-  const [factura, setFactura] = useState('');
   const [editado, setEditado] = useState(false);
 
   // Precarga desde el servidor una sola vez; si el usuario ya está editando,
@@ -56,14 +55,13 @@ function PanelPlazos() {
   useEffect(() => {
     if (editado || !vigente.data) return;
     setPago(String(vigente.data.plazoPagoDias));
-    setFactura(String(vigente.data.plazoSolicitudFacturaDias));
   }, [vigente.data, editado]);
 
   return (
     <Card titulo="Plazos operativos">
       <Typography sx={{ fontSize: 12.5, color: 'text.secondary', mb: 2 }}>
-        El plazo de pago se estampa al aprobar un trámite; el de solicitud de factura corre desde la emisión de la
-        constancia.
+        El plazo de pago se estampa al aprobar un trámite. El plazo para solicitar factura ya no se configura aquí: lo
+        calcula el sistema Finanzas desde la fecha de pago.
       </Typography>
       {!vigente.isPending && !vigente.data ? (
         <Alert severity="info" icon={<MsIcon name="info" size={20} />} sx={{ mb: 2 }}>
@@ -72,13 +70,12 @@ function PanelPlazos() {
       ) : null}
       <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <TextField label="Plazo de pago (días)" value={pago} onChange={(e) => { setEditado(true); setPago(e.target.value.replace(/\D/g, '')); }} sx={{ width: 200 }} />
-        <TextField label="Solicitud de factura (días)" value={factura} onChange={(e) => { setEditado(true); setFactura(e.target.value.replace(/\D/g, '')); }} sx={{ width: 220 }} />
         <Button
           variant="contained"
-          disabled={!Number(pago) || !Number(factura) || guardar.isPending}
+          disabled={!Number(pago) || guardar.isPending}
           onClick={() =>
             guardar.mutate(
-              { plazoPagoDias: Number(pago), plazoSolicitudFacturaDias: Number(factura) },
+              { plazoPagoDias: Number(pago) },
               { onSuccess: () => { setEditado(false); notificar.exito('Plazos operativos actualizados.'); }, onError: (error) => notificar.error(error) },
             )
           }

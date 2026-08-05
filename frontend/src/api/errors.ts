@@ -44,7 +44,6 @@ const COPY_POR_CODIGO: Record<string, string> = {
   DRAFT_ALREADY_OPEN: 'Este trámite ya tiene un borrador de cobro abierto. Continúa con el existente.',
   DRAFT_NOT_OPEN: 'El borrador ya no está abierto; no se puede aplicar.',
   DRAFT_INCOMPLETE: 'Completa tarifa, forma y método de pago antes de aplicar el borrador.',
-  REQUEST_ALREADY_RESOLVED: 'Esta solicitud de factura ya fue resuelta.',
   INVALID_STATE: 'La acción no procede en el estado actual del trámite.',
   INVALID_VALIDITY: 'La vigencia de la constancia debe ser una fecha futura.',
   FILE_TOO_LARGE: 'El archivo excede el límite de 30 MB acumulados por trámite.',

@@ -22,7 +22,7 @@ flowchart LR
     P[Portal ciudadano] -->|datos fiscales + ticket| F[Finanzas]
     V[Ventanilla · navegador] -->|registrar cobro| S[SICEF]
     V -->|datos fiscales + ticket| F
-    F -.->|GET por-referencia, opcional| S
+    F -.->|GET por folio, opcional| S
 ```
 
 La flecha punteada es la única que cruza entre los dos sistemas, va en un solo sentido y su fallo no rompe nada. Sin transacción distribuida, sin outbox, sin cola, sin acoplamiento de disponibilidad. Es la clase de frontera que justifica separar.
@@ -274,10 +274,11 @@ Códigos de error nuevos respecto al catálogo de SICEF: `SOLICITUD_DUPLICADA`, 
 Una sola llamada, servidor a servidor:
 
 ```
-GET {SICEF}/api/v1/cobros/por-referencia/{referencia}
+GET {SICEF}/api/v1/constancias/{folio}/cobro
+GET {SICEF}/api/v1/constancias/{folio}/cobro/comprobante
 ```
 
-**Cuándo se invoca:** al crear una solicitud cuyo origen tiene `verificableEnSicef = true` — hoy sólo `CONSTANCIA`.
+**Cuándo se invoca:** al crear una solicitud cuyo origen tiene `verificableEnSicef = true` — hoy sólo `CONSTANCIA`. Para ese origen, `referenciaOrigen` **es el folio de la constancia**: único por construcción, impreso en el documento que el ciudadano se lleva, y por eso el índice anti-duplicado de §7 es sólido sin depender de quién teclea. La segunda ruta trae el ticket de la terminal, por si algún dato del comprobante importa para la validación.
 
 **Qué se hace con el resultado:** se registra una fila `ValidacionSolicitud` de tipo `SICEF` con el snapshot en `datos`. Si el monto y la fecha coinciden con lo declarado, `resultado = CONFIRMADO` y la solicitud queda lista para aceptarse. Si no coinciden, `NO_CONFIRMADO` con la discrepancia en `observacion`, y pasa a revisión manual.
 

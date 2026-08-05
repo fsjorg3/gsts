@@ -281,39 +281,64 @@ PATCH  /tramites/{id}/borradores-cobro/{borradorId}
 POST   /tramites/{id}/borradores-cobro/{borradorId}/aplicar
 POST   /tramites/{id}/cobros, /tramites/{id}/constancias
 GET    /tramites/{id}/constancias/{constanciaId}/archivo
-GET    /cobros/por-referencia/{referencia}           ← nueva, ver §8
+GET    /constancias/{folio}/cobro                    ← nueva, ver §8
+GET    /constancias/{folio}/cobro/comprobante        ← nueva, ver §8
+GET    /direccion/metricas                           ← nueva, ver §8
 ```
 
 Las convenciones de alambre no cambian: éxito `{ data, requestId? }`, listas `{ data, meta.nextCursor?, requestId? }`, error `{ error: { code, message, details? } }`.
 
-## 8. El único punto de integración
+## 8. Los puntos de integración
 
-Finanzas necesita verificar que un ticket de pago corresponde a un cobro real. Para eso —y sólo para eso— SICEF expone una consulta:
+SICEF expone tres rutas de sólo lectura y no consume nada de Finanzas.
+
+### 8.1 Cobro y comprobante, por folio de constancia
 
 ```
-GET /api/v1/cobros/por-referencia/{referencia}
+GET /api/v1/constancias/{folio}/cobro               → metadatos del cobro
+GET /api/v1/constancias/{folio}/cobro/comprobante   → bytes del ticket
 ```
 
-**Respuesta** (sin datos personales, por la misma disciplina que rige el logging):
+**Por qué el folio y no la referencia de pago.** El folio (`GSTS-{numeroTramite}-{8 hex}`) es `@unique`, va impreso en el documento que el ciudadano se lleva y ya lo usa el QR de verificación. `cobro.referencia_pago` es texto libre, **opcional y sin unicidad**: un cobro puede no tenerla y dos cobros pueden compartirla. Sirve como registro interno, nunca como llave de integración.
+
+**Respuesta** de la primera, sin datos personales:
 
 ```json
 {
   "data": {
-    "referenciaPago": "…",
+    "folioConstancia": "GSTS-1234-A1B2C3D4",
+    "tipoConstancia": "NO_REGISTRO",
+    "emitidaAt": "2026-08-04T18:00:00.000Z",
+    "concepto": "Constancia de no registro",
     "montoFinal": "350.00",
     "moneda": "MXN",
     "cobradoAt": "2026-08-04T17:20:00.000Z",
-    "concepto": "Constancia de no registro",
-    "tipoConstancia": "NO_REGISTRO",
-    "folioConstancia": "…"
+    "formaPago": "04",
+    "metodoPago": "PUE",
+    "referenciaPago": "…",
+    "comprobante": { "nombreOriginal": "ticket.pdf", "mimeType": "application/pdf", "tamanoBytes": 84213, "hashSha256": "…" }
   },
   "requestId": "…"
 }
 ```
 
-No devuelve RFC, nombres, `nis`, ni identificadores internos de trámite o persona.
+Sin RFC, nombres, `nis` ni identificadores internos de trámite o persona. **El comprobante sí muestra lo que muestre el ticket** de la terminal: por eso va en su propia ruta, para que quede claro cuándo se pide el documento y no sólo sus metadatos. Es una entrega deliberada, para que Finanzas coteje contra los registros bancarios.
 
-**Autenticación:** service account de Keycloak en el realm `SOAPAP`, con un rol dedicado (p. ej. `consulta-cobros`) — no `ventanilla` ni `finanzas`, que son roles de personas. La llamada es servidor a servidor: el backend de Finanzas la hace, nunca el navegador.
+El folio sólo existe una vez emitida la constancia, así que ambas rutas responden `404` antes de eso — coherente con que solicitar factura implica que el pago ya ocurrió.
+
+### 8.2 Indicadores de Dirección
+
+```
+GET /api/v1/direccion/metricas?desde=&hasta=
+```
+
+Seis KPIs, serie mensual de constancias por tipo y distribución de trámites por estado. El éxito de timbrado y las cancelaciones de CFDI no están aquí: son de Finanzas, que los agrega al componer el tablero. Sin parámetros, el periodo son los últimos 12 meses.
+
+**Autenticación de las tres:** service account de Keycloak en el realm `SOAPAP`, con roles de cliente dedicados — `consulta-cobros` y `consulta-metricas`, no `ventanilla` ni `direccion`, que son roles de personas. Las llamadas son servidor a servidor: las hace el backend de Finanzas, nunca el navegador. `direccion` también se acepta en las métricas, por si algún día conviene consultarlas de forma directa.
+
+### 8.3 SICEF no imprime acuses
+
+La constancia es el único documento que ventanilla entrega y lo que finaliza el trámite. No hay acuse de cobro impreso: si el envío de datos fiscales a Finanzas falla, no existe papel donde avisarlo — hay que resolverlo en pantalla, del lado de Finanzas.
 
 **Si esta ruta no responde**, Finanzas cae a validación manual contra los registros bancarios. Esa no es una ruta de contingencia inventada para el caso: es la ruta **normal** para permisos de descarga, penalizaciones y cualquier otro origen. La disponibilidad de SICEF nunca bloquea a Finanzas.
 
@@ -324,7 +349,7 @@ flowchart LR
     P[Portal ciudadano] -->|datos fiscales + ticket| F[Finanzas]
     V[Ventanilla · navegador] -->|registrar cobro| S[SICEF]
     V -->|datos fiscales + ticket| F
-    F -.->|GET por-referencia, opcional| S
+    F -.->|GET por folio, opcional| S
 ```
 
 La flecha punteada es la única que existe, y va en un solo sentido. SICEF no conoce la existencia de Finanzas. No hay push, ni outbox, ni cola, ni transacción distribuida.
@@ -362,18 +387,12 @@ Retirar el módulo Finanzas de [modulos.ts](../frontend/src/app/layout/modulos.t
 **Paso 7 — Documentación.**
 Actualizar `documentacion/CONTRATO_API_SICEF.md` (§4.3, §4.4, la guardia de §4.1 y el catálogo de errores), `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` y `PENDIENTES_BACKEND_FRONTEND.md`. Al terminar, `documentacion2/` puede fusionarse con `documentacion/`.
 
-## 10. Decisiones abiertas
+## 10. Decisiones cerradas
 
-**Dirección y los KPIs cruzados.** Los indicadores de Dirección tocarían dos bases de datos. Es el costo real de la separación. Opciones sobre la mesa, ninguna elegida:
+**Dirección.** Su módulo vive en el frontend del sistema Finanzas y no toca la base de SICEF. El backend de Finanzas consulta `GET /direccion/metricas` con service account y reexpone el resultado ya compuesto con sus propios indicadores fiscales — así SICEF no necesita ser alcanzable desde el navegador.
 
-| Opción | A favor | En contra |
-|---|---|---|
-| Base de reportes read-only alimentada desde ambas | Consultas cruzadas triviales; no acopla los sistemas operativos | Un tercer artefacto que mantener y sincronizar |
-| Dirección vive en Finanzas y consulta la API de SICEF | Un solo lugar donde construirlo | Ata los indicadores a la disponibilidad de SICEF |
-| Dirección vive en SICEF y consulta la API de Finanzas | SICEF ya tiene el módulo esbozado | Misma atadura, en el otro sentido |
+**Frontend.** Dos aplicaciones separadas, una por sistema, cada una con su cliente Keycloak en el realm `SOAPAP`. La de SICEF conserva Ventanilla, Administración y Bitácora.
 
-El módulo está hoy en shell con datos de demostración, así que no hay retrabajo — pero conviene decidir antes de construirlo.
+**Despliegue.** Finanzas corre en una VM/LXC aparte, con backend y frontend propios.
 
-**Frontend de Finanzas.** ¿Dos aplicaciones web separadas (una por área, cada una con su cliente Keycloak en el mismo realm), o una sola que consuma ambas APIs? Dos aplicaciones es lo coherente con la separación; una sola recrea el acoplamiento en la capa de UI.
-
-**Portal ciudadano.** Después del recorte apunta a dos backends: SICEF para verificar constancias, Finanzas para solicitar y consultar facturas. ¿Se acepta así, o se pone un gateway al frente?
+**Portal ciudadano.** Consume los endpoints de ambos backends —y de más, si en su momento se requieren—, sin gateway intermedio.

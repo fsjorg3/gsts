@@ -1,16 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { z } from 'zod';
-import { solicitudFacturaPublicaSchema } from '@sicef/contracts';
 import type { Env } from '../../config/env.js';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { crearVerificadorTokens } from '../../infrastructure/verificacion/token.js';
 import { AppError } from '../../shared/errors.js';
 import { routeParam } from '../../api/shared/params.js';
 import { resolverVerificacion, type ConstanciaVerificable } from './verificacion.js';
-
-const consultaFacturaSchema = z.object({ rfc: z.string().trim().min(12).max(13) });
 
 // Intento contra un folio que no existe (o cuyo token no cuadra): no hay
 // entidad real que referenciar y bitacora.entidad_id es NOT NULL uuid. Mismo
@@ -31,24 +27,6 @@ export function createPublicoRouter(env: Env): Router {
     legacyHeaders: false,
   });
 
-  router.post('/facturas/solicitudes', async (request, response, next) => {
-    try { const input = solicitudFacturaPublicaSchema.parse(request.body); const data = await prisma.$transaction(async (tx) => { const constancia = await tx.constancia.findUnique({ where: { folioUnico: input.folio }, include: { tramite: { include: { cobro: true } } } }); if (!constancia?.tramite.cobro) throw new AppError(404, 'NOT_FOUND', 'Constancia no encontrada'); const solicitud = await tx.solicitudFactura.create({ data: { ...input, cobroId: constancia.tramite.cobro.id, fechaLimite: new Date(0) } }); await tx.bitacora.create({ data: { origen: 'PORTAL', entidad: 'solicitud_factura', entidadId: solicitud.id, accion: 'CREAR', ipAddress: request.ip, userAgent: request.header('user-agent') ?? 'unknown', requestId: randomUUID() } }); return solicitud; }); response.status(201).json({ data }); } catch (error) { next(error); }
-  });
-  // Consulta pública de CFDI: exige folio + RFC. No expone detalle técnico de timbrado.
-  // El XML/PDF sólo aparece cuando el worker de timbrado (fuera de alcance) los generó.
-  router.get('/facturas/:folio', async (request, response, next) => {
-    try {
-      const { rfc } = consultaFacturaSchema.parse(request.query);
-      const constancia = await prisma.constancia.findUnique({ where: { folioUnico: request.params.folio }, include: { tramite: { include: { cobro: { include: { factura: { include: { archivos: true } } } } } } } });
-      const factura = constancia?.tramite.cobro?.factura;
-      if (!factura || (factura.receptorRfc ?? '').toUpperCase() !== rfc.toUpperCase()) throw new AppError(404, 'NOT_FOUND', 'No se encontró una factura para el folio y RFC proporcionados');
-      await prisma.bitacora.create({ data: { origen: 'PORTAL', entidad: 'factura', entidadId: factura.id, accion: 'CONSULTAR', ipAddress: request.ip ?? '0.0.0.0', userAgent: request.header('user-agent') ?? 'unknown', requestId: randomUUID() } });
-      const activos = factura.archivos.filter((archivo) => archivo.conservacion === 'ACTIVO');
-      const referencia = (tipo: string) => { const encontrado = activos.find((archivo) => archivo.tipo === tipo); return encontrado ? { archivoUuid: encontrado.archivoUuid, mimeType: encontrado.mimeType } : undefined; };
-      const xml = referencia('XML'); const pdf = referencia('PDF');
-      response.json({ data: { estado: factura.estado, uuid: factura.uuid ?? undefined, xml, pdf, disponible: Boolean(xml && pdf) } });
-    } catch (error) { next(error); }
-  });
   // Verificación por QR. El token funciona como capacidad: sólo quien tiene el
   // documento impreso puede consultarlo. No existe ruta equivalente sin token
   // —sería enumerable, porque el folio lleva el consecutivo del trámite.

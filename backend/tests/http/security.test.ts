@@ -11,10 +11,10 @@ const env: Env = {
   KEYCLOAK_ISSUER_URL: 'https://keycloak.test/realms/SOAPAP',
   KEYCLOAK_JWKS_URL: 'https://keycloak.test/realms/SOAPAP/protocol/openid-connect/certs',
   KEYCLOAK_CLIENT_ID: 'sicef', KEYCLOAK_AUDIENCE: 'sicef',
-  NFS_BASE_PATH: '/tmp/sicef', NFS_EVIDENCIAS_PATH: '/tmp/sicef/evidencias', NFS_CONSTANCIAS_PATH: '/tmp/sicef/constancias', NFS_FACTURAS_PATH: '/tmp/sicef/facturas', NFS_COMPROBANTES_PATH: '/tmp/sicef/comprobantes',
+  NFS_BASE_PATH: '/tmp/sicef', NFS_EVIDENCIAS_PATH: '/tmp/sicef/evidencias', NFS_CONSTANCIAS_PATH: '/tmp/sicef/constancias', NFS_COMPROBANTES_PATH: '/tmp/sicef/comprobantes',
   MAX_EVIDENCIA_TOTAL_BYTES: 31_457_280,
   SIGNING_SERVICE_URL: 'https://signing.test', SIGNING_SERVICE_AUTH_TOKEN: 'test-token', SIGNING_SERVICE_TIMEOUT_MS: 1_000,
-  PAC_BASE_URL: 'https://pac.test', PAC_API_KEY: 'test-key', OUC_API_URL: 'https://ouc.test', OUC_API_TOKEN: 'test-token',
+  OUC_API_URL: 'https://ouc.test', OUC_API_TOKEN: 'test-token',
   PUBLIC_BASE_URL: 'https://portal.test', PUBLIC_RATE_LIMIT_WINDOW_MS: 60_000, PUBLIC_RATE_LIMIT_MAX: 2,
   SECRETO_VERIFICADOR_V1: 'clave-de-prueba-de-al-menos-32-bytes', SECRETO_VERIFICADOR_V2: undefined, VERSION_TOKEN_ACTUAL: 'v1',
   VERIFICACION_RATE_LIMIT_WINDOW_MS: 60_000, VERIFICACION_RATE_LIMIT_MAX: 2,
@@ -51,16 +51,13 @@ describe('controles HTTP', () => {
       request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/cobros'),
       request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/constancias'),
       request(app).get('/api/v1/tramites/00000000-0000-0000-0000-000000000000/constancias/00000000-0000-0000-0000-000000000000/archivo'),
-      request(app).post('/api/v1/facturas/solicitudes/00000000-0000-0000-0000-000000000000/aceptar'),
+      // Superficie hacia Finanzas: sólo service account, nunca anónima.
+      request(app).get('/api/v1/constancias/GSTS-1-ABCD1234/cobro'),
+      request(app).get('/api/v1/constancias/GSTS-1-ABCD1234/cobro/comprobante'),
+      request(app).get('/api/v1/direccion/metricas'),
     ];
     const responses = await Promise.all(requests);
     for (const response of responses) expect(response.status).toBe(401);
-  });
-
-  it('exige RFC en la consulta pública de CFDI', async () => {
-    const response = await request(createApp(env)).get('/api/v1/public/facturas/SICEF-1-ABCD1234');
-    expect(response.status).toBe(422);
-    expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('limita rutas públicas', async () => {

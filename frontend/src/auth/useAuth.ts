@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth as useOidc } from 'react-oidc-context';
 import { api } from '@/api/client';
 
-export type RolSicef = 'ventanilla' | 'finanzas' | 'ti' | 'direccion';
+// `finanzas` desapareció con el recorte de facturación. `direccion` sigue
+// existiendo en el realm y en la API, pero su tablero se construye en la
+// aplicación de Finanzas, no en ésta.
+export type RolSicef = 'ventanilla' | 'ti' | 'direccion';
 
 // Fuente de verdad de roles en la UI: GET /auth/me (el backend extrae cada rol
 // de su fuente correcta en el token; la UI no interpreta claims de Keycloak).

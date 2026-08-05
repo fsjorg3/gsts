@@ -8,9 +8,13 @@ SICEF: sistema para emitir constancias de no adeudo / no registro (SOAPAP). Mono
 
 - `backend/` — Express 5 + Prisma 7 + PostgreSQL.
 - `packages/contracts/` — `@sicef/contracts`, esquemas Zod / DTOs compartidos.
-- `frontend/` — Vite 8 + React 19 + MUI 9 + react-router 8 + TanStack Query + Redux Toolkit. Fase 1 (Ventanilla, Administración, Bitácora) va contra la API real; Finanzas y Dirección son shells con datos de demostración (`src/mocks/`) porque aún no existen sus endpoints.
+- `frontend/` — Vite 8 + React 19 + MUI 9 + react-router 8 + TanStack Query + Redux Toolkit. Tres módulos, todos contra la API real: Ventanilla, Administración y Bitácora.
 
-Fuera de alcance: el worker de timbrado PAC y la integración OUC (sólo se definen sus puertos en `backend/src/infrastructure/pac` y `ouc`), y el Servicio de Firma (retirado del flujo: su cliente HTTP se conserva sin uso).
+**La facturación no vive aquí.** Se extrajo a un sistema independiente («Finanzas»), con su propio repositorio, backend, frontend y base de datos, desplegado en otra VM/LXC — porque SOAPAP debe facturar también permisos de descarga y penalizaciones, que no cuelgan de un trámite de constancia. SICEF conserva el cobro (es lo que habilita la entrega de la constancia en ventanilla) pero no emite CFDI. El diseño de ambos sistemas está en `documentacion2/`.
+
+SICEF expone a Finanzas **tres rutas de sólo lectura** y no consume nada de él: `GET /constancias/{folio}/cobro`, `GET /constancias/{folio}/cobro/comprobante` y `GET /direccion/metricas`. Se llavean por el folio de la constancia —único e impreso en el documento—, nunca por `cobro.referenciaPago`, que es texto libre, opcional y sin unicidad.
+
+Fuera de alcance: la integración OUC (sólo se define su puerto en `backend/src/infrastructure/ouc`) y el Servicio de Firma (retirado del flujo: su cliente HTTP se conserva sin uso).
 
 ## Commands
 
@@ -45,13 +49,13 @@ Monolito modular. Each domain module in `backend/src/modules/` owns its router/v
 
 ### Request flow for internal routes
 
-1. `createAuthenticate(env)` ([auth/middleware.ts](backend/src/modules/auth/middleware.ts)) verifies the Keycloak JWT (realm `SOAPAP`, client/audience `sicef`) via JWKS. Roles come straight from claims — `ventanilla`/`finanzas` from `resource_access.sicef.roles`, `ti`/`direccion` from `realm_access.roles` — and are never persisted or mapped to local roles.
+1. `createAuthenticate(env)` ([auth/middleware.ts](backend/src/modules/auth/middleware.ts)) verifies the Keycloak JWT (realm `SOAPAP`, client/audience `sicef`) via JWKS. Roles come straight from claims — `ventanilla` y los de service account `consulta-cobros`/`consulta-metricas` from `resource_access.sicef.roles`, `ti`/`direccion` from `realm_access.roles` — and are never persisted or mapped to local roles. El rol `finanzas` **ya no existe en SICEF**: pertenece al otro sistema, y un token que sólo lo traiga recibe `403 MISSING_ROLE`.
 2. `bindActor` upserts a pseudonymous `actor` row keyed only by `sub` (`resolveActor`). No name/email/roles are ever stored.
 3. `requireRoles(...)` gates by claim.
 4. Handlers build a `DatabaseContext` via `requestContext(request)` and run mutations inside `withBusinessTransaction` ([prisma.ts](backend/src/infrastructure/database/prisma.ts)), which sets `app.actor_id`, `app.roles`, `app.request_id` with `set_config(..., true)` so SQL triggers can enforce/audit.
 5. Any business mutation must write a `bitacora` entry **in the same transaction** via [auditoria/service.ts](backend/src/modules/auditoria/service.ts).
 
-Public routes (`/api/v1/public`: solicitud de factura, consulta CFDI, verificación de constancia) skip auth but get rate limiting and bitácora with origin `PORTAL`.
+Public routes (`/api/v1/public`: hoy sólo la verificación de constancia por QR) skip auth but get rate limiting and bitácora with origin `PORTAL`.
 
 ### Database owns the hard rules
 
@@ -59,7 +63,9 @@ The database installs in **two steps**: `backend/prisma/migrations/` holds only 
 
 ### Infrastructure adapters
 
-`backend/src/infrastructure/`: `storage/` (NFS paths + hashes for evidencias/constancias/facturas/comprobantes — evidencias, comprobantes y facturas llegan Base64 dentro del JSON, de ahí el límite de body de 42mb), `signing/` (cliente del Servicio de Firma — **sin uso**: el servicio quedó fuera del proyecto tentativamente, así que la emisión no firma y `firmaDigital`/`certificadoId` quedan en `null`; se conserva por si vuelve), `pac/` and `ouc/` (ports only).
+`backend/src/infrastructure/`: `storage/` (NFS paths + hashes para evidencias/constancias/comprobantes — evidencias y comprobantes llegan Base64 dentro del JSON, de ahí el límite de body de 42mb; `leerPorUuid` sirve a los comprobantes, que se guardan por UUID sin columna `ruta`), `signing/` (cliente del Servicio de Firma — **sin uso**: el servicio quedó fuera del proyecto tentativamente, así que la emisión no firma y `firmaDigital`/`certificadoId` quedan en `null`; se conserva por si vuelve), `ouc/` (port only).
+
+El comprobante de pago es **el ticket de la terminal bancaria** (única forma de pago en SOAPAP) o el comprobante de la transferencia: el ciudadano lo trae, ventanilla lo adjunta al cobrar. SICEF no emite ningún ticket ni acuse; el único documento que produce es el PDF de la constancia.
 
 **La constancia es la excepción: el backend la genera, no la recibe.** `backend/src/modules/constancias/plantillas/` renderiza el PDF con PDFKit y estampa el QR de verificación; el texto legal de cada tipo vive en su propia plantilla y el registro `PLANTILLAS` es parcial a propósito (sólo existe la del tipo cuyo texto está aprobado — hoy `NO_REGISTRO`). Los logotipos institucionales están en `backend/recursos/logotipos/`, fuera de `src/`, y se resuelven relativo al módulo: `dist/` espeja `src/`, así que la misma ruta sirve en dev y en producción sin pasos de build. La vigencia y el firmante impresos salen de `ConfiguracionConstancia` (una fila por tipo, sin valores por defecto).
 
@@ -94,10 +100,16 @@ Convenciones de alambre: éxito `{ data, requestId? }`, listas `{ data, meta.nex
 
 ## Reference docs
 
-En `documentacion/` (autoritativos, en este orden de utilidad):
+En `documentacion2/` (estado destino tras la separación; **prevalecen** sobre `documentacion/` donde discrepen):
+
+- `SISTEMA_SICEF.md` — qué queda de SICEF, con su ERD, máquinas de estado y plan de recorte.
+- `SISTEMA_FINANZAS.md` — diseño del sistema de facturación independiente, aún no construido.
+- `sicef_erd.html` / `finanzas_erd.html` — ERD interactivos con atributos, sin conexión.
+
+En `documentacion/` (autoritativos para lo que no tocó el recorte):
 
 - `CONTRATO_API_SICEF.md` — contrato de la API, máquinas de estado y catálogo de códigos de error.
-- `PENDIENTES_BACKEND_FRONTEND.md` — backlog vivo de endpoints que el frontend necesita y el backend aún no expone (explica por qué Finanzas y Dirección usan mocks).
+- `PENDIENTES_BACKEND_FRONTEND.md` — backlog vivo de endpoints que el frontend necesita y el backend aún no expone.
 - `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` — modelo de datos y reglas de versionado de catálogos.
 - `STACK_BACKEND_SICEF.md` / `STACK_FRONTEND_SICEF.md` — decisiones de stack, variables de entorno, criterios de aceptación.
 - `GUIA_DESPLIEGUE_BASE_DATOS.md` e `init_postgres_soapap3.sql` — roles, aislamiento y permisos de PostgreSQL.

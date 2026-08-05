@@ -12,7 +12,6 @@ El modelo representa el ciclo completo de una constancia de no adeudo o de no re
 4. se aprueba o rechaza el trámite;
 5. se genera y registra el cobro;
 6. se emite la constancia;
-7. opcionalmente se timbra una factura individual o se integra el cobro a una factura global;
 8. se finaliza el trámite y se conserva la bitácora de todo lo ocurrido.
 
 La regla de diseño más importante es que la base de datos no sólo almacena datos: también protege la historia. Un catálogo o una tarifa que ya fue publicada no debe modificarse para cambiar su significado. Los cambios funcionales se modelan como nuevas versiones.
@@ -39,8 +38,8 @@ Se aplica como migración inicial y agrega, después de la estructura Prisma:
 - índices únicos parciales para impedir más de una versión activa;
 - funciones y triggers de inmutabilidad;
 - validación del checklist de requisitos;
-- máquina de estados del trámite y de la factura;
-- validaciones de cobro, factura global y archivos;
+- máquina de estados del trámite y del borrador de cobro;
+- validaciones de cobro y archivos;
 - protección de constancias, archivos generados y bitácora;
 - prohibición de borrado histórico en entidades críticas.
 
@@ -59,7 +58,7 @@ Por tanto, el comportamiento real es la combinación de ambos archivos. Ejecutar
 
 ### Contexto de identidad y autorización
 
-El backend valida criptográficamente cada JWT antes de tocar la base: emisor, audiencia `sicef`, firma obtenida por JWKS, vigencia y claim `sub`. En cada transacción de negocio fija `app.actor_id`, `app.roles` y `app.request_id` con `set_config(..., true)`. Los triggers comparan ese contexto con el actor atribuido y exigen los claims literales necesarios: `ti` para plazos y catálogos, `ventanilla` para borradores y cobros, y `finanzas` para resolver solicitudes de factura.
+El backend valida criptográficamente cada JWT antes de tocar la base: emisor, audiencia `sicef`, firma obtenida por JWKS, vigencia y claim `sub`. En cada transacción de negocio fija `app.actor_id`, `app.roles` y `app.request_id` con `set_config(..., true)`. Los triggers comparan ese contexto con el actor atribuido y exigen los claims literales necesarios: `ti` para plazos y catálogos, `ventanilla` para borradores y cobros. El claim `finanzas` ya no se usa aquí: la facturación vive en un sistema aparte.
 
 Estas variables de sesión son una defensa frente a errores de implementación; no validan JWTs ni sustituyen la autorización principal del backend. La bitácora almacena el UUID local y el arreglo de roles exactamente como fue recibido, no el `sub`, token, nombre, correo o RFC.
 
@@ -104,7 +103,7 @@ Ejemplo: el grupo `IDENTIFICACION` puede ofrecer las opciones `INE` o `PASAPORTE
 | `validacion_no_adeudo` | Resultado de la consulta manual o API, en la validación inicial o en la revalidación al cobrar. |
 | `confirmacion_manual` | Confirmación atribuible de firmas, facultades o condición de no adeudo. |
 | `consulta_concesionaria` | Observación estructurada de una consulta a la concesionaria. |
-| `configuracion_plazos` | Configuración singleton, visible y modificable únicamente con el claim `ti`, de los plazos de pago y de solicitud de factura. |
+| `configuracion_plazos` | Configuración singleton, visible y modificable únicamente con el claim `ti`, del plazo de pago. El plazo fiscal para solicitar factura lo calcula el sistema Finanzas. |
 | `configuracion_constancia` | Parámetros con los que el backend genera el PDF de la constancia: `vigencia_dias`, `firmante_nombre` y `firmante_cargo`. A diferencia de `configuracion_plazos`, **no es singleton**: la PK es `tipo_constancia`, una fila por tipo, porque el plazo legal puede diferir. Sólo `ti`. Nace vacía a propósito. |
 
 El campo `tramite.version_catalogo_id` es un snapshot lógico. Si después se publica una nueva versión, los trámites existentes siguen evaluándose con la versión que ya tenían.
@@ -118,18 +117,11 @@ El campo `tramite.version_catalogo_id` es un snapshot lógico. Si después se pu
 | `borrador_cobro` | Captura provisional del pago que cualquier Ventanilla puede retomar; no es un cobro confirmado. Incluye referencia opcional al comprobante de pago (voucher) adjunto: `comprobante_archivo_uuid`, `comprobante_nombre_original`, `comprobante_hash_sha256`, `comprobante_mime_type`, `comprobante_tamano_bytes` — mismo patrón que `evidencia`, el archivo vive en NFS (scope `comprobantes`). |
 | `cobro` | Monto base, reducción (con FK opcional a `motivo_reduccion`), monto final, forma y método de pago; estampa la tarifa utilizada. Mismas 5 columnas de comprobante de pago que `borrador_cobro` — al aplicar un borrador, se copian ahí, sin volver a escribir en NFS. |
 | `constancia` | Folio, hash, archivo, firma opcional y vigencia del documento emitido. |
-| `archivo_generado` | Metadatos de XML, PDF u otro archivo generado asociado a exactamente una constancia o factura. |
+| `archivo_generado` | Metadatos del PDF u otro archivo generado, asociado siempre a una constancia. |
 
 El cobro congela sus importes. Cambiar una tarifa futura no debe cambiar el cobro ya registrado.
 
-### Facturación y auditoría
-
-| Tabla | Para qué sirve |
-|---|---|
-| `solicitud_factura` | Datos fiscales enviados desde el portal para la resolución de Finanzas; no crea un CFDI por sí misma. |
-| `factura` | CFDI individual, uno por cobro que solicita factura. El receptor se guarda como snapshot. |
-| `factura_global` | CFDI global para público en general en un periodo. |
-| `factura_global_detalle` | Cobros incluidos en una factura global; cada cobro sólo puede aparecer una vez. |
+### Auditoría
 | `bitacora` | Auditoría append-only de acciones, transiciones, actor, origen y datos relevantes. |
 
 ## 5. Reglas principales implementadas en SQL
@@ -148,9 +140,9 @@ El cobro congela sus importes. Cambiar una tarifa futura no debe cambiar el cobr
 
 ### Plazos operativos
 
-- `configuracion_plazos` es una sola fila con los días máximos para pago y para solicitar factura.
+- `configuracion_plazos` es una sola fila con los días máximos para pago.
 - Sólo un actor cuyo token contenga el claim literal `ti` puede crear, activar, desactivar o actualizar esta configuración.
-- La configuración debe estar activa y ambos plazos deben ser mayores que cero para aprobar trámites o recibir solicitudes públicas de factura.
+- La configuración debe estar activa y el plazo debe ser mayor que cero para aprobar trámites.
 - Al aprobar, la base calcula y estampa `tramite.plazo_pago_hasta`; un cambio posterior de configuración no altera ese vencimiento histórico.
 
 ### Configuración de constancias
@@ -161,7 +153,6 @@ El cobro congela sus importes. Cambiar una tarifa futura no debe cambiar el cobr
 - La vigencia no se guarda como fecha: el backend calcula `vigencia_fin = emitida_at + vigencia_dias` al emitir y congela el resultado en `constancia`. El mismo número se interpola en el cuerpo impreso, de modo que el documento no pueda contradecir su propia vigencia registrada.
 - Cambiar la configuración nunca altera constancias ya emitidas: `trg_constancia_inmutable` bloquea cualquier `UPDATE` sobre los campos canónicos.
 - Sin regla dura en SQL: `vigencia_dias` sólo se valida en el schema Zod (entero positivo). El resto de la integridad la da la ausencia de default.
-- Al recibir una solicitud pública de factura, se estampa su `fecha_limite` para preservar la regla aplicada en ese momento.
 
 ### Administración: asistente de catálogos operativos
 
@@ -213,13 +204,12 @@ Las reglas adicionales son:
 - `APROBADO -> COBRO`, para `NO_ADEUDO`, exige revalidación `SIN_ADEUDO`, plazo vigente y un cobro con tarifa publicada, activa y compatible;
 - `APROBADO -> EXPIRADO` sólo se permite después de `plazo_pago_hasta` y vence cualquier borrador abierto;
 - `COBRO -> FINALIZADO` exige constancia emitida;
-- si el cobro requiere factura, también exige una factura `TIMBRADO`.
 
 El domicilio del predio (`domicilio_calle`/`numero`/`colonia`/`pertenece_a`/`pertenece_a_nombre`, solo `NO_REGISTRO`) **no tiene `CHECK` ni trigger** que lo exija — mismo nivel de laxitud que `nis`: la aplicación (ventanilla) lo exige en la UI antes de crear el trámite, pero la base de datos lo acepta vacío.
 
 La aplicación debe cambiar el estado mediante una operación transaccional y registrar la transición en `bitacora`.
 
-### Cobros, facturas y archivos generados
+### Cobros y archivos generados
 
 - `motivo_reduccion.porcentaje` debe ser mayor que 0 y menor o igual a 100 (`chk_motivo_reduccion_porcentaje`). No tiene versionado ni publicación como catálogos/tarifas: es un catálogo simple que sólo `ti` gestiona (crear, editar, activar/desactivar).
 - El comprobante de pago (voucher) de `borrador_cobro`/`cobro` **no tiene `CHECK` ni trigger** — es opcional en ambas tablas, igual que `referencia_pago`.
@@ -228,14 +218,9 @@ La aplicación debe cambiar el estado mediante una operación transaccional y re
 - Aplicar un borrador exige todos los datos de pago y un `cobro` definitivo idéntico. El flujo directo puede crear ese cobro sin usar borrador.
 - `monto_final` debe ser exactamente el resultado redondeado de aplicar la reducción al monto base.
 - La tarifa del cobro debe estar publicada, activa y corresponder al tipo de constancia del trámite.
-- Un cobro sin factura individual no puede tener fila en `factura`.
-- Un cobro con factura individual no puede incluirse en `factura_global_detalle`.
-- Una factura global sólo puede incluir cobros de público en general.
-- Una `solicitud_factura` inicia en `PENDIENTE_REVISION`; sólo Finanzas puede aceptarla o rechazarla. Al aceptarla debe vincular una factura individual compatible; al rechazarla debe registrar un motivo.
 - El portal puede enviar datos fiscales con el folio de la constancia. Para consultar y descargar XML/PDF debe proporcionar folio y RFC; los errores de timbrado se muestran sin detalle técnico.
 - Los metadatos canónicos de archivos generados son inmutables; no se borran, se cambia su conservación.
-- Cada `archivo_generado` debe referir exactamente a una constancia, factura o factura global.
-- Una factura nueva inicia en `PENDIENTE`. Sus transiciones son `PENDIENTE -> TIMBRADO_EN_PROCESO`, `TIMBRADO_EN_PROCESO -> TIMBRADO` o `TIMBRADO_FALLIDO`, `TIMBRADO_FALLIDO -> TIMBRADO_EN_PROCESO` y `TIMBRADO -> CANCELADO`.
+- Cada `archivo_generado` refiere siempre a una constancia.
 - Para llegar a `TIMBRADO` se exige UUID, XML y PDF. Para cancelar se exige motivo y UUID sustituto según la regla instalada.
 
 ### Bitácora
@@ -246,7 +231,7 @@ La bitácora sólo permite `INSERT`.
 - Para origen `PORTAL` exige IP, user-agent y `request_id`, sin actor interno.
 - El origen `WORKER` y su `job_id` permanecen en el modelo como contrato reservado para la fase posterior; este monorepo no lo genera ni lo consume.
 - Las correcciones se registran como nuevos eventos relacionados mediante `correccion_de_id`; nunca se edita el evento original.
-- Trámites, cobros, facturas, facturas globales y evidencias no se deben borrar; se usan estados de negocio, cancelación, anulación o conservación.
+- Trámites, cobros y evidencias no se deben borrar; se usan estados de negocio, cancelación, anulación o conservación.
 
 ## 6. Cómo crear un catálogo de requisitos correctamente
 
@@ -410,10 +395,10 @@ Nunca se debe actualizar el `monto` de una tarifa publicada. El cobro guarda `mo
 6. En `APROBADO`, Ventanilla puede guardar un `borrador_cobro` y retomarlo desde cualquier ventanilla, o continuar directamente a la validación de pago.
 7. Antes del cobro, registrar la revalidación si el tipo es `NO_ADEUDO`; validar tarifa, montos y datos de pago. Si se usa borrador, aplicarlo sólo cuando coincida con el cobro definitivo.
 8. Si el plazo vence, mover a `EXPIRADO` y conservar el borrador como `VENCIDO`; no se permite cobrarlo después.
-9. `COBRO`: emitir la constancia; si se solicitan datos fiscales en Ventanilla, crear `factura` en `PENDIENTE`. El timbrado, sus reintentos y cualquier transición posterior pertenecen al worker de la fase futura.
-10. Si el ciudadano no proporcionó datos fiscales, puede enviarlos en el portal dentro del plazo configurado. Finanzas acepta o rechaza la `solicitud_factura`; sólo al aceptar se crea la factura individual.
+9. `COBRO`: emitir la constancia. Si el ciudadano dice querer factura, se registra en `cobro.factura_solicitada_en_ventanilla` como dato informativo; el CFDI lo emite el sistema Finanzas.
+10. La factura se solicita en el portal del sistema Finanzas con el folio de la constancia, dentro del plazo fiscal que ese sistema calcula desde la fecha de pago.
 11. La obtención de CFDI, el guardado de UUID/XML/PDF y el paso a `TIMBRADO` son responsabilidad del worker futuro; esta API no los invoca.
-12. `FINALIZADO`: ejecutar sólo cuando exista constancia y, si aplica, factura timbrada por la fase posterior.
+12. `FINALIZADO`: ejecutar cuando exista constancia emitida. Ya no depende de ninguna factura.
 13. Registrar cada acción significativa en `bitacora` dentro de la misma unidad transaccional que el cambio de negocio.
 
 ## 9. Consultas de control recomendadas
@@ -477,7 +462,6 @@ Esta guía describe lo que efectivamente expresan los dos archivos analizados. H
 - obligatoriedad de `nis` para `NO_ADEUDO` y del domicilio del predio para `NO_REGISTRO` — ambos ya existen como columnas opcionales sin regla dura; sigue abierto si algún día deben volverse obligatorios a nivel de base de datos, y si el comprobante de pago del cobro debería seguir el mismo camino;
 - unicidad y coherencia de titular, representante, apoderado y receptor fiscal por trámite;
 - campos fiscales que el PAC exige antes de timbrar;
-- política final para una factura fallida o cancelada después de que el trámite fue finalizado;
 - firma digital institucional, ya que `firma_digital` y `certificado_id` todavía son opcionales;
 - permisos reales del rol de aplicación para impedir `UPDATE`/`DELETE` sobre bitácora y borrados de entidades críticas;
 - estrategia de retención, respaldo y reconciliación entre NFS y las referencias de archivos.

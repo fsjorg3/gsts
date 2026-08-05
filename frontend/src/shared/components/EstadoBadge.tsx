@@ -54,14 +54,6 @@ export const ESTADO_TRAMITE: EstadoMap = {
   FINALIZADO: { label: 'Finalizado', color: 'success' },
 };
 
-export const ESTADO_FACTURA: EstadoMap = {
-  PENDIENTE: { label: 'Pendiente', color: 'neutral' },
-  TIMBRADO_EN_PROCESO: { label: 'Timbrando', color: 'info' },
-  TIMBRADO: { label: 'Timbrado', color: 'success' },
-  TIMBRADO_FALLIDO: { label: 'Rechazado por PAC', color: 'error' },
-  CANCELADO: { label: 'Cancelado', color: 'warning' },
-};
-
 export const ESTADO_BORRADOR: EstadoMap = {
   ABIERTO: { label: 'Abierto', color: 'info' },
   APLICADO: { label: 'Aplicado', color: 'success' },
@@ -73,12 +65,6 @@ export const ESTADO_EVIDENCIA: EstadoMap = {
   CARGADO: { label: 'Cargado', color: 'info' },
   VALIDADO: { label: 'Validado', color: 'success' },
   RECHAZADO: { label: 'Rechazado', color: 'error' },
-};
-
-export const ESTADO_SOLICITUD_FACTURA: EstadoMap = {
-  PENDIENTE_REVISION: { label: 'Pendiente de revisión', color: 'warning' },
-  ACEPTADA: { label: 'Aceptada', color: 'success' },
-  RECHAZADA: { label: 'Rechazada', color: 'error' },
 };
 
 export function EstadoDeBadge({ estado, mapa }: { estado: string; mapa: EstadoMap }) {

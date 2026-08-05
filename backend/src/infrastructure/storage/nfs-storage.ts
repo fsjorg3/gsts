@@ -3,7 +3,7 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, join, resolve, sep } from 'node:path';
 
 export interface StoredFile { archivoUuid: string; ruta: string; hashSha256: string; tamanoBytes: number; }
-export type StorageScope = 'evidencias' | 'constancias' | 'facturas' | 'comprobantes';
+export type StorageScope = 'evidencias' | 'constancias' | 'comprobantes';
 
 export class NfsStorage {
   public constructor(private readonly paths: Record<StorageScope, string>) {}
@@ -37,6 +37,19 @@ export class NfsStorage {
       throw new Error('Ruta de almacenamiento inválida');
     }
     return await readFile(rutaAbsoluta);
+  }
+
+  /**
+   * Lee un archivo del que sólo se conserva su UUID lógico, sin columna `ruta`.
+   * Es el caso de los comprobantes de pago: `cobro`/`borrador_cobro` guardan
+   * `comprobante_archivo_uuid` pero no la ruta, a diferencia de
+   * `archivo_generado`. El UUID se valida como nombre plano antes de componer
+   * la ruta, de modo que un valor corrupto en la base no pueda escaparse del
+   * directorio del scope.
+   */
+  public async leerPorUuid(scope: StorageScope, archivoUuid: string): Promise<Buffer> {
+    if (!/^[0-9a-fA-F-]{36}$/.test(archivoUuid)) throw new Error('Identificador de archivo inválido');
+    return await this.leer(scope, join(resolve(this.paths[scope]), archivoUuid));
   }
 
   public async remove(ruta: string): Promise<void> {

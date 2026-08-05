@@ -10,9 +10,10 @@ import { abrirBlobEnPestana, descargarBlob, nombreArchivoConstancia } from '@/sh
 import { useDescargarConstancia } from '@/features/constancias/api';
 import type { TramiteDetalle } from '../api';
 
-// Paso 4 · Entrega: constancia emitida + situación de la factura. El timbrado
-// real (PENDIENTE → TIMBRADO) es del worker PAC, fuera de esta API: PENDIENTE
-// es un estado estable "en espera del timbrado externo".
+// Paso 4 · Entrega: la constancia emitida, único documento que ventanilla
+// entrega. Si el ciudadano dijo querer factura, aquí sólo se le recuerda que la
+// solicite en el portal del sistema Finanzas con su folio: SICEF no emite CFDI
+// y finalizar el trámite ya no depende de que exista.
 export function PasoEntrega({ tramite }: { tramite: TramiteDetalle }) {
   const constancia = tramite.constancia;
   const titular = tramite.personas[0]?.persona;
@@ -113,16 +114,16 @@ export function PasoEntrega({ tramite }: { tramite: TramiteDetalle }) {
         </Box>
       ) : null}
 
-      {tramite.cobro?.requiereFactura ? (
+      {tramite.cobro?.facturaSolicitadaEnVentanilla ? (
         <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.75 }}>
             <MsIcon name="receipt_long" size={20} color="#5B132B" />
-            <Typography sx={{ fontSize: 14, fontWeight: 700, flex: 1 }}>Factura CFDI 4.0</Typography>
-            <EstadoBadge label="En espera de timbrado" color="info" />
+            <Typography sx={{ fontSize: 14, fontWeight: 700, flex: 1 }}>El ciudadano pidió factura</Typography>
+            <EstadoBadge label="Se solicita en el portal" color="info" />
           </Box>
-          <Alert severity="info" icon={<MsIcon name="progress_activity" size={20} />}>
-            La factura quedó registrada y el timbrado lo realiza el worker de facturación de forma asíncrona. La entrega
-            de la constancia no espera al timbrado; para finalizar el trámite el CFDI debe estar timbrado.
+          <Alert severity="info" icon={<MsIcon name="info" size={20} />}>
+            La factura no se emite desde aquí. Indíquele que la solicite en el portal con el folio de su constancia; el
+            plazo fiscal corre desde la fecha de pago. Finalizar el trámite ya no depende de que exista el CFDI.
           </Alert>
         </Box>
       ) : null}
@@ -132,7 +133,7 @@ export function PasoEntrega({ tramite }: { tramite: TramiteDetalle }) {
         <Typography sx={{ fontSize: 12.5, fontWeight: 500, color: 'text.secondary', lineHeight: 1.6 }}>
           El ciudadano verifica la autenticidad de la constancia en el portal público con el folio{' '}
           <Box component="span" sx={{ color: 'primary.light', fontWeight: 600 }}>{constancia?.folioUnico ?? '—'}</Box>
-          {tramite.cobro?.requiereFactura ? ' y descarga su CFDI con folio + RFC cuando esté timbrado' : ''}.
+          {tramite.cobro?.facturaSolicitadaEnVentanilla ? ', y con ese mismo folio solicita su factura' : ''}.
         </Typography>
       </Box>
     </Box>

@@ -10,8 +10,9 @@ import { createCatalogosRouter } from '../modules/catalogos/catalogos.router.js'
 import { createBorradoresCobroRouter } from '../modules/cobros/borradores.router.js';
 import { createCobrosRouter } from '../modules/cobros/cobros.router.js';
 import { createConstanciasRouter } from '../modules/constancias/constancias.router.js';
+import { createConsultaCobroRouter } from '../modules/constancias/consulta.router.js';
+import { createDireccionRouter } from '../modules/direccion/direccion.router.js';
 import { createEvidenciasRouter } from '../modules/evidencias/evidencias.router.js';
-import { createFacturacionRouter } from '../modules/facturacion/facturacion.router.js';
 import { createMotivosReduccionRouter } from '../modules/motivos-reduccion/motivos-reduccion.router.js';
 import { createPersonasRouter } from '../modules/personas/personas.router.js';
 import { createPublicoRouter } from '../modules/publico/publico.router.js';
@@ -25,7 +26,6 @@ export function createApiRouter(env: Env): Router {
   const storage = new NfsStorage({
     evidencias: env.NFS_EVIDENCIAS_PATH,
     constancias: env.NFS_CONSTANCIAS_PATH,
-    facturas: env.NFS_FACTURAS_PATH,
     comprobantes: env.NFS_COMPROBANTES_PATH,
   });
 
@@ -37,6 +37,10 @@ export function createApiRouter(env: Env): Router {
   router.use('/personas', createPersonasRouter(internal));
   router.use('/motivos-reduccion', createMotivosReduccionRouter(internal));
   router.use('/bitacora', createBitacoraRouter(internal));
+  // Superficie de sólo lectura que consume el sistema Finanzas. `/constancias`
+  // a nivel raíz no colisiona con `/tramites/:tramiteId/constancias`.
+  router.use('/constancias', createConsultaCobroRouter(internal, storage));
+  router.use('/direccion', createDireccionRouter(internal));
 
   // Las rutas especializadas se montan antes de /tramites/:id/:accion y sólo
   // ejecutan autenticación para su propio caso de uso.
@@ -45,7 +49,6 @@ export function createApiRouter(env: Env): Router {
   router.use('/tramites/:tramiteId/borradores-cobro', ...internal, requireRoles('ventanilla'), createBorradoresCobroRouter(storage));
   router.use('/tramites/:tramiteId/cobros', ...internal, requireRoles('ventanilla'), createCobrosRouter(storage));
   router.use('/tramites/:tramiteId/constancias', ...internal, requireRoles('ventanilla'), createConstanciasRouter(storage, env));
-  router.use('/facturas', createFacturacionRouter(internal));
   router.use('/tramites', createTramitesRouter(internal, env));
   return router;
 }

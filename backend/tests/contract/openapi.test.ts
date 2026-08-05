@@ -12,10 +12,10 @@ const env: Env = {
   KEYCLOAK_ISSUER_URL: 'https://keycloak.test/realms/SOAPAP',
   KEYCLOAK_JWKS_URL: 'https://keycloak.test/realms/SOAPAP/protocol/openid-connect/certs',
   KEYCLOAK_CLIENT_ID: 'sicef', KEYCLOAK_AUDIENCE: 'sicef',
-  NFS_BASE_PATH: '/tmp/sicef', NFS_EVIDENCIAS_PATH: '/tmp/sicef/evidencias', NFS_CONSTANCIAS_PATH: '/tmp/sicef/constancias', NFS_FACTURAS_PATH: '/tmp/sicef/facturas', NFS_COMPROBANTES_PATH: '/tmp/sicef/comprobantes',
+  NFS_BASE_PATH: '/tmp/sicef', NFS_EVIDENCIAS_PATH: '/tmp/sicef/evidencias', NFS_CONSTANCIAS_PATH: '/tmp/sicef/constancias', NFS_COMPROBANTES_PATH: '/tmp/sicef/comprobantes',
   MAX_EVIDENCIA_TOTAL_BYTES: 31_457_280,
   SIGNING_SERVICE_URL: 'https://signing.test', SIGNING_SERVICE_AUTH_TOKEN: 'test-token', SIGNING_SERVICE_TIMEOUT_MS: 1_000,
-  PAC_BASE_URL: 'https://pac.test', PAC_API_KEY: 'test-key', OUC_API_URL: 'https://ouc.test', OUC_API_TOKEN: 'test-token',
+  OUC_API_URL: 'https://ouc.test', OUC_API_TOKEN: 'test-token',
   PUBLIC_BASE_URL: 'https://portal.test', PUBLIC_RATE_LIMIT_WINDOW_MS: 60_000, PUBLIC_RATE_LIMIT_MAX: 1_000,
   SECRETO_VERIFICADOR_V1: 'clave-de-prueba-de-al-menos-32-bytes', SECRETO_VERIFICADOR_V2: undefined, VERSION_TOKEN_ACTUAL: 'v1',
   VERIFICACION_RATE_LIMIT_WINDOW_MS: 60_000, VERIFICACION_RATE_LIMIT_MAX: 1_000,
@@ -25,7 +25,7 @@ const env: Env = {
 // borra o renombra una ruta sin actualizar openapi.ts, esta prueba lo detecta.
 const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   ['get', '/health'], ['get', '/ready'], ['get', '/openapi.json'],
-  ['post', '/public/facturas/solicitudes'], ['get', '/public/facturas/{folio}'], ['get', '/public/constancias/{folio}/verificar/{token}'],
+  ['get', '/public/constancias/{folio}/verificar/{token}'],
   ['get', '/auth/me'],
   ['get', '/catalogos/requisitos/activo'], ['get', '/catalogos/requisitos'], ['post', '/catalogos/requisitos'],
   ['get', '/catalogos/requisitos/{id}/validar'], ['get', '/catalogos/requisitos/{id}/vista-previa'],
@@ -45,11 +45,13 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   ['patch', '/tramites/{id}/borradores-cobro/{borradorId}'], ['post', '/tramites/{id}/borradores-cobro/{borradorId}/aplicar'],
   ['post', '/tramites/{id}/cobros'], ['post', '/tramites/{id}/constancias'],
   ['get', '/tramites/{id}/constancias/{constanciaId}/archivo'],
-  ['post', '/facturas/solicitudes/{id}/aceptar'], ['post', '/facturas/solicitudes/{id}/rechazar'],
+  // Superficie de sólo lectura hacia el sistema Finanzas (service account).
+  ['get', '/constancias/{folio}/cobro'], ['get', '/constancias/{folio}/cobro/comprobante'],
+  ['get', '/direccion/metricas'],
 ];
 
 // Mutaciones donde el router realmente valida un body (evidencia extraída de cada
-// router.*.ts). Publicar/aplicar/aceptar no reciben body: son disparadores de transición.
+// router.*.ts). Publicar y aplicar no reciben body: son disparadores de transición.
 const RUTAS_CON_REQUEST_BODY = new Set([
   'post /catalogos/requisitos', 'post /catalogos/requisitos/{id}/grupos', 'post /catalogos/grupos/{id}/opciones',
   'post /catalogos/opciones/{id}/documentos', 'post /catalogos/tarifas', 'put /administracion/plazos',
@@ -58,8 +60,7 @@ const RUTAS_CON_REQUEST_BODY = new Set([
   'post /tramites', 'post /tramites/{id}/evidencias', 'patch /tramites/{id}/evidencias/{evidenciaId}',
   'post /tramites/{id}/validaciones/no-adeudo',
   'post /tramites/{id}/borradores-cobro', 'patch /tramites/{id}/borradores-cobro/{borradorId}',
-  'post /tramites/{id}/cobros', 'post /facturas/solicitudes/{id}/rechazar',
-  'post /public/facturas/solicitudes',
+  'post /tramites/{id}/cobros',
 ]);
 
 type OperationObject = { responses?: Record<string, unknown>; requestBody?: unknown };

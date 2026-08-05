@@ -15,9 +15,10 @@ Toda ruta interna exige `Authorization: Bearer <JWT>` emitido por Keycloak (real
 | Rol | Origen del claim | Habilita |
 |---|---|---|
 | `ventanilla` | `resource_access.sicef.roles` | Crear/transicionar trámites, evidencias, validaciones de no adeudo, borradores de cobro, cobro directo, emisión de constancias |
-| `finanzas` | `resource_access.sicef.roles` | Aceptar/rechazar solicitudes públicas de factura |
+| `consulta-cobros` | `resource_access.sicef.roles` | Service account del sistema Finanzas: consulta de cobro y comprobante por folio |
+| `consulta-metricas` | `resource_access.sicef.roles` | Service account del sistema Finanzas: indicadores de Dirección |
 | `ti` | `realm_access.roles` | Asistente de catálogos/tarifas (crear, clonar, publicar), configurar plazos operativos, gestionar motivos de reducción, consultar bitácora de auditoría global |
-| `direccion` | `realm_access.roles` | Reservado; ningún endpoint lo exige actualmente |
+| `direccion` | `realm_access.roles` | Consultar los indicadores de `GET /direccion/metricas` |
 
 Las rutas bajo `/public/*` y `/health`, `/ready`, `/openapi.json` no requieren autenticación, pero `/public/*` tiene rate limiting (`PUBLIC_RATE_LIMIT_MAX` por `PUBLIC_RATE_LIMIT_WINDOW_MS`) y registra bitácora con `origen: PORTAL`.
 
@@ -29,12 +30,11 @@ Las rutas bajo `/public/*` y `/health`, `/ready`, `/openapi.json` no requieren a
 - **Montos**: `string`, no `number`. Prisma serializa `Decimal` (`montoBase`, `montoFinal`, `porcentajeReduccion`, `monto`, `adeudoMonto`) como string para no perder precisión — el cliente debe parsearlo explícitamente, nunca asumir `number`.
 - **UUIDs**: `string` con formato `uuid`.
 - **Archivos**: evidencias, PDFs de constancia y el comprobante de pago (voucher) del cobro se envían como `contenidoBase64`/`pdfBase64`/`comprobante.base64` dentro del JSON (no `multipart/form-data`). La cadena debe ser Base64 estricto en una sola línea (`^[A-Za-z0-9+/]+={0,2}$`): con saltos de línea o con prefijo `data:` la petición se rechaza con `422`. Límite de cuerpo HTTP: 42 MB; límite acumulado de evidencias por trámite: 30 MiB (31 457 280 bytes), impuesto por trigger — el comprobante no tiene un límite propio, solo el del cuerpo HTTP.
-- **Idempotencia**: `POST /tramites/{id}/cobros` y la aplicación de un borrador aceptan header `idempotency-key` opcional para la `Factura` creada; si se omite, se genera un UUID.
 - **Paginación**: `GET /tramites` usa cursor (`take`, `cursor` como query params), no offset.
 
 ## 4. Máquinas de estado
 
-Todas las transiciones las valida un trigger de PostgreSQL (`fn_tramite_transicion_valida`, `fn_borrador_cobro_integridad`, `fn_factura_integridad`, `fn_solicitud_factura_integridad` en `migration_complementaria.sql`) — el backend nunca decide por sí solo si una transición es válida; si la condición no se cumple, la transacción falla y la API responde `409`.
+Todas las transiciones las valida un trigger de PostgreSQL (`fn_tramite_transicion_valida`, `fn_borrador_cobro_integridad`, `fn_cobro_integridad` en `migration_complementaria.sql`) — el backend nunca decide por sí solo si una transición es válida; si la condición no se cumple, la transacción falla y la API responde `409`.
 
 ### 4.1 Trámite
 
@@ -62,7 +62,7 @@ Condiciones de guardia por flecha:
 | `APROBADO → COBRO` | `plazo_pago_hasta` no vencido. Para `NO_ADEUDO`: revalidación `REVALIDACION_COBRO` con `SIN_ADEUDO`. Existe un `cobro` cuya tarifa está `publicada`, `activa` y coincide en `tipo_constancia`. |
 | `APROBADO → EXPIRADO` | Sólo después de `plazo_pago_hasta`. Efecto colateral: cualquier `borrador_cobro` `ABIERTO` pasa a `VENCIDO`. |
 | `APROBADO → RECHAZADO` | Sin condición adicional. Efecto colateral: el `borrador_cobro` `ABIERTO`, si existe, pasa a `CANCELADO`. |
-| `COBRO → FINALIZADO` | Existe `constancia` emitida. Si `cobro.requiere_factura`, existe `factura` en estado `TIMBRADO` (responsabilidad del worker futuro — fuera de alcance de esta API). |
+| `COBRO → FINALIZADO` | Existe `constancia` emitida. **Ya no exige CFDI timbrado**: la factura es una obligación independiente del sistema Finanzas, con su propio plazo fiscal, y puede solicitarse semanas después por el portal. |
 
 `POST /tramites/{id}/{accion}` dispara estas transiciones vía el parámetro `accion` ∈ `{iniciar-validacion, aprobar, rechazar, expirar, finalizar}`. `APROBADO → COBRO` **no** se dispara por esta ruta: ocurre implícitamente al crear un cobro (`POST /tramites/{id}/cobros`) o al aplicar un borrador (`POST /tramites/{id}/borradores-cobro/{borradorId}/aplicar`).
 
@@ -84,36 +84,9 @@ stateDiagram-v2
 - `VENCIDO`/`CANCELADO` son transiciones **automáticas** disparadas por el cambio de estado del trámite, nunca por una llamada directa a este endpoint.
 - Al aplicar (`POST /:id/aplicar`), el trigger exige que el `cobro` recién creado coincida **exactamente** (tarifa, montos, forma/método de pago, moneda, referencia) con los datos del borrador — por eso el router construye ambos desde el mismo objeto de valores.
 
-### 4.3 Factura (CFDI individual)
+### 4.3 Máquinas que salieron de SICEF
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDIENTE
-    PENDIENTE --> TIMBRADO_EN_PROCESO
-    TIMBRADO_EN_PROCESO --> TIMBRADO
-    TIMBRADO_EN_PROCESO --> TIMBRADO_FALLIDO
-    TIMBRADO_FALLIDO --> TIMBRADO_EN_PROCESO
-    TIMBRADO --> CANCELADO
-    TIMBRADO --> [*]
-    CANCELADO --> [*]
-```
-
-Esta API **crea** la factura en `PENDIENTE` (al cobrar con `requiereFactura=true`, o al aceptar una `solicitud_factura`) pero **no** ejecuta transiciones posteriores: obtener el CFDI del PAC, guardar UUID/XML/PDF y pasar a `TIMBRADO` es responsabilidad del worker de timbrado, fuera de alcance de este monorepo. `TIMBRADO` exige UUID + archivo XML + archivo PDF inmutables; `CANCELADO` exige motivo y UUID sustituto.
-
-### 4.4 Solicitud pública de factura
-
-```mermaid
-stateDiagram-v2
-    [*] --> PENDIENTE_REVISION: POST /public/facturas/solicitudes
-    PENDIENTE_REVISION --> ACEPTADA: POST /facturas/solicitudes/:id/aceptar
-    PENDIENTE_REVISION --> RECHAZADA: POST /facturas/solicitudes/:id/rechazar
-    ACEPTADA --> [*]
-    RECHAZADA --> [*]
-```
-
-- Sólo se puede crear para una constancia ya emitida (`cobro`/`constancia` existentes) con `configuracion_plazos` activa; el trigger estampa `fecha_limite = constancia.emitida_at + plazo_solicitud_factura_dias` — el valor que el cliente envía se ignora.
-- Sólo `finanzas` puede resolverla. Aceptar crea la `Factura` vinculada; rechazar exige `motivoRechazo`.
-- Un cobro con solicitud `ACEPTADA` (o con factura individual) ya no es elegible para una nueva solicitud (índice único parcial `uq_solicitud_factura_unica_pendiente`: sólo una `PENDIENTE_REVISION` por cobro a la vez).
+`EstadoFactura` y `EstadoSolicitudFactura` se trasladaron al sistema Finanzas junto con el CFDI. SICEF conserva dos máquinas: trámite y borrador de cobro. Ver `documentacion2/SISTEMA_FINANZAS.md`.
 
 ## 5. Reglas de negocio por grupo de endpoints
 
@@ -164,9 +137,10 @@ stateDiagram-v2
   - El `Content-Type` se fija explícitamente porque en NFS los archivos se guardan con el UUID como nombre, **sin extensión**: no puede inferirse.
   - Los bytes servidos son los mismos que se firmaron; su SHA-256 debe coincidir con `constancia.hashPdf`.
 
-### Facturación pública
-- `POST /public/facturas/solicitudes`: solo requiere el `folio` de una constancia con cobro asociado; sin autenticación.
-- `GET /public/facturas/{folio}?rfc=`: exige folio **y** RFC coincidente (comparación insensible a mayúsculas) con el receptor de la factura; si no coincide o no existe, `404` genérico — nunca se expone el motivo real de un fallo de timbrado.
+### Integración con el sistema Finanzas (sólo lectura)
+- `GET /constancias/{folio}/cobro` y `GET /constancias/{folio}/cobro/comprobante` (rol `consulta-cobros`): datos del cobro y el ticket adjunto, llaveados por el folio de la constancia. El JSON no lleva datos personales; el comprobante va en ruta aparte y muestra lo que muestre el ticket.
+- `GET /direccion/metricas?desde=&hasta=` (roles `direccion` o `consulta-metricas`): seis KPIs, serie mensual de constancias por tipo y distribución por estado. El éxito de timbrado y las cancelaciones de CFDI no están aquí: son de Finanzas.
+- La solicitud y la consulta de CFDI se trasladaron a ese sistema. Ver `documentacion2/SISTEMA_FINANZAS.md`.
 
 ### Verificación pública de constancias por QR (`GET /public/constancias/{folio}/verificar/{token}`)
 
@@ -206,7 +180,7 @@ Es un servicio de consulta de SOAPAP sobre su propio registro: confirma que el f
 8. En `APROBADO`: opcionalmente `POST .../borradores-cobro` para guardar avance; si `NO_ADEUDO`, registrar revalidación con `momento=REVALIDACION_COBRO`.
 9. Cobrar: `POST /tramites/{id}/cobros` (directo) o `POST .../borradores-cobro/{id}/aplicar` → trámite pasa a `COBRO`; opcionalmente se adjunta el comprobante de pago (voucher) al cobro directo o al borrador antes de aplicarlo.
 10. Emitir constancia: `POST /tramites/{id}/constancias`, sin cuerpo. El backend genera el PDF con el QR ya estampado, lo firma y lo guarda. La respuesta trae `urlVerificacion` (la misma que codifica el QR impreso); el ciudadano la consulta después con `GET /public/constancias/{folio}/verificar/{token}`.
-11. Si se pidieron datos fiscales en ventanilla, la `Factura` quedó en `PENDIENTE`; si el ciudadano los envía después, `POST /public/facturas/solicitudes` dentro del plazo configurado, y `finanzas` resuelve con `POST /facturas/solicitudes/{id}/aceptar|rechazar`.
+11. Si el ciudadano quiere factura, la solicita en el portal del sistema Finanzas con el folio de su constancia. SICEF no participa: `cobro.facturaSolicitadaEnVentanilla` sólo registra qué contestó ese día.
 12. El timbrado real (UUID/XML/PDF, paso a `TIMBRADO`) y `POST /tramites/{id}/finalizar` ocurren cuando esos requisitos ya se cumplieron — el timbrado en sí lo hace el worker futuro, fuera de esta API.
 13. Si el plazo de pago vence sin cobrar: `POST /tramites/{id}/expirar`.
 
@@ -220,7 +194,7 @@ Todos siguen el formato `{ "error": { "code", "message", "details"? } }` ([share
 | `INVALID_TOKEN` | 401 | El JWT no es válido (firma, issuer, audiencia, vigencia, o no es JWT) |
 | `MISSING_ROLE` | 403 | El token no contiene ningún rol SICEF válido desde su fuente correcta |
 | `FORBIDDEN` | 403 | El actor no tiene el rol requerido para la ruta |
-| `NOT_FOUND` | 404 | Recurso inexistente (trámite, borrador que no pertenece al trámite, constancia/factura por folio+RFC) |
+| `NOT_FOUND` | 404 | Recurso inexistente (trámite, borrador que no pertenece al trámite, constancia o cobro por folio) |
 | `VALIDATION_ERROR` | 422 | Falla de `zod.parse` sobre el body/query, o motivo de rechazo faltante |
 | `NO_ACTIVE_CATALOG` | 409 | `POST /tramites` sin catálogo de requisitos activo y publicado |
 | `CATALOG_ALREADY_PUBLISHED` | 409 | Intentar publicar un catálogo que ya estaba publicado |
@@ -228,8 +202,7 @@ Todos siguen el formato `{ "error": { "code", "message", "details"? } }` ([share
 | `TARIFF_INCOMPLETE` | 422 | Falta `tipoConstancia`/`concepto`/`monto` al crear tarifa sin `clonarDesdeId` |
 | `DRAFT_ALREADY_OPEN` | 409 | Ya existe un `borrador_cobro` `ABIERTO` para el trámite |
 | `DRAFT_NOT_OPEN` | 409 | Se intenta aplicar un borrador que no está `ABIERTO` |
-| `DRAFT_INCOMPLETE` | 422 | Faltan tarifa/forma de pago/método de pago/`requiereFactura` para aplicar el borrador |
-| `REQUEST_ALREADY_RESOLVED` | 409 | La `solicitud_factura` ya fue aceptada o rechazada |
+| `DRAFT_INCOMPLETE` | 422 | Faltan tarifa/forma de pago/método de pago/`facturaSolicitadaEnVentanilla` para aplicar el borrador |
 | `INVALID_STATE` | 409 | Se intenta emitir constancia sin que el trámite esté en `COBRO` |
 | `CONSTANCIA_CONFIG_NOT_SET` | 409 | No hay `ConfiguracionConstancia` para el tipo del trámite: TI debe definir vigencia y firmante |
 | `TEMPLATE_NOT_CONFIGURED` | 409 | No existe plantilla de constancia para ese tipo (hoy: `NO_ADEUDO`) |

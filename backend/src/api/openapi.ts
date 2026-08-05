@@ -9,7 +9,6 @@ import {
   crearCatalogoSchema,
   crearTarifaSchema,
   guardarBorradorCobroSchema,
-  solicitudFacturaPublicaSchema,
   paginationSchema,
   tipoConstanciaSchema,
   personalidadSchema,
@@ -42,10 +41,8 @@ import {
   cobroRespuestaDto,
   aplicarBorradorRespuestaDto,
   constanciaDto,
-  facturaDto,
-  solicitudFacturaDto,
-  aceptarSolicitudRespuestaDto,
-  consultaFacturaPublicaDto,
+  cobroPorFolioDto,
+  metricasDireccionDto,
   verificacionConstanciaPublicaDto,
   errorSchema,
 } from '@sicef/contracts';
@@ -83,7 +80,7 @@ const cobroRequestSchema = z.object({
   formaPago: z.string().trim().min(1).max(10),
   metodoPago: metodoPagoSchema,
   moneda: z.literal('MXN').default('MXN'),
-  requiereFactura: z.boolean().default(false),
+  facturaSolicitadaEnVentanilla: z.boolean().default(false).describe('Dato informativo de la ventanilla; la factura vive en el sistema Finanzas'),
   referenciaPago: z.string().trim().min(1).max(255).optional(),
   comprobante: z.object({
     base64: z.string().min(1).describe('Comprobante de pago (voucher) codificado en Base64'),
@@ -93,10 +90,8 @@ const cobroRequestSchema = z.object({
 });
 const plazosRequestSchema = z.object({
   plazoPagoDias: z.number().int().positive(),
-  plazoSolicitudFacturaDias: z.number().int().positive(),
   activa: z.boolean().default(true),
 });
-const resolucionFacturaRequestSchema = z.object({ motivoRechazo: z.string().trim().min(1).max(500).optional() });
 const transicionTramiteRequestSchema = z.object({ motivo: z.string().trim().min(1).optional() }).describe('Sólo se usa en la acción "rechazar"');
 
 // ===================== Registro de components.schemas =====================
@@ -125,7 +120,6 @@ const CrearTramite = def('CrearTramite', crearTramiteSchema);
 const CrearCatalogo = def('CrearCatalogo', crearCatalogoSchema);
 const CrearTarifa = def('CrearTarifa', crearTarifaSchema);
 const GuardarBorradorCobro = def('GuardarBorradorCobro', guardarBorradorCobroSchema);
-const SolicitudFacturaPublica = def('SolicitudFacturaPublica', solicitudFacturaPublicaSchema);
 const GrupoRequest = def('GrupoRequest', grupoRequestSchema);
 const OpcionRequest = def('OpcionRequest', opcionRequestSchema);
 const DocumentoRequest = def('DocumentoRequest', documentoRequestSchema);
@@ -134,7 +128,6 @@ const ValidacionRequest = def('ValidacionRequest', validacionRequestSchema);
 const CobroRequest = def('CobroRequest', cobroRequestSchema);
 const PlazosRequest = def('PlazosRequest', plazosRequestSchema);
 const ConfiguracionConstanciaRequest = def('ConfiguracionConstanciaRequest', guardarConfiguracionConstanciaSchema);
-const ResolucionFacturaRequest = def('ResolucionFacturaRequest', resolucionFacturaRequestSchema);
 const TransicionTramiteRequest = def('TransicionTramiteRequest', transicionTramiteRequestSchema);
 
 // Responses (entidades y compuestos)
@@ -161,10 +154,8 @@ const Cobro = def('Cobro', cobroDto);
 const CobroRespuesta = def('CobroRespuesta', cobroRespuestaDto);
 const AplicarBorradorRespuesta = def('AplicarBorradorRespuesta', aplicarBorradorRespuestaDto);
 const Constancia = def('Constancia', constanciaDto);
-const Factura = def('Factura', facturaDto);
-const SolicitudFactura = def('SolicitudFactura', solicitudFacturaDto);
-const AceptarSolicitudRespuesta = def('AceptarSolicitudRespuesta', aceptarSolicitudRespuestaDto);
-const ConsultaFacturaPublica = def('ConsultaFacturaPublica', consultaFacturaPublicaDto);
+const CobroPorFolio = def('CobroPorFolio', cobroPorFolioDto);
+const MetricasDireccion = def('MetricasDireccion', metricasDireccionDto);
 const VerificacionConstanciaPublica = def('VerificacionConstanciaPublica', verificacionConstanciaPublicaDto);
 const Error_ = def('Error', errorSchema);
 
@@ -215,7 +206,7 @@ const PARAM_TIPO_CONSTANCIA = { name: 'tipo', in: 'path', required: true, schema
 
 export const openApiDocument = {
   openapi: '3.0.3',
-  info: { title: 'SICEF API', version: 'v1', description: 'API del Sistema Integral de Constancias, Emisión y Facturación. Ver documentacion/CONTRATO_API_SICEF.md para máquinas de estado y reglas de negocio.' },
+  info: { title: 'SICEF API', version: 'v1', description: 'API del Sistema Integral de Constancias y Emisión. La facturación (CFDI) vive en el sistema Finanzas, independiente de éste. Ver documentacion/CONTRATO_API_SICEF.md para máquinas de estado y reglas de negocio.' },
   servers: [{ url: '/api/v1' }],
   components: {
     securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
@@ -228,23 +219,7 @@ export const openApiDocument = {
     '/openapi.json': { get: { tags: ['Sistema'], summary: 'Contrato OpenAPI', responses: { '200': { description: 'Este documento' } } } },
 
     // ---------- Rutas públicas (sin autenticación, con rate limit) ----------
-    '/public/facturas/solicitudes': {
-      post: {
-        tags: ['Público'], summary: 'Enviar datos fiscales para solicitar factura de una constancia ya emitida',
-        requestBody: body(SolicitudFacturaPublica),
-        responses: { '201': envelope(SolicitudFactura, { description: 'Solicitud registrada en PENDIENTE_REVISION' }), ...ERRORES_VALIDACION, ...ERRORES_NO_ENCONTRADO, '429': errorResponse('Límite de tasa excedido') },
-      },
-    },
-    '/public/facturas/{folio}': {
-      get: {
-        tags: ['Público'], summary: 'Consultar CFDI por folio y RFC (sin detalle técnico de timbrado)',
-        parameters: [
-          { name: 'folio', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'rfc', in: 'query', required: true, schema: { type: 'string', minLength: 12, maxLength: 13 } },
-        ],
-        responses: { '200': envelope(ConsultaFacturaPublica, { description: 'Estado y archivos del CFDI, si existen' }), ...ERRORES_VALIDACION, ...ERRORES_NO_ENCONTRADO, '429': errorResponse('Límite de tasa excedido') },
-      },
-    },
+    // La solicitud y la consulta de CFDI se trasladaron al sistema Finanzas.
     '/public/constancias/{folio}/verificar/{token}': {
       get: {
         tags: ['Público'],
@@ -393,7 +368,7 @@ export const openApiDocument = {
     '/tramites/{id}/borradores-cobro/{borradorId}/aplicar': { post: { tags: ['Borradores de cobro'], security: bearer, summary: 'Aplicar borrador: crea el cobro definitivo y pasa el trámite a COBRO', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }, { name: 'borradorId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '201': envelope(AplicarBorradorRespuesta, { description: 'Cobro aplicado' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, '409': errorResponse('El borrador no está ABIERTO'), '422': errorResponse('Faltan datos de pago en el borrador') } } },
 
     // ---------- Cobro directo y emisión ----------
-    '/tramites/{id}/cobros': { post: { tags: ['Cobros y constancias'], security: bearer, summary: 'Crear cobro directo (sin borrador) y factura pendiente opcional', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(CobroRequest), responses: { '201': envelope(CobroRespuesta, { description: 'Cobro registrado' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION, '409': errorResponse('El trámite no está APROBADO vigente o no hay tarifa activa compatible') } } },
+    '/tramites/{id}/cobros': { post: { tags: ['Cobros y constancias'], security: bearer, summary: 'Crear cobro directo (sin borrador) y pasar el trámite a COBRO', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(CobroRequest), responses: { '201': envelope(CobroRespuesta, { description: 'Cobro registrado' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION, '409': errorResponse('El trámite no está APROBADO vigente o no hay tarifa activa compatible') } } },
     '/tramites/{id}/constancias/{constanciaId}/archivo': {
       get: {
         tags: ['Cobros y constancias'], security: bearer, summary: 'Descargar el PDF de la constancia emitida (rol ventanilla)',
@@ -411,8 +386,38 @@ export const openApiDocument = {
     },
     '/tramites/{id}/constancias': { post: { tags: ['Cobros y constancias'], security: bearer, summary: 'Generar, firmar y emitir constancia (sólo para trámite en COBRO)', description: 'Sin cuerpo: el backend genera el PDF a partir de la plantilla del tipo de constancia, con el QR de verificación estampado, y toma la vigencia y el firmante de la configuración de Administración. Requiere que exista configuración y plantilla para ese tipo.', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '201': envelope(Constancia, { description: 'Constancia emitida' }), ...ERRORES_AUTENTICACION, '409': errorResponse('El trámite no está en COBRO, o falta configuración (CONSTANCIA_CONFIG_NOT_SET) o plantilla (TEMPLATE_NOT_CONFIGURED) para ese tipo') } } },
 
-    // ---------- Resolución de solicitudes de factura (rol finanzas) ----------
-    '/facturas/solicitudes/{id}/aceptar': { post: { tags: ['Facturación'], security: bearer, summary: 'Aceptar solicitud pública y crear factura pendiente (rol finanzas)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '200': envelope(AceptarSolicitudRespuesta, { description: 'Solicitud aceptada' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, '409': errorResponse('La solicitud ya fue resuelta') } } },
-    '/facturas/solicitudes/{id}/rechazar': { post: { tags: ['Facturación'], security: bearer, summary: 'Rechazar solicitud de factura (rol finanzas; requiere motivo)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ResolucionFacturaRequest), responses: { '200': envelope(SolicitudFactura, { description: 'Solicitud rechazada' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, '409': errorResponse('La solicitud ya fue resuelta'), ...ERRORES_VALIDACION } } },
+    // ---------- Superficie de sólo lectura hacia el sistema Finanzas ----------
+    // Consumida por su service account (roles `consulta-cobros` y
+    // `consulta-metricas`), nunca por un navegador ni por roles de personas.
+    '/constancias/{folio}/cobro': {
+      get: {
+        tags: ['Integración Finanzas'], security: bearer,
+        summary: 'Consultar el cobro de una constancia por su folio (rol consulta-cobros)',
+        description: 'Se llavea por el folio de la constancia porque es único, va impreso en el documento que el ciudadano se lleva y ya lo usa el QR de verificación. `cobro.referenciaPago` es texto libre y sin unicidad: no sirve como llave. La respuesta no incluye datos personales. Responde 404 mientras la constancia no se haya emitido.',
+        parameters: [{ name: 'folio', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': envelope(CobroPorFolio, { description: 'Datos del cobro asociado al folio' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO },
+      },
+    },
+    '/constancias/{folio}/cobro/comprobante': {
+      get: {
+        tags: ['Integración Finanzas'], security: bearer,
+        summary: 'Descargar el comprobante de pago adjuntado al cobrar (rol consulta-cobros)',
+        description: 'El ticket de la terminal bancaria o el comprobante de la transferencia, tal como se adjuntó en ventanilla. Va en su propia ruta —y no incrustado en el JSON— para que quede claro cuándo se solicita el documento y no sólo sus metadatos. Devuelve los bytes con su content-type, sin la envolvente { data }.',
+        parameters: [{ name: 'folio', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Contenido del comprobante', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } }, ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO },
+      },
+    },
+    '/direccion/metricas': {
+      get: {
+        tags: ['Integración Finanzas'], security: bearer,
+        summary: 'Indicadores del tablero de Dirección (roles direccion o consulta-metricas)',
+        description: 'Devuelve los seis KPIs que SICEF puede calcular sobre sus propios datos, más la serie mensual de constancias por tipo y la distribución de trámites por estado. El éxito de timbrado y las cancelaciones de CFDI no están aquí: son del sistema Finanzas, que los agrega al componer el tablero. Sin parámetros, el periodo son los últimos 12 meses.',
+        parameters: [
+          { name: 'desde', in: 'query', required: false, schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', required: false, schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: { '200': envelope(MetricasDireccion, { description: 'Indicadores del periodo' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION },
+      },
+    },
   },
 } as const;

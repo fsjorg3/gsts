@@ -1,13 +1,18 @@
 import { z } from 'zod';
 
-export const rolesSicef = ['ventanilla', 'finanzas', 'ti', 'direccion'] as const;
+// `finanzas` ya no existe aquí: la facturación vive en un sistema aparte y ese
+// rol pertenece a su realm de cliente, no al de SICEF. `consulta-cobros` y
+// `consulta-metricas` son roles de *service account*, no de personas: los usa
+// el backend de Finanzas para las dos consultas de sólo lectura que SICEF le
+// expone.
+export const rolesSicef = ['ventanilla', 'ti', 'direccion', 'consulta-cobros', 'consulta-metricas'] as const;
 export const roleSicefSchema = z.enum(rolesSicef);
 export type RoleSicef = z.infer<typeof roleSicefSchema>;
 
-// Origen literal de cada rol en el token de Keycloak. `ventanilla` y `finanzas`
-// sólo son válidos desde `resource_access.sicef.roles`; `ti` y `direccion` sólo
-// desde `realm_access.roles`. Un rol colocado en la fuente equivocada se ignora.
-export const rolesCliente = ['ventanilla', 'finanzas'] as const satisfies readonly RoleSicef[];
+// Origen literal de cada rol en el token de Keycloak. Los roles de cliente sólo
+// son válidos desde `resource_access.sicef.roles`; `ti` y `direccion` sólo desde
+// `realm_access.roles`. Un rol colocado en la fuente equivocada se ignora.
+export const rolesCliente = ['ventanilla', 'consulta-cobros', 'consulta-metricas'] as const satisfies readonly RoleSicef[];
 export const rolesRealm = ['ti', 'direccion'] as const satisfies readonly RoleSicef[];
 
 export const paginationSchema = z.object({
@@ -49,7 +54,7 @@ export const crearTramiteSchema = z.object({
   domicilioPerteneceANombre: z.string().trim().min(1).max(200).optional(),
   personas: z.array(z.object({
     personaId: z.string().uuid(),
-    rol: z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO', 'RECEPTOR_FISCAL']),
+    rol: z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO']),
   })).min(1),
 });
 
@@ -92,7 +97,10 @@ export const guardarBorradorCobroSchema = z.object({
   motivoReduccionId: z.string().uuid().nullable().optional(),
   formaPago: z.string().trim().min(1).max(10).optional(),
   metodoPago: z.enum(['PUE', 'PPD']).optional(),
-  requiereFactura: z.boolean().optional(),
+  // Dato informativo de la ventanilla: qué contestó el solicitante ese día.
+  // No es fuente de verdad sobre si existe factura — eso vive en Finanzas y la
+  // solicitud puede llegar semanas después por el portal.
+  facturaSolicitadaEnVentanilla: z.boolean().optional(),
   referenciaPago: z.string().trim().min(1).max(255).optional(),
   // Comprobante de pago (voucher). Grupo anidado opcional: o llega completo
   // (archivo nuevo) o no llega, sin estados intermedios inválidos.
@@ -140,15 +148,6 @@ export const listarBitacoraSchema = paginationSchema.extend({
   hasta: z.string().datetime().optional(),
 });
 
-export const solicitudFacturaPublicaSchema = z.object({
-  folio: z.string().trim().min(1).max(100),
-  receptorRfc: z.string().trim().min(12).max(13),
-  receptorNombre: z.string().trim().min(1).max(254),
-  receptorCp: z.string().regex(/^\d{5}$/),
-  receptorRegimen: z.string().trim().min(1).max(10),
-  usoCfdi: z.string().trim().min(1).max(10),
-});
-
 // ===================== ENUMS DE ENTIDAD (para DTOs de respuesta) =====================
 // Espejo de los enums de backend/prisma/schema.prisma. Los request schemas de arriba
 // no se tocan (siguen con sus z.enum([...]) inline); estos se usan solo en los DTOs
@@ -157,11 +156,9 @@ export const solicitudFacturaPublicaSchema = z.object({
 export const tipoConstanciaSchema = z.enum(['NO_ADEUDO', 'NO_REGISTRO']);
 export const personalidadSchema = z.enum(['FISICA', 'MORAL']);
 export const representacionSchema = z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO']);
-export const rolPersonaSchema = z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO', 'RECEPTOR_FISCAL']);
+export const rolPersonaSchema = z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO']);
 export const estadoTramiteSchema = z.enum(['CAPTURA', 'EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'COBRO', 'FINALIZADO']);
-export const estadoFacturaSchema = z.enum(['PENDIENTE', 'TIMBRADO_EN_PROCESO', 'TIMBRADO', 'TIMBRADO_FALLIDO', 'CANCELADO']);
 export const estadoBorradorCobroSchema = z.enum(['ABIERTO', 'APLICADO', 'VENCIDO', 'CANCELADO']);
-export const estadoSolicitudFacturaSchema = z.enum(['PENDIENTE_REVISION', 'ACEPTADA', 'RECHAZADA']);
 export const estadoEvidenciaSchema = z.enum(['CARGADO', 'VALIDADO', 'RECHAZADO']);
 export const metodoValidacionSchema = z.enum(['MANUAL', 'API']);
 export const momentoValidacionSchema = z.enum(['VALIDACION_INICIAL', 'REVALIDACION_COBRO']);
@@ -292,7 +289,6 @@ export const bitacoraDto = z.object({
 export const configuracionPlazosDto = z.object({
   id: z.literal('PLAZOS_OPERATIVOS'),
   plazoPagoDias: z.number().int(),
-  plazoSolicitudFacturaDias: z.number().int(),
   activa: z.boolean(),
   actualizadoPorId: z.string().uuid(),
   createdAt: z.string(),
@@ -356,7 +352,7 @@ export const borradorCobroDto = z.object({
   formaPago: z.string().nullable(),
   metodoPago: metodoPagoSchema.nullable(),
   moneda: z.string().nullable(),
-  requiereFactura: z.boolean().nullable(),
+  facturaSolicitadaEnVentanilla: z.boolean().nullable(),
   referenciaPago: z.string().nullable(),
   comprobanteArchivoUuid: z.string().uuid().nullable(),
   comprobanteNombreOriginal: z.string().nullable(),
@@ -385,7 +381,7 @@ export const cobroDto = z.object({
   formaPago: z.string(),
   metodoPago: metodoPagoSchema,
   moneda: z.string(),
-  requiereFactura: z.boolean(),
+  facturaSolicitadaEnVentanilla: z.boolean(),
   referenciaPago: z.string().nullable(),
   comprobanteArchivoUuid: z.string().uuid().nullable(),
   comprobanteNombreOriginal: z.string().nullable(),
@@ -416,46 +412,6 @@ export const constanciaDto = z.object({
   // Derivado, no columna: URL que codifica el QR impreso en la constancia.
   // null si la versión de clave con la que se emitió ya fue retirada.
   urlVerificacion: z.string().nullable(),
-});
-
-export const facturaDto = z.object({
-  id: z.string().uuid(),
-  cobroId: z.string().uuid(),
-  estado: estadoFacturaSchema,
-  receptorRfc: z.string().nullable(),
-  receptorNombre: z.string().nullable(),
-  receptorCp: z.string().nullable(),
-  receptorRegimen: z.string().nullable(),
-  usoCfdi: z.string().nullable(),
-  idempotencyKey: z.string(),
-  uuid: z.string().nullable(),
-  xmlRuta: z.string().nullable(),
-  pdfRuta: z.string().nullable(),
-  intentos: z.number().int(),
-  ultimoError: z.string().nullable(),
-  timbradaAt: z.string().nullable(),
-  canceladaAt: z.string().nullable(),
-  motivoCancelacion: z.string().nullable(),
-  uuidSustituto: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const solicitudFacturaDto = z.object({
-  id: z.string().uuid(),
-  cobroId: z.string().uuid(),
-  facturaId: z.string().uuid().nullable(),
-  estado: estadoSolicitudFacturaSchema,
-  receptorRfc: z.string(),
-  receptorNombre: z.string(),
-  receptorCp: z.string(),
-  receptorRegimen: z.string(),
-  usoCfdi: z.string(),
-  fechaLimite: z.string(),
-  solicitadaAt: z.string(),
-  resueltaPorId: z.string().uuid().nullable(),
-  resueltaAt: z.string().nullable(),
-  motivoRechazo: z.string().nullable(),
 });
 
 export const tramiteDto = z.object({
@@ -495,21 +451,59 @@ export const actorMeDto = z.object({ actorId: z.string().uuid(), roles: z.array(
 export const aplicarBorradorRespuestaDto = z.object({
   borrador: borradorCobroDto,
   cobro: cobroDto,
-  factura: facturaDto.optional(),
 });
 
-export const cobroRespuestaDto = z.object({ cobro: cobroDto, factura: facturaDto.optional() });
-
-export const aceptarSolicitudRespuestaDto = z.object({ solicitud: solicitudFacturaDto, factura: facturaDto });
+export const cobroRespuestaDto = z.object({ cobro: cobroDto });
 
 export const archivoRefDto = z.object({ archivoUuid: z.string().uuid(), mimeType: z.string() });
 
-export const consultaFacturaPublicaDto = z.object({
-  estado: estadoFacturaSchema,
-  uuid: z.string().optional(),
-  xml: archivoRefDto.optional(),
-  pdf: archivoRefDto.optional(),
-  disponible: z.boolean(),
+// ===================== Superficie hacia el sistema Finanzas =====================
+// Sólo lectura, consumida por su service account. Nada de esto lleva datos
+// personales: sin RFC, sin nombres, sin nis, sin identificadores internos de
+// trámite o persona.
+
+export const comprobantePagoRefDto = z.object({
+  nombreOriginal: z.string().nullable(),
+  mimeType: z.string().nullable(),
+  tamanoBytes: z.number().int().nullable(),
+  hashSha256: z.string().nullable(),
+});
+
+export const cobroPorFolioDto = z.object({
+  folioConstancia: z.string(),
+  tipoConstancia: tipoConstanciaSchema,
+  emitidaAt: z.string(),
+  concepto: z.string(),
+  montoFinal: z.string(),
+  moneda: z.string(),
+  cobradoAt: z.string(),
+  formaPago: z.string(),
+  metodoPago: metodoPagoSchema,
+  referenciaPago: z.string().nullable(),
+  /// Metadatos del ticket de la terminal (o del comprobante de transferencia)
+  /// adjuntado al cobrar. Los bytes se piden en su propia ruta.
+  comprobante: comprobantePagoRefDto.nullable(),
+});
+
+// ===================== Indicadores de Dirección =====================
+// SICEF calcula seis de los ocho KPIs del tablero. El éxito de timbrado y las
+// cancelaciones de CFDI son del sistema Finanzas, que los agrega al componer.
+
+export const kpiDireccionDto = z.object({
+  clave: z.string(),
+  etiqueta: z.string(),
+  valor: z.number(),
+  unidad: z.enum(['CONTEO', 'PORCENTAJE', 'MINUTOS']),
+});
+
+export const metricasDireccionDto = z.object({
+  periodo: z.object({ desde: z.string(), hasta: z.string() }),
+  kpis: z.array(kpiDireccionDto),
+  constanciasPorMes: z.object({
+    meses: z.array(z.string()),
+    series: z.array(z.object({ tipo: tipoConstanciaSchema, valores: z.array(z.number().int()) })),
+  }),
+  tramitesPorEstado: z.array(z.object({ estado: estadoTramiteSchema, total: z.number().int() })),
 });
 
 // Domicilio del predio (sólo constancias de No Registro). Es el domicilio que

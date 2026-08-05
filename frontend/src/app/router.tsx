@@ -3,8 +3,6 @@ import { RequireRole } from '@/auth/RequireRole';
 import { useAuth } from '@/auth/useAuth';
 import { AdministracionPage } from '@/features/administracion/pages/AdministracionPage';
 import { BitacoraPage } from '@/features/bitacora/pages/BitacoraPage';
-import { DireccionPage } from '@/features/direccion/pages/DireccionPage';
-import { FinanzasPage } from '@/features/facturacion/pages/FinanzasPage';
 import { NuevoTramite } from '@/features/tramites/pages/NuevoTramite';
 import { TramiteWizard } from '@/features/tramites/pages/TramiteWizard';
 import { VentanillaLista } from '@/features/tramites/pages/VentanillaLista';
@@ -48,22 +46,6 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole roles={['ventanilla']}>
             <TramiteWizard />
-          </RequireRole>
-        ),
-      },
-      {
-        path: 'finanzas',
-        element: (
-          <RequireRole roles={['finanzas']}>
-            <FinanzasPage />
-          </RequireRole>
-        ),
-      },
-      {
-        path: 'direccion',
-        element: (
-          <RequireRole roles={['direccion']}>
-            <DireccionPage />
           </RequireRole>
         ),
       },

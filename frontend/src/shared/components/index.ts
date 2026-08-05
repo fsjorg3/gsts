@@ -5,10 +5,8 @@ export {
   EstadoBadge,
   EstadoDeBadge,
   ESTADO_TRAMITE,
-  ESTADO_FACTURA,
   ESTADO_BORRADOR,
   ESTADO_EVIDENCIA,
-  ESTADO_SOLICITUD_FACTURA,
   type BadgeColor,
 } from './EstadoBadge';
 export { DataTable, type DataTableColumn } from './DataTable';

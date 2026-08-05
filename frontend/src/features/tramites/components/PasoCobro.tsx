@@ -72,7 +72,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
   const [motivoReduccionId, setMotivoReduccionId] = useState('');
   const [formaPago, setFormaPago] = useState('01');
   const [metodoPago, setMetodoPago] = useState<'PUE' | 'PPD'>('PUE');
-  const [requiereFactura, setRequiereFactura] = useState(false);
+  const [facturaSolicitadaEnVentanilla, setFacturaSolicitada] = useState(false);
   const [referenciaPago, setReferenciaPago] = useState('');
   const [comprobante, setComprobante] = useState<File | null>(null);
   const comprobanteRef = useRef<HTMLInputElement>(null);
@@ -86,7 +86,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
     if (borradorAbierto.motivoReduccionId) setMotivoReduccionId(borradorAbierto.motivoReduccionId);
     if (borradorAbierto.formaPago) setFormaPago(borradorAbierto.formaPago);
     if (borradorAbierto.metodoPago) setMetodoPago(borradorAbierto.metodoPago);
-    if (borradorAbierto.requiereFactura !== null) setRequiereFactura(borradorAbierto.requiereFactura);
+    if (borradorAbierto.facturaSolicitadaEnVentanilla !== null) setFacturaSolicitada(borradorAbierto.facturaSolicitadaEnVentanilla);
     if (borradorAbierto.referenciaPago) setReferenciaPago(borradorAbierto.referenciaPago);
   }, [borradorAbierto]);
 
@@ -111,7 +111,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
     motivoReduccionId: motivoReduccionId || null,
     formaPago,
     metodoPago,
-    requiereFactura,
+    facturaSolicitadaEnVentanilla,
     ...(referenciaPago.trim() ? { referenciaPago: referenciaPago.trim() } : {}),
     ...(comprobante ? { comprobante } : {}),
   };
@@ -146,7 +146,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
       );
     } else {
       cobroDirecto.mutate(
-        { tarifaId, motivoReduccionId: motivoReduccionId || null, formaPago, metodoPago, moneda: 'MXN', requiereFactura, ...(referenciaPago.trim() ? { referenciaPago: referenciaPago.trim() } : {}), ...(comprobante ? { comprobante } : {}) },
+        { tarifaId, motivoReduccionId: motivoReduccionId || null, formaPago, metodoPago, moneda: 'MXN', facturaSolicitadaEnVentanilla, ...(referenciaPago.trim() ? { referenciaPago: referenciaPago.trim() } : {}), ...(comprobante ? { comprobante } : {}) },
         alTerminar,
       );
     }
@@ -306,17 +306,17 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
             ) : null}
           </Box>
 
-          {/* Facturación */}
+          {/* Facturación — se registra la intención; el CFDI lo emite Finanzas */}
           <Box sx={{ borderTop: '1px solid', borderTopColor: 'divider', pt: 1.75, mt: 1 }}>
-            <Typography variant="overline" sx={{ color: 'text.secondary' }}>¿El ciudadano requiere factura (CFDI 4.0)?</Typography>
-            <RadioGroup row value={requiereFactura ? 'si' : 'no'} onChange={(evento) => setRequiereFactura(evento.target.value === 'si')}>
-              <FormControlLabel value="no" control={<Radio size="small" />} label="No — público en general" />
-              <FormControlLabel value="si" control={<Radio size="small" />} label="Sí — emitir CFDI" />
+            <Typography variant="overline" sx={{ color: 'text.secondary' }}>¿El ciudadano solicita factura?</Typography>
+            <RadioGroup row value={facturaSolicitadaEnVentanilla ? 'si' : 'no'} onChange={(evento) => setFacturaSolicitada(evento.target.value === 'si')}>
+              <FormControlLabel value="no" control={<Radio size="small" />} label="No" />
+              <FormControlLabel value="si" control={<Radio size="small" />} label="Sí" />
             </RadioGroup>
-            <Alert severity="info" icon={<MsIcon name={requiereFactura ? 'receipt_long' : 'groups'} size={19} />} sx={{ mt: 1 }}>
-              {requiereFactura
-                ? 'La factura queda PENDIENTE; los datos fiscales del receptor se capturan mediante la solicitud del portal público y el timbrado lo realiza el worker externo.'
-                : 'La operación se consolida en la factura global de público en general del periodo. No se emite CFDI individual.'}
+            <Alert severity="info" icon={<MsIcon name={facturaSolicitadaEnVentanilla ? 'receipt_long' : 'groups'} size={19} />} sx={{ mt: 1 }}>
+              {facturaSolicitadaEnVentanilla
+                ? 'La factura no se emite aquí: indíquele que la solicite en el portal con el folio de su constancia. Este dato queda sólo como registro de lo que contestó hoy.'
+                : 'No se registra solicitud de factura. Si cambia de opinión, puede pedirla después en el portal con el folio de su constancia.'}
             </Alert>
           </Box>
 

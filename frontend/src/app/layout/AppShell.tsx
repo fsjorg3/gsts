@@ -67,7 +67,7 @@ export function AppShell() {
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1 }}>SICEF</Typography>
             <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'text.disabled', lineHeight: 1.3 }}>
-              Constancias y facturación
+              Constancias de no adeudo y no registro
             </Typography>
           </Box>
         </Box>

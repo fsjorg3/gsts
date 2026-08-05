@@ -1,0 +1,379 @@
+# SICEF después de la separación de facturación
+
+> Documento de estado destino. Describe cómo queda SICEF una vez que la facturación
+> se traslada a un sistema independiente. Su contraparte es
+> [SISTEMA_FINANZAS.md](SISTEMA_FINANZAS.md).
+>
+> Los documentos de `documentacion/` describen el sistema **actual** y siguen siendo
+> válidos hasta que el recorte de la sección 9 se ejecute.
+
+## 1. Propósito y qué cambia
+
+SOAPAP necesita facturar más cosas que constancias: permisos de descarga, penalizaciones por actos de autoridad y otros conceptos. El modelo actual no lo permite, porque el CFDI cuelga de una cadena que termina en un trámite de constancia:
+
+```
+Tramite  1—1  Cobro  1—1  Factura
+```
+
+Una factura de un permiso de descarga no tiene trámite del que colgar. La salida no es generalizar `Tramite`, sino sacar la facturación a un sistema propio cuya unidad de trabajo no dependa de qué originó el pago.|
+
+**SICEF deja de emitir CFDI.** Conserva todo lo demás, incluido el cobro.
+
+### Por qué el cobro se queda
+
+Podría parecer que el cobro debería irse con la facturación. No: en SOAPAP el cobro es lo que **habilita la entrega de la constancia**. El solicitante presenta su ticket en ventanilla y hasta entonces recibe el documento. Esa es una regla del trámite, no una regla fiscal. Si el cobro se fuera, SICEF no podría decidir por sí solo si entrega una constancia — que es justamente el acoplamiento que se busca evitar.
+
+### Los tres cambios de comportamiento
+
+| Cambio | Antes | Después |
+|---|---|---|
+| Cierre del trámite | `COBRO → FINALIZADO` exige CFDI timbrado si el cobro requería factura | Exige sólo constancia emitida. La factura es una obligación independiente con su propio plazo |
+| Datos fiscales | Se capturan en ventanilla o portal y se guardan en SICEF (`solicitud_factura`) | SICEF nunca los custodia. Ventanilla los captura, pero el navegador los envía directo a Finanzas |
+| Rol `finanzas` | Resuelve solicitudes dentro de SICEF | Desaparece de SICEF. Existe sólo en el sistema de Finanzas |
+
+## 2. Alcance
+
+**Conserva:**
+
+- Trámite de constancia (`NO_ADEUDO`, `NO_REGISTRO`) con su máquina de estados.
+- Catálogo de requisitos versionado e inmutable, y el checklist que gobierna el avance.
+- Evidencias documentales sobre NFS con hash SHA-256.
+- Validación de no adeudo (inicial y revalidación) y confirmaciones manuales atribuibles.
+- Consultas a la concesionaria.
+- **Cobro y borrador de cobro**, tarifas versionadas y motivos de reducción.
+- Generación y emisión de la constancia en PDF con QR de verificación.
+- Verificación pública de constancias por QR.
+- Bitácora append-only.
+- Administración de plazos y de configuración de constancias (rol `ti`).
+
+**Deja de tener:**
+
+- CFDI individual y global.
+- Solicitudes de factura, tanto la ruta pública como su resolución interna.
+- El rol `finanzas` y el módulo `backend/src/modules/facturacion/`.
+- La ruta pública de consulta de CFDI.
+
+## 3. ERD
+
+> **Vista completa con atributos:** [sicef_erd.html](sicef_erd.html) — las 21 entidades con
+> sus columnas y llaves PK/FK/UK, con zoom, arrastre y modo claro/oscuro. Ábrelo en el
+> navegador; funciona sin conexión. Los diagramas de abajo son la versión resumida, sólo
+> de relaciones, para leer sin salir del editor.
+
+Se presenta en dos vistas por legibilidad. Ambas describen la misma base.
+
+### 3.1 Núcleo del trámite
+
+```mermaid
+erDiagram
+    ACTOR ||--o{ TRAMITE : crea
+    ACTOR ||--o{ EVIDENCIA : carga
+    ACTOR ||--o{ VALIDACION_NO_ADEUDO : registra
+    ACTOR ||--o{ CONFIRMACION_MANUAL : confirma
+    ACTOR ||--o{ CONSULTA_CONCESIONARIA : realiza
+
+    VERSION_CATALOGO ||--o{ GRUPO_REQUISITO : agrupa
+    GRUPO_REQUISITO  ||--o{ OPCION_REQUISITO : ofrece
+    OPCION_REQUISITO ||--o{ OPCION_DOCUMENTO : exige
+    VERSION_CATALOGO ||--o{ TRAMITE : "estampada en"
+
+    TRAMITE ||--o{ TRAMITE_PERSONA : involucra
+    PERSONA ||--o{ TRAMITE_PERSONA : participa
+    TRAMITE ||--o{ EVIDENCIA : respalda
+    OPCION_DOCUMENTO ||--o{ EVIDENCIA : satisface
+    TRAMITE ||--o{ VALIDACION_NO_ADEUDO : verifica
+    TRAMITE ||--o{ CONFIRMACION_MANUAL : documenta
+    TRAMITE ||--o{ CONSULTA_CONCESIONARIA : consulta
+```
+
+### 3.2 Cobro, emisión y auditoría
+
+```mermaid
+erDiagram
+    TRAMITE ||--o| COBRO : "paga con"
+    TRAMITE ||--o{ BORRADOR_COBRO : "captura en"
+    TRAMITE ||--o| CONSTANCIA : emite
+
+    TARIFA ||--o{ COBRO : tarifica
+    TARIFA ||--o{ BORRADOR_COBRO : tarifica
+    MOTIVO_REDUCCION ||--o{ COBRO : reduce
+    MOTIVO_REDUCCION ||--o{ BORRADOR_COBRO : reduce
+    BORRADOR_COBRO |o--o| COBRO : "se aplica como"
+
+    CONSTANCIA ||--o{ ARCHIVO_GENERADO : produce
+
+    ACTOR ||--o{ COBRO : cobra
+    ACTOR ||--o{ BORRADOR_COBRO : captura
+    ACTOR ||--o{ CONFIGURACION_PLAZOS : actualiza
+    ACTOR ||--o{ CONFIGURACION_CONSTANCIA : actualiza
+    ACTOR ||--o{ BITACORA : origina
+    BITACORA ||--o{ BITACORA : corrige
+```
+
+`ARCHIVO_GENERADO` queda con **una sola** referencia posible (`constancia_id`); hoy admite tres. `BITACORA` no tiene FK hacia las entidades que audita: guarda `entidad` (texto) + `entidad_id` (UUID), y por eso sobrevive intacta al recorte.
+
+## 4. Modelo de datos
+
+De los 25 modelos actuales quedan **21**. El detalle campo por campo de lo que se conserva sigue siendo [GUIA_MODELO_SICNAF_Y_CATALOGOS.md](../documentacion/GUIA_MODELO_SICNAF_Y_CATALOGOS.md); aquí sólo se registra el delta.
+
+### 4.1 Modelos eliminados
+
+| Modelo | Destino |
+|---|---|
+| `Factura` | Migra a Finanzas, colgando de `solicitud_factura` en vez de `cobro` |
+| `SolicitudFactura` | Migra a Finanzas y se convierte en la **raíz** del agregado |
+| `FacturaGlobal` | Se descarta (ver [SISTEMA_FINANZAS.md](SISTEMA_FINANZAS.md) §12) |
+| `FacturaGlobalDetalle` | Se descarta con la anterior |
+
+### 4.2 Enums eliminados o recortados
+
+| Enum | Cambio |
+|---|---|
+| `EstadoFactura` | Eliminado. Migra a Finanzas sin cambios |
+| `EstadoSolicitudFactura` | Eliminado. Migra a Finanzas sin cambios |
+| `RolPersona` | Pierde el valor `RECEPTOR_FISCAL`. El receptor fiscal es un dato de Finanzas y allá vive como snapshot congelado, no como persona registrada |
+
+### 4.3 Modelos modificados
+
+| Modelo | Cambio |
+|---|---|
+| `Cobro` | Pierde las relaciones `factura`, `solicitudesFactura` y `facturaGlobalDetalle`. `requiereFactura` se renombra (ver 4.4) |
+| `ArchivoGenerado` | Pierde `facturaId` y `facturaGlobalId` con sus relaciones e índices. Queda con `constanciaId` obligatorio |
+| `ConfiguracionPlazos` | Pierde `plazoSolicitudFacturaDias`. El plazo fiscal lo calcula Finanzas desde la fecha de pago |
+| `Actor` | Pierde la relación `solicitudesFacturaResueltas` |
+| `Persona` | Sin cambio estructural, pero deja de usarse para receptores fiscales |
+
+### 4.4 `requiereFactura` → `facturaSolicitadaEnVentanilla`
+
+Hoy `cobro.requiere_factura` es un campo **de estado**: tres reglas de base de datos dependen de él ([migration_complementaria.sql:536-544](../backend/prisma/migration_complementaria.sql)) y decide si el trámite puede finalizar.
+
+Después del recorte no puede seguir siéndolo. La verdad sobre si existe una factura vive en Finanzas, y la solicitud puede llegar tres semanas más tarde por el portal — SICEF no tiene forma de saberlo ni de mantenerlo actualizado.
+
+Se conserva como **dato informativo de la ventanilla**: qué contestó el solicitante ese día, para imprimirlo en el ticket y para indicadores. El renombre no es cosmético: evita que dentro de seis meses alguien lo lea como fuente de verdad. Las tres reglas de base de datos que lo custodiaban se eliminan.
+
+> Alternativa válida: eliminarlo por completo. Se conserva porque el dato del ticket
+> tiene valor operativo y su costo es una columna booleana.
+
+## 5. Máquinas de estado
+
+Todas las transiciones las sigue validando un trigger de PostgreSQL; el backend nunca decide por sí solo si una transición es válida.
+
+### 5.1 Trámite
+
+```mermaid
+stateDiagram-v2
+    [*] --> CAPTURA
+    CAPTURA --> EN_VALIDACION: iniciar-validacion
+    EN_VALIDACION --> APROBADO: aprobar
+    EN_VALIDACION --> RECHAZADO: rechazar
+    APROBADO --> COBRO: crear cobro (directo o aplicar borrador)
+    APROBADO --> RECHAZADO: rechazar
+    APROBADO --> EXPIRADO: expirar
+    COBRO --> FINALIZADO: finalizar
+    RECHAZADO --> [*]
+    EXPIRADO --> [*]
+    FINALIZADO --> [*]
+```
+
+La topología no cambia. Cambia **una** guardia:
+
+| Transición | Exige | Cambio |
+|---|---|---|
+| `CAPTURA → EN_VALIDACION` | Checklist aplicable satisfecho (`fn_checklist_satisfecho`) | — |
+| `EN_VALIDACION → APROBADO` | Para `NO_ADEUDO`: `validacion_no_adeudo` inicial `SIN_ADEUDO`. Siempre: `configuracion_plazos` activa con `plazo_pago_dias > 0`; el trigger estampa `plazo_pago_hasta` | — |
+| `APROBADO → COBRO` | `plazo_pago_hasta` vigente. Para `NO_ADEUDO`: revalidación `SIN_ADEUDO`. Existe cobro con tarifa publicada, activa y del mismo `tipo_constancia` | — |
+| `APROBADO → EXPIRADO` | Sólo después del vencimiento. Efecto: el borrador `ABIERTO` pasa a `VENCIDO` | — |
+| `APROBADO → RECHAZADO` | Sin condición. Efecto: el borrador `ABIERTO` pasa a `CANCELADO` | — |
+| `COBRO → FINALIZADO` | Existe constancia emitida | **Se elimina** la exigencia de CFDI timbrado |
+
+Ese último renglón es el único punto donde SICEF leía datos de facturación. Al quitarlo, la dependencia queda en cero: **SICEF no consulta a Finanzas para nada.**
+
+### 5.2 Borrador de cobro
+
+```mermaid
+stateDiagram-v2
+    [*] --> ABIERTO: POST /borradores-cobro
+    ABIERTO --> APLICADO: POST /:id/aplicar
+    ABIERTO --> VENCIDO: automático (trámite → EXPIRADO)
+    ABIERTO --> CANCELADO: automático (trámite → RECHAZADO)
+    APLICADO --> [*]
+    VENCIDO --> [*]
+    CANCELADO --> [*]
+```
+
+Sin cambios. Un solo borrador `ABIERTO` por trámite; `VENCIDO`/`CANCELADO` son transiciones automáticas disparadas por el trámite, nunca por llamada directa.
+
+### 5.3 Máquinas que desaparecen
+
+`EstadoFactura` y `EstadoSolicitudFactura` se van completas a Finanzas. De las cuatro máquinas actuales, SICEF conserva dos.
+
+## 6. Reglas duras: qué sale de `migration_complementaria.sql`
+
+Se mantiene la disciplina de dos territorios: [schema.prisma](../backend/prisma/schema.prisma) modela estructura, [migration_complementaria.sql](../backend/prisma/migration_complementaria.sql) instala las reglas. El recorte toca sólo lo fiscal.
+
+| Líneas actuales | Qué es | Acción |
+|---|---|---|
+| 11, 15-17, 23-24, 28 | `DROP TRIGGER` de tablas de factura | Eliminar los renglones |
+| 59-64 | `chk_archivo_generado_ref` con `num_nonnulls(constancia_id, factura_id, factura_global_id) = 1` | Reescribir: `constancia_id IS NOT NULL` |
+| 65-66 | `chk_factura_global_periodo` | Eliminar |
+| 70-72 | `chk_configuracion_plazos_valores` | Quitar el término `plazo_solicitud_factura_dias > 0` |
+| 81-88 | `chk_solicitud_factura_fecha_limite` y `chk_solicitud_factura_receptor` | Eliminar |
+| 96-97 | `uq_solicitud_factura_unica_pendiente` | Eliminar |
+| 349-415 | `fn_solicitud_factura_integridad` y su trigger | Eliminar completo |
+| 506 | Guardia de CFDI timbrado en `fn_tramite_transicion_valida` | Eliminar el renglón y la variable `v_requiere_factura` |
+| 536-544 | Las tres reglas de `requiere_factura` en `fn_cobro_integridad` | Eliminar |
+| 550-601 | `fn_factura_integridad`, `fn_factura_global_detalle_integridad` y sus tres triggers | Eliminar completo |
+| 607-608 | `fn_archivo_generado_inmutable` | Quitar `factura_id` y `factura_global_id` de las dos tuplas comparadas |
+| 660-661 | `trg_factura_sin_borrado`, `trg_factura_global_sin_borrado` | Eliminar |
+
+**Se conserva íntegro** todo lo demás, que es la mayor parte del archivo:
+
+- Contexto transaccional: `fn_contexto_actor_id`, `fn_contexto_roles`, `fn_contexto_exige_actor`, `fn_contexto_exige_rol` (98-150).
+- Inmutabilidad de catálogos y tarifas publicados (152-239).
+- `fn_configuracion_plazos_integridad` (241-254).
+- `fn_borrador_cobro_integridad` (256-347) — completa, incluida la coincidencia exacta entre borrador aplicado y cobro definitivo.
+- `fn_evidencia_integridad` y el tope acumulado de 30 MB (417-435).
+- `fn_checklist_satisfecho` (437-453).
+- `fn_tramite_transicion_valida` (455-511), menos el renglón 506.
+- `fn_cobro_integridad` (513-548), menos 536-544.
+- `fn_constancia_inmutable` (616-629).
+- `fn_bitacora_protegida` y el `REVOKE` sobre `sicef_app` (631-671).
+
+El recorte no debilita ninguna garantía de SICEF: elimina reglas cuyas tablas ya no existen.
+
+## 7. API resultante
+
+Salen tres rutas y todo el módulo de facturación:
+
+| Ruta | Acción |
+|---|---|
+| `POST /facturas/solicitudes/{id}/aceptar` | Migra a Finanzas |
+| `POST /facturas/solicitudes/{id}/rechazar` | Migra a Finanzas |
+| `POST /public/facturas/solicitudes` | Migra a Finanzas como `POST /public/solicitudes` |
+| `GET /public/facturas/{folio}` | Migra a Finanzas, con `referencia` en vez de `folio` |
+
+`GET /public/constancias/{folio}/verificar/{token}` **se queda**: la verificación por QR es del documento, no del pago.
+
+Inventario resultante, en el orden literal que debe reflejar `backend/tests/contract/openapi.test.ts`:
+
+```
+GET    /health, /ready, /openapi.json
+GET    /public/constancias/{folio}/verificar/{token}
+GET    /auth/me
+GET    /catalogos/requisitos/activo, /catalogos/requisitos
+POST   /catalogos/requisitos
+GET    /catalogos/requisitos/{id}/validar, /catalogos/requisitos/{id}/vista-previa
+POST   /catalogos/requisitos/{id}/publicar, /catalogos/requisitos/{id}/grupos
+POST   /catalogos/grupos/{id}/opciones, /catalogos/opciones/{id}/documentos
+GET    /catalogos/tarifas/activas
+POST   /catalogos/tarifas, /catalogos/tarifas/{id}/publicar
+GET    /administracion/plazos                        PUT /administracion/plazos
+GET    /administracion/constancias/{tipo}            PUT /administracion/constancias/{tipo}
+GET    /personas                                     POST /personas
+GET    /motivos-reduccion                            POST /motivos-reduccion
+PATCH  /motivos-reduccion/{id}
+GET    /bitacora
+GET    /tramites, /tramites/{id}                     POST /tramites, /tramites/{id}/{accion}
+POST   /tramites/{id}/evidencias                     PATCH /tramites/{id}/evidencias/{evidenciaId}
+POST   /tramites/{id}/validaciones/no-adeudo
+GET    /tramites/{id}/borradores-cobro               POST /tramites/{id}/borradores-cobro
+PATCH  /tramites/{id}/borradores-cobro/{borradorId}
+POST   /tramites/{id}/borradores-cobro/{borradorId}/aplicar
+POST   /tramites/{id}/cobros, /tramites/{id}/constancias
+GET    /tramites/{id}/constancias/{constanciaId}/archivo
+GET    /cobros/por-referencia/{referencia}           ← nueva, ver §8
+```
+
+Las convenciones de alambre no cambian: éxito `{ data, requestId? }`, listas `{ data, meta.nextCursor?, requestId? }`, error `{ error: { code, message, details? } }`.
+
+## 8. El único punto de integración
+
+Finanzas necesita verificar que un ticket de pago corresponde a un cobro real. Para eso —y sólo para eso— SICEF expone una consulta:
+
+```
+GET /api/v1/cobros/por-referencia/{referencia}
+```
+
+**Respuesta** (sin datos personales, por la misma disciplina que rige el logging):
+
+```json
+{
+  "data": {
+    "referenciaPago": "…",
+    "montoFinal": "350.00",
+    "moneda": "MXN",
+    "cobradoAt": "2026-08-04T17:20:00.000Z",
+    "concepto": "Constancia de no registro",
+    "tipoConstancia": "NO_REGISTRO",
+    "folioConstancia": "…"
+  },
+  "requestId": "…"
+}
+```
+
+No devuelve RFC, nombres, `nis`, ni identificadores internos de trámite o persona.
+
+**Autenticación:** service account de Keycloak en el realm `SOAPAP`, con un rol dedicado (p. ej. `consulta-cobros`) — no `ventanilla` ni `finanzas`, que son roles de personas. La llamada es servidor a servidor: el backend de Finanzas la hace, nunca el navegador.
+
+**Si esta ruta no responde**, Finanzas cae a validación manual contra los registros bancarios. Esa no es una ruta de contingencia inventada para el caso: es la ruta **normal** para permisos de descarga, penalizaciones y cualquier otro origen. La disponibilidad de SICEF nunca bloquea a Finanzas.
+
+**Dirección de la dependencia:**
+
+```mermaid
+flowchart LR
+    P[Portal ciudadano] -->|datos fiscales + ticket| F[Finanzas]
+    V[Ventanilla · navegador] -->|registrar cobro| S[SICEF]
+    V -->|datos fiscales + ticket| F
+    F -.->|GET por-referencia, opcional| S
+```
+
+La flecha punteada es la única que existe, y va en un solo sentido. SICEF no conoce la existencia de Finanzas. No hay push, ni outbox, ni cola, ni transacción distribuida.
+
+## 9. Plan de recorte
+
+Orden pensado para que el árbol compile y las pruebas pasen al final de cada paso.
+
+**Paso 1 — Invertir la guardia de finalización.**
+Editar `fn_tramite_transicion_valida` (quitar el renglón 506 y la variable `v_requiere_factura`) y `fn_cobro_integridad` (quitar 536-544). Es el único cambio de comportamiento visible para el usuario y puede desplegarse solo, antes que todo lo demás.
+*Verifica:* pruebas de transición de trámite en `backend/tests/`; un trámite con `requiereFactura=true` y sin factura debe poder finalizar.
+
+**Paso 2 — Retirar rutas.**
+Borrar `backend/src/modules/facturacion/`, su import y su montaje en [router.ts:14,48](../backend/src/api/router.ts); las dos rutas de factura de [publico.router.ts:34-51](../backend/src/modules/publico/publico.router.ts); las entradas correspondientes de `backend/src/api/openapi.ts`; `solicitudFacturaPublicaSchema` y los DTO de factura de `packages/contracts/src/index.ts`.
+*Verifica:* `backend/tests/contract/openapi.test.ts` falla hasta que se actualice el inventario literal — ése es el semáforo. Después, `npm run check && npm run test` en la raíz.
+
+**Paso 3 — Recortar el esquema.**
+Quitar de [schema.prisma](../backend/prisma/schema.prisma) los cuatro modelos, los dos enums, el valor `RECEPTOR_FISCAL` y los campos de 4.3. Renombrar `requiereFactura`. Generar la migración.
+> Si hay filas en producción, **exportarlas hacia Finanzas antes** de aplicar la bajada. Las tablas de factura tienen trigger de no-borrado ([660-661](../backend/prisma/migration_complementaria.sql)), así que el `DROP TABLE` debe ir después de retirar esos triggers.
+
+*Verifica:* `npm run prisma:generate && npm run check` en `backend/`.
+
+**Paso 4 — Limpiar la SQL complementaria.**
+Aplicar la tabla de la sección 6. Recordar que el archivo se ejecuta **después** de `prisma migrate`, y que `prisma migrate` solo no instala nada de esto.
+*Verifica:* aplicar sobre una base limpia y correr la suite de integración.
+
+**Paso 5 — Agregar la consulta de integración.**
+Nueva ruta de la sección 8, con su rol de service account, su schema en `@sicef/contracts` y su registro en `openapi.ts`.
+*Verifica:* inventario de `openapi.test.ts` actualizado; prueba que confirme que la respuesta no incluye campos con PII.
+
+**Paso 6 — Frontend.**
+Retirar el módulo Finanzas de [modulos.ts](../frontend/src/app/layout/modulos.ts), sus rutas, su `<RequireRole>` y sus mocks en `frontend/src/mocks/`. Regenerar tipos con `npm run gen:api`.
+*Verifica:* `npm run check && npm run test` en `frontend/`.
+
+**Paso 7 — Documentación.**
+Actualizar `documentacion/CONTRATO_API_SICEF.md` (§4.3, §4.4, la guardia de §4.1 y el catálogo de errores), `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` y `PENDIENTES_BACKEND_FRONTEND.md`. Al terminar, `documentacion2/` puede fusionarse con `documentacion/`.
+
+## 10. Decisiones abiertas
+
+**Dirección y los KPIs cruzados.** Los indicadores de Dirección tocarían dos bases de datos. Es el costo real de la separación. Opciones sobre la mesa, ninguna elegida:
+
+| Opción | A favor | En contra |
+|---|---|---|
+| Base de reportes read-only alimentada desde ambas | Consultas cruzadas triviales; no acopla los sistemas operativos | Un tercer artefacto que mantener y sincronizar |
+| Dirección vive en Finanzas y consulta la API de SICEF | Un solo lugar donde construirlo | Ata los indicadores a la disponibilidad de SICEF |
+| Dirección vive en SICEF y consulta la API de Finanzas | SICEF ya tiene el módulo esbozado | Misma atadura, en el otro sentido |
+
+El módulo está hoy en shell con datos de demostración, así que no hay retrabajo — pero conviene decidir antes de construirlo.
+
+**Frontend de Finanzas.** ¿Dos aplicaciones web separadas (una por área, cada una con su cliente Keycloak en el mismo realm), o una sola que consuma ambas APIs? Dos aplicaciones es lo coherente con la separación; una sola recrea el acoplamiento en la capa de UI.
+
+**Portal ciudadano.** Después del recorte apunta a dos backends: SICEF para verificar constancias, Finanzas para solicitar y consultar facturas. ¿Se acepta así, o se pone un gateway al frente?

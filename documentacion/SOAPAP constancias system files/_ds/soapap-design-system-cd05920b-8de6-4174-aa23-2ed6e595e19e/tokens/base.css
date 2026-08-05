@@ -1,0 +1,50 @@
+/* ============================================================
+   SOAPAP — Base element styles & utilities
+   Mirrors the MUI CssBaseline overrides from the theme.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body1);
+  line-height: var(--lh-body1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-fg);
+}
+
+h1, h2, h3, h4, h5, h6, p { margin: 0; }
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+  font-weight: var(--fw-semibold);
+}
+a:hover { color: var(--color-link-hover); text-decoration: underline; }
+a:visited { color: var(--color-link-visited); }
+
+/* ---- Type role utilities ---- */
+.ds-h1 { font: var(--fw-h1) var(--fs-h1)/var(--lh-h1) var(--font-sans); letter-spacing: var(--ls-h1); }
+.ds-h2 { font: var(--fw-h2) var(--fs-h2)/var(--lh-h2) var(--font-sans); }
+.ds-h3 { font: var(--fw-h3) var(--fs-h3)/var(--lh-h3) var(--font-sans); }
+.ds-h4 { font: var(--fw-h4) var(--fs-h4)/var(--lh-h4) var(--font-sans); }
+.ds-body  { font: var(--text-body); }
+.ds-body-sm { font: var(--text-body-sm); }
+.ds-caption { font-size: var(--fs-caption); font-weight: var(--fw-caption); line-height: var(--lh-caption); }
+.ds-overline {
+  font-size: var(--fs-overline); font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-overline); text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* ---- Logo helpers ---- */
+.ds-logo-white { filter: brightness(0) invert(1); }       /* black wordmark → white */
+.ds-logo-vino  { /* leave as-is; logos sit on light surfaces */ }

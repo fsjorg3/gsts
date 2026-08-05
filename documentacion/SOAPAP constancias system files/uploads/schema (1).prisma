@@ -1,0 +1,478 @@
+// ============================================================
+//  SICNAF — Sistema Integrado de Constancias de No Adeudo y Facturación
+//  SOAPAP · Esquema físico (Prisma)
+//
+//  Principio de dos territorios:
+//   - Este archivo modela tablas, columnas, enums, relaciones e índices.
+//   - Las reglas duras (append-only de bitácora, transiciones de estado,
+//     inmutabilidad de catálogos/tarifas, CHECKs, vista de estado efectivo,
+//     rol de BD sin UPDATE/DELETE sobre bitácora) viven en la migración SQL
+//     complementaria. La base de datos es la fuente de integridad.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===================== ENUMS =====================
+
+enum TipoConstancia {
+  NO_ADEUDO
+  NO_REGISTRO
+}
+
+enum Personalidad {
+  FISICA
+  MORAL
+}
+
+enum Representacion {
+  TITULAR
+  REPRESENTANTE
+  APODERADO
+}
+
+enum RolPersona {
+  TITULAR
+  REPRESENTANTE
+  APODERADO
+  RECEPTOR_FISCAL
+}
+
+/// Máquina de estado del trámite (incluye el puente COBRO y el cierre FINALIZADO).
+enum EstadoTramite {
+  CAPTURA
+  EN_VALIDACION
+  APROBADO
+  RECHAZADO
+  EXPIRADO
+  COBRO
+  FINALIZADO
+}
+
+/// Sub-estados del timbrado del CFDI (solo cuando el trámite requiere factura).
+enum EstadoFactura {
+  PENDIENTE
+  TIMBRADO_EN_PROCESO
+  TIMBRADO
+  TIMBRADO_FALLIDO
+  CANCELADO
+}
+
+enum RolUsuario {
+  VENTANILLA
+  FINANZAS
+  ADMIN_TI
+  DIRECCION
+}
+
+enum OrigenBitacora {
+  USUARIO
+  SISTEMA
+  WORKER
+}
+
+enum MetodoValidacion {
+  MANUAL
+  API
+}
+
+enum MomentoValidacion {
+  VALIDACION_INICIAL
+  REVALIDACION_COBRO
+}
+
+enum ResultadoValidacion {
+  SIN_ADEUDO
+  CON_ADEUDO
+}
+
+enum TipoConfirmacion {
+  SIN_ADEUDO_OUC
+  FIRMAS_LEGIBLES
+  FACULTADES_PODER
+}
+
+enum EstadoEvidencia {
+  CARGADO
+  VALIDADO
+  RECHAZADO
+}
+
+enum MetodoPago {
+  PUE
+  PPD
+}
+
+// ===================== IDENTIDAD =====================
+
+/// Usuario interno. La autenticación es por SSO (Keycloak); no se almacenan
+/// contraseñas. `keycloakSub` es el identificador externo (claim `sub`).
+model Usuario {
+  id          String     @id @default(uuid()) @db.Uuid
+  keycloakSub String     @unique @map("keycloak_sub")
+  nombre      String
+  correo      String?
+  rol         RolUsuario
+  activo      Boolean    @default(true)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  // Relaciones de autoría/auditoría. Se declaran aquí (en vez de dejar los
+  // campos como UUID escalar) para que Prisma administre las FKs y no las
+  // trate como "drift" borrándolas en cada `migrate dev`.
+  tramitesCreados          Tramite[]               @relation("TramiteCreadoPor")
+  evidenciasCreadas        Evidencia[]             @relation("EvidenciaCreadoPor")
+  validacionesRealizadas   ValidacionNoAdeudo[]    @relation("ValidacionValidadoPor")
+  confirmacionesRealizadas ConfirmacionManual[]    @relation("ConfirmacionConfirmadoPor")
+  consultasRealizadas      ConsultaConcesionaria[] @relation("ConsultaRealizadaPor")
+  cobrosRealizados         Cobro[]                 @relation("CobroCobradoPor")
+  entradasBitacora         Bitacora[]              @relation("BitacoraUsuario")
+
+  @@map("usuario")
+}
+
+// ===================== PERSONAS =====================
+
+/// Registro de personas (titular, representante, apoderado o receptor fiscal).
+model Persona {
+  id                String       @id @default(uuid()) @db.Uuid
+  tipo              Personalidad
+  nombreRazonSocial String       @map("nombre_razon_social")
+  rfc               String?
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  tramites TramitePersona[]
+
+  @@map("persona")
+}
+
+/// Vincula una persona a un trámite con un rol específico.
+model TramitePersona {
+  id        String     @id @default(uuid()) @db.Uuid
+  tramiteId String     @map("tramite_id") @db.Uuid
+  personaId String     @map("persona_id") @db.Uuid
+  rol       RolPersona
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  tramite Tramite @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  persona Persona @relation(fields: [personaId], references: [id])
+
+  @@unique([tramiteId, personaId, rol])
+  @@index([tramiteId])
+  @@map("tramite_persona")
+}
+
+// ===================== CATÁLOGO DE REQUISITOS (versionado) =====================
+
+/// Versión inmutable del catálogo de requisitos. Cada trámite estampa la
+/// versión vigente al momento de capturarse.
+model VersionCatalogo {
+  id           String    @id @default(uuid()) @db.Uuid
+  version      Int       @unique
+  publicada    Boolean   @default(false)
+  activa       Boolean   @default(false)
+  vigenteDesde DateTime? @map("vigente_desde")
+  vigenteHasta DateTime? @map("vigente_hasta")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  grupos   GrupoRequisito[]
+  tramites Tramite[]
+
+  @@map("version_catalogo")
+}
+
+/// Grupo de requisitos con su condición de aplicabilidad (NULL = aplica a todos).
+/// Lógica Y entre grupos aplicables.
+model GrupoRequisito {
+  id                   String          @id @default(uuid()) @db.Uuid
+  versionCatalogoId    String          @map("version_catalogo_id") @db.Uuid
+  clave                String
+  nombre               String
+  orden                Int             @default(0)
+  aplicaTipo           TipoConstancia? @map("aplica_tipo")
+  aplicaPersonalidad   Personalidad?   @map("aplica_personalidad")
+  aplicaRepresentacion Representacion? @map("aplica_representacion")
+
+  versionCatalogo VersionCatalogo   @relation(fields: [versionCatalogoId], references: [id], onDelete: Cascade)
+  opciones        OpcionRequisito[]
+
+  @@unique([versionCatalogoId, clave])
+  @@index([versionCatalogoId])
+  @@map("grupo_requisito")
+}
+
+/// Opción dentro de un grupo. Lógica O: basta satisfacer una opción del grupo.
+model OpcionRequisito {
+  id      String @id @default(uuid()) @db.Uuid
+  grupoId String @map("grupo_id") @db.Uuid
+  clave   String
+  nombre  String
+  orden   Int    @default(0)
+
+  grupo      GrupoRequisito    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  documentos OpcionDocumento[]
+  evidencias Evidencia[]
+
+  @@unique([grupoId, clave])
+  @@map("opcion_requisito")
+}
+
+/// Documento exigido por una opción. Una opción compuesta requiere varios
+/// documentos (todos presentes para satisfacer la opción).
+model OpcionDocumento {
+  id       String @id @default(uuid()) @db.Uuid
+  opcionId String @map("opcion_id") @db.Uuid
+  nombre   String
+  orden    Int    @default(0)
+
+  opcion     OpcionRequisito @relation(fields: [opcionId], references: [id], onDelete: Cascade)
+  evidencias Evidencia[]
+
+  @@map("opcion_documento")
+}
+
+// ===================== TRÁMITE =====================
+
+model Tramite {
+  id                String         @id @default(uuid()) @db.Uuid
+  numeroTramite     Int            @unique @default(autoincrement()) @map("numero_tramite")
+  tipoConstancia    TipoConstancia @map("tipo_constancia")
+  personalidad      Personalidad
+  representacion    Representacion
+  nis               String? // referencia a la cuenta/predio en OUC (solo No Adeudo)
+  versionCatalogoId String         @map("version_catalogo_id") @db.Uuid
+  estado            EstadoTramite  @default(CAPTURA)
+  plazoPagoHasta    DateTime?      @map("plazo_pago_hasta") // 3 días desde APROBADO
+  motivoRechazo     String?        @map("motivo_rechazo")
+  creadoPorId       String         @map("creado_por_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  versionCatalogo VersionCatalogo         @relation(fields: [versionCatalogoId], references: [id])
+  creadoPor       Usuario                 @relation("TramiteCreadoPor", fields: [creadoPorId], references: [id])
+  personas        TramitePersona[]
+  evidencias      Evidencia[]
+  validaciones    ValidacionNoAdeudo[]
+  confirmaciones  ConfirmacionManual[]
+  consultas       ConsultaConcesionaria[]
+  constancia      Constancia?
+  cobro           Cobro?
+
+  @@index([estado])
+  @@index([creadoPorId])
+  @@index([createdAt])
+  @@map("tramite")
+}
+
+/// Evidencia documental. El archivo vive en NFS; aquí solo la referencia lógica.
+model Evidencia {
+  id                String          @id @default(uuid()) @db.Uuid
+  tramiteId         String          @map("tramite_id") @db.Uuid
+  opcionRequisitoId String?         @map("opcion_requisito_id") @db.Uuid
+  opcionDocumentoId String?         @map("opcion_documento_id") @db.Uuid
+  archivoUuid       String          @unique @map("archivo_uuid") @db.Uuid // nombre del archivo en NFS
+  nombreOriginal    String          @map("nombre_original")
+  hashSha256        String          @map("hash_sha256")
+  mimeType          String          @map("mime_type")
+  tamanoBytes       Int             @map("tamano_bytes")
+  estado            EstadoEvidencia @default(CARGADO)
+  creadoPorId       String          @map("creado_por_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  tramite         Tramite          @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  opcionRequisito OpcionRequisito? @relation(fields: [opcionRequisitoId], references: [id])
+  opcionDocumento OpcionDocumento? @relation(fields: [opcionDocumentoId], references: [id])
+  creadoPor       Usuario          @relation("EvidenciaCreadoPor", fields: [creadoPorId], references: [id])
+
+  @@index([tramiteId])
+  @@map("evidencia")
+}
+
+/// Validación de no adeudo. Puede haber dos por trámite: la inicial (EN_VALIDACION)
+/// y la revalidación al emitir (COBRO).
+model ValidacionNoAdeudo {
+  id            String              @id @default(uuid()) @db.Uuid
+  tramiteId     String              @map("tramite_id") @db.Uuid
+  metodo        MetodoValidacion
+  momento       MomentoValidacion
+  resultado     ResultadoValidacion
+  adeudoMonto   Decimal?            @map("adeudo_monto") @db.Decimal(12, 2)
+  referenciaOuc String?             @map("referencia_ouc")
+  validadoPorId String?             @map("validado_por_id") @db.Uuid
+  validadoAt    DateTime            @default(now()) @map("validado_at")
+
+  tramite     Tramite  @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  validadoPor Usuario? @relation("ValidacionValidadoPor", fields: [validadoPorId], references: [id])
+
+  @@index([tramiteId])
+  @@map("validacion_no_adeudo")
+}
+
+/// Confirmación manual atribuible (firmas legibles, facultades del poder, etc.).
+model ConfirmacionManual {
+  id              String           @id @default(uuid()) @db.Uuid
+  tramiteId       String           @map("tramite_id") @db.Uuid
+  tipo            TipoConfirmacion
+  observacion     String?
+  confirmadoPorId String           @map("confirmado_por_id") @db.Uuid
+  confirmadoAt    DateTime         @default(now()) @map("confirmado_at")
+
+  tramite       Tramite @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  confirmadoPor Usuario @relation("ConfirmacionConfirmadoPor", fields: [confirmadoPorId], references: [id])
+
+  @@index([tramiteId])
+  @@map("confirmacion_manual")
+}
+
+/// Consulta informal a la concesionaria (Agua de Puebla), registrada como
+/// observación estructurada y atribuible. Su existencia alimenta el KPI.
+model ConsultaConcesionaria {
+  id             String   @id @default(uuid()) @db.Uuid
+  tramiteId      String   @map("tramite_id") @db.Uuid
+  observacion    String
+  realizadaPorId String   @map("realizada_por_id") @db.Uuid
+  realizadaAt    DateTime @default(now()) @map("realizada_at")
+
+  tramite     Tramite @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+  realizadaPor Usuario @relation("ConsultaRealizadaPor", fields: [realizadaPorId], references: [id])
+
+  @@index([tramiteId])
+  @@map("consulta_concesionaria")
+}
+
+// ===================== TARIFAS (versionadas) =====================
+
+/// Catálogo de tarifas versionado e inmutable. Cada cobro estampa la tarifa usada.
+model Tarifa {
+  id             String         @id @default(uuid()) @db.Uuid
+  tipoConstancia TipoConstancia @map("tipo_constancia")
+  concepto       String
+  monto          Decimal        @db.Decimal(12, 2)
+  version        Int
+  publicada      Boolean        @default(false)
+  activa         Boolean        @default(false)
+  vigenteDesde   DateTime?      @map("vigente_desde")
+  vigenteHasta   DateTime?      @map("vigente_hasta")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  cobros Cobro[]
+
+  @@unique([tipoConstancia, concepto, version])
+  @@map("tarifa")
+}
+
+// ===================== COBRO Y EMISIÓN =====================
+
+/// Cobro del trámite (siempre aplica). Congela el monto base, la reducción y el
+/// total. La constancia se emite en este punto.
+model Cobro {
+  id                  String     @id @default(uuid()) @db.Uuid
+  tramiteId           String     @unique @map("tramite_id") @db.Uuid
+  tarifaId            String     @map("tarifa_id") @db.Uuid
+  montoBase           Decimal    @map("monto_base") @db.Decimal(12, 2)
+  porcentajeReduccion Decimal    @default(0) @map("porcentaje_reduccion") @db.Decimal(5, 2)
+  montoFinal          Decimal    @map("monto_final") @db.Decimal(12, 2)
+  formaPago           String     @map("forma_pago") // código c_FormaPago del SAT
+  metodoPago          MetodoPago @map("metodo_pago")
+  moneda              String     @default("MXN")
+  requiereFactura     Boolean    @default(false) @map("requiere_factura")
+  referenciaPago      String?    @map("referencia_pago")
+  cobradoPorId        String     @map("cobrado_por_id") @db.Uuid
+  cobradoAt           DateTime   @default(now()) @map("cobrado_at")
+
+  tramite   Tramite  @relation(fields: [tramiteId], references: [id])
+  tarifa    Tarifa   @relation(fields: [tarifaId], references: [id])
+  cobradoPor Usuario @relation("CobroCobradoPor", fields: [cobradoPorId], references: [id])
+  factura   Factura?
+
+  @@map("cobro")
+}
+
+/// Constancia emitida. La firma es nula hasta integrar el Servicio de Firma (PKI).
+model Constancia {
+  id             String   @id @default(uuid()) @db.Uuid
+  tramiteId      String   @unique @map("tramite_id") @db.Uuid
+  folioUnico     String   @unique @map("folio_unico")
+  hashPdf        String   @map("hash_pdf")
+  archivoUuid    String   @unique @map("archivo_uuid") @db.Uuid
+  firmaDigital   String?  @map("firma_digital") // null hasta PKI
+  certificadoId  String?  @map("certificado_id")
+  emitidaAt      DateTime @default(now()) @map("emitida_at")
+  vigenciaInicio DateTime @map("vigencia_inicio")
+  vigenciaFin    DateTime @map("vigencia_fin")
+  anulada        Boolean  @default(false)
+
+  tramite Tramite @relation(fields: [tramiteId], references: [id])
+
+  @@index([folioUnico])
+  @@map("constancia")
+}
+
+// ===================== FACTURACIÓN (CFDI 4.0) =====================
+
+/// Factura CFDI. Solo existe si el ciudadano la solicita. El receptor es un
+/// snapshot congelado (no se lee de Persona). Vacía en el corte inicial.
+model Factura {
+  id                String        @id @default(uuid()) @db.Uuid
+  cobroId           String        @unique @map("cobro_id") @db.Uuid
+  estado            EstadoFactura @default(PENDIENTE)
+  esGlobal          Boolean       @default(false) @map("es_global")
+  receptorRfc       String?       @map("receptor_rfc")
+  receptorNombre    String?       @map("receptor_nombre")
+  receptorCp        String?       @map("receptor_cp")
+  receptorRegimen   String?       @map("receptor_regimen") // código c_RegimenFiscal
+  usoCfdi           String?       @map("uso_cfdi") // código c_UsoCFDI
+  idempotencyKey    String        @unique @map("idempotency_key")
+  uuid              String?       @unique // folio fiscal (UUID del SAT)
+  xmlRuta           String?       @map("xml_ruta")
+  pdfRuta           String?       @map("pdf_ruta")
+  intentos          Int           @default(0)
+  ultimoError       String?       @map("ultimo_error")
+  timbradaAt        DateTime?     @map("timbrada_at")
+  canceladaAt       DateTime?     @map("cancelada_at")
+  motivoCancelacion String?       @map("motivo_cancelacion")
+  uuidSustituto     String?       @map("uuid_sustituto")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  cobro Cobro @relation(fields: [cobroId], references: [id])
+
+  @@index([estado])
+  @@map("factura")
+}
+
+// ===================== BITÁCORA (append-only) =====================
+
+/// Registro autoritativo de auditoría. Es de solo anexado: la migración SQL
+/// instala un trigger que aborta UPDATE/DELETE y revoca esos privilegios al rol
+/// de la aplicación. La FK de `usuarioId` la administra Prisma (relación BitacoraUsuario).
+model Bitacora {
+  id             String         @id @default(uuid()) @db.Uuid
+  timestamp      DateTime       @default(now())
+  usuarioId      String?        @map("usuario_id") @db.Uuid // null si origen = SISTEMA/WORKER
+  rolSnapshot    String?        @map("rol_snapshot")
+  ipAddress      String?        @map("ip_address")
+  userAgent      String?        @map("user_agent")
+  origen         OrigenBitacora
+  entidad        String // 'tramite', 'factura', 'constancia'...
+  entidadId      String         @map("entidad_id") @db.Uuid
+  accion         String // 'TRANSICION_ESTADO', 'VALIDACION_MANUAL'...
+  estadoAnterior String?        @map("estado_anterior")
+  estadoNuevo    String?        @map("estado_nuevo")
+  datosAntes     Json?          @map("datos_antes")
+  datosDespues   Json?          @map("datos_despues")
+  requestId      String?        @map("request_id") @db.Uuid // o job_id de pg-boss en el worker
+  detalle        Json?
+
+  usuario Usuario? @relation("BitacoraUsuario", fields: [usuarioId], references: [id])
+
+  @@index([entidad, entidadId])
+  @@index([requestId])
+  @@index([timestamp])
+  @@map("bitacora")
+}

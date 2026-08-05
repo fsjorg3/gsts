@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/soapap-design-system-cd05920b-8de6-4174-aa23-2ed6e595e19e/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/soapap-design-system-cd05920b-8de6-4174-aa23-2ed6e595e19e/tokens/colors.css">
+<link rel="stylesheet" href="_ds/soapap-design-system-cd05920b-8de6-4174-aa23-2ed6e595e19e/tokens/typography.css">
+<link rel="stylesheet" href="_ds/soapap-design-system-cd05920b-8de6-4174-aa23-2ed6e595e19e/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/soapap-design-system-cd05920b-8de6-4174-aa23-2ed6e595e19e/tokens/base.css">
+<link rel="stylesheet" href="_ds/soapap-design-system-cd05920b-8de6-4174-aa23-2ed6e595e19e/styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap">
+<script src="_ds/soapap-design-system-cd05920b-8de6-4174-aa23-2ed6e595e19e/_ds_bundle.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--font-sans);background:var(--surface-page);color:var(--text-primary)}
+  .ms{font-family:'Material Symbols Rounded';line-height:1;font-size:20px;display:inline-flex;vertical-align:middle;flex-shrink:0}
+  .scroll{overflow-y:auto}
+  .scroll::-webkit-scrollbar{width:11px;height:11px}
+  .scroll::-webkit-scrollbar-thumb{background:var(--grey-300);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
+  .scroll::-webkit-scrollbar-thumb:hover{background:var(--grey-400);background-clip:padding-box}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{animation:spin .9s linear infinite}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .fu{animation:fadeUp .28s ease-out both}
+  input,select,textarea{font-family:var(--font-sans);color:var(--text-primary)}
+  .fld{border:1px solid var(--border-input);border-radius:4px;padding:11px 12px;font:var(--fw-regular) 14px/1.4 var(--font-sans);outline:none;background:var(--white);width:100%}
+  .fld:focus{border-color:var(--vino-700);box-shadow:0 0 0 3px rgba(91,19,43,.13)}
+  .fld:disabled{background:#F1F3F5;color:var(--text-secondary)}
+  select.fld{appearance:none;padding-right:34px;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23544245' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 10px center}
+  .lbl{font:var(--fw-semibold) 13px/1.2 var(--font-sans);color:var(--text-secondary);display:block;margin-bottom:6px}
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg label{flex:1 1 0;min-width:130px;border:1px solid var(--border-input);border-radius:6px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:11px;font:var(--fw-medium) 14px/1.25 var(--font-sans);color:var(--text-primary);transition:border-color .15s,background-color .15s;background:var(--white);position:relative}
+  .seg label:hover{border-color:var(--vino-700)}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label:has(input:checked){border-color:var(--vino-800);background:var(--vino-050);box-shadow:inset 0 0 0 1px var(--vino-800)}
+  .seg .dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--border-strong);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;transition:border-color .12s}
+  .seg label:has(input:checked) .dot{border-color:var(--vino-800)}
+  .seg label:has(input:checked) .dot::after{content:'';width:9px;height:9px;border-radius:50%;background:var(--vino-800)}
+  .chk{display:inline-flex;align-items:flex-start;gap:11px;cursor:pointer;font:var(--fw-medium) 14px/1.45 var(--font-sans)}
+  .chk input{position:absolute;opacity:0}
+  .chk .box{width:20px;height:20px;border-radius:4px;border:2px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-family:'Material Symbols Rounded';font-size:15px;color:transparent;transition:background-color .12s,border-color .12s;flex-shrink:0;margin-top:1px}
+  .chk input:checked + .box{background:var(--vino-800);border-color:var(--vino-800);color:#fff}
+  .sw{position:relative;width:40px;height:22px;border-radius:11px;background:var(--grey-400);transition:background-color .15s;flex-shrink:0;cursor:pointer}
+  .sw::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s}
+  .sw.on{background:var(--vino-800)}
+  .sw.on::after{transform:translateX(18px)}
+  .lnk{color:var(--vino-700);font-weight:700;text-decoration:none;cursor:pointer}
+  .lnk:hover{text-decoration:underline}
+</style>
+<template id="__bundler_thumbnail">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#3D0017"/><g fill="#fff" transform="translate(50 50)"><circle r="22" fill="none" stroke="#B8822A" stroke-width="3"/><path d="M-9 0 l6 6 l12 -13" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+</template>
+</helmet>
+
+<div style="display:flex;height:100vh;overflow:hidden">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside style="width:250px;flex-shrink:0;background:var(--white);border-right:1px solid var(--border-hairline);display:flex;flex-direction:column">
+    <div style="padding:18px 18px 14px;border-bottom:1px solid var(--border-hairline)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:34px;height:34px;border-radius:8px;background:var(--vino-800);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span class="ms" style="color:#fff;font-size:20px">water_drop</span></div>
+        <div>
+          <div style="font:var(--fw-bold) 16px/1 var(--font-sans);letter-spacing:.01em">SICNAF</div>
+          <div style="font:var(--fw-medium) 10px/1.3 var(--font-sans);color:var(--text-disabled);margin-top:3px;letter-spacing:.02em">Constancias y facturación</div>
+        </div>
+      </div>
+    </div>
+    <nav style="padding:12px 10px;flex:1;display:flex;flex-direction:column;gap:2">
+      <div style="font:var(--fw-bold) 10px/1 var(--font-sans);letter-spacing:.09em;color:var(--text-disabled);padding:8px 12px 6px">MÓDULOS</div>
+      <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.NavItem" icon="assignment_ind" label="Ventanilla" active="{{ esVentanilla }}" onClick="{{ navVentanilla }}" hint-size="100%,40px"></x-import>
+      <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.NavItem" icon="request_quote" label="Finanzas" badge="{{ finBadge }}" active="{{ esFinanzas }}" onClick="{{ navFinanzas }}" hint-size="100%,40px"></x-import>
+      <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.NavItem" icon="monitoring" label="Dirección" active="{{ esDireccion }}" onClick="{{ navDireccion }}" hint-size="100%,40px"></x-import>
+      <div style="font:var(--fw-bold) 10px/1 var(--font-sans);letter-spacing:.09em;color:var(--text-disabled);padding:16px 12px 6px">PORTALES PÚBLICOS</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;color:var(--text-disabled);font:var(--fw-medium) 13px/1 var(--font-sans);cursor:not-allowed"><span class="ms" style="font-size:19px">verified</span><span style="flex:1">Verificador QR</span><span class="ms" style="font-size:15px">lock</span></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;color:var(--text-disabled);font:var(--fw-medium) 13px/1 var(--font-sans);cursor:not-allowed"><span class="ms" style="font-size:19px">receipt_long</span><span style="flex:1">Descarga de CFDI</span><span class="ms" style="font-size:15px">lock</span></div>
+    </nav>
+    <div style="padding:12px 14px;border-top:1px solid var(--border-hairline);display:flex;align-items:center;gap:11px">
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--vino-800);display:flex;align-items:center;justify-content:center;color:#fff;font:var(--fw-bold) 13px/1 var(--font-sans);flex-shrink:0">{{ usuario.iniciales }}</div>
+      <div style="min-width:0;flex:1">
+        <div style="font:var(--fw-semibold) 13px/1.1 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ usuario.nombre }}</div>
+        <div style="font:var(--fw-medium) 11px/1.3 var(--font-sans);color:var(--text-disabled)">{{ usuario.rol }}</div>
+      </div>
+      <span class="ms" style="font-size:18px;color:var(--text-disabled)">logout</span>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+
+    <!-- ============ VENTANILLA ============ -->
+    <sc-if value="{{ esVentanilla }}" hint-placeholder-val="{{ true }}">
+
+      <!-- LISTA -->
+      <sc-if value="{{ vtLista }}" hint-placeholder-val="{{ true }}">
+        <div style="height:60px;flex-shrink:0;border-bottom:1px solid var(--border-hairline);background:var(--white);display:flex;align-items:center;padding:0 28px;gap:16px">
+          <div style="flex:1">
+            <div style="font:var(--fw-bold) 17px/1.1 var(--font-sans)">Ventanilla de atención</div>
+            <div style="font:var(--fw-medium) 12px/1.3 var(--font-sans);color:var(--text-disabled);margin-top:2px">Trámites de constancias de no adeudo y no registro</div>
+          </div>
+          <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" onClick="{{ iniciarWizard }}" hint-size="auto,40px"><span class="ms" style="font-size:19px">add</span>Nuevo trámite</x-import>
+        </div>
+        <div class="scroll" style="flex:1;padding:24px 28px;display:flex;flex-direction:column;gap:18px">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+            <sc-for list="{{ listaKpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:15px 16px">
+                <div style="display:flex;align-items:center;gap:8px;color:var(--text-disabled)"><span class="ms" style="font-size:18px;color:{{ k.color }}">{{ k.icon }}</span><span style="font:var(--fw-semibold) 12px/1.2 var(--font-sans);color:var(--text-secondary)">{{ k.label }}</span></div>
+                <div style="font:var(--fw-bold) 26px/1.1 var(--font-sans);margin-top:8px">{{ k.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div>
+            <div style="font:var(--fw-bold) 15px/1 var(--font-sans);margin-bottom:12px">Trámites recientes</div>
+            <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Table" columns="{{ colsLista }}" rows="{{ rowsLista }}" hint-size="100%,340px"></x-import>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- WIZARD -->
+      <sc-if value="{{ vtWizard }}" hint-placeholder-val="{{ true }}">
+        <!-- wizard header -->
+        <div style="flex-shrink:0;background:var(--white);border-bottom:1px solid var(--border-hairline)">
+          <div style="display:flex;align-items:center;padding:14px 28px 12px;gap:14px">
+            <span class="ms lnk" onClick="{{ cancelarWizard }}" style="font-size:22px;color:var(--text-secondary)">arrow_back</span>
+            <div style="flex:1">
+              <div style="font:var(--fw-bold) 16px/1.1 var(--font-sans)">Trámite {{ w.folioNum }} · {{ w.tipoLabel }}</div>
+              <div style="font:var(--fw-medium) 12px/1.3 var(--font-sans);color:var(--text-disabled);margin-top:2px">{{ w.personaResumen }}</div>
+            </div>
+            <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="{{ w.estadoColor }}" hint-size="auto,24px">{{ w.estadoLabel }}</x-import>
+          </div>
+          <!-- progress / state machine -->
+          <div style="display:flex;align-items:flex-start;padding:6px 28px 18px">
+            <sc-for list="{{ progressNodes }}" as="n" hint-placeholder-count="5">
+              <div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:0;position:relative">
+                <div style="display:flex;align-items:center;width:100%">
+                  <div style="height:2px;flex:1;background:{{ n.lineLeft }}"></div>
+                  <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:var(--fw-bold) 13px/1 var(--font-sans);flex-shrink:0;{{ n.circleStyle }}">
+                    <sc-if value="{{ n.showCheck }}" hint-placeholder-val="{{ true }}"><span class="ms" style="font-size:18px">check</span></sc-if>
+                    <sc-if value="{{ n.showNum }}" hint-placeholder-val="{{ true }}">{{ n.num }}</sc-if>
+                  </div>
+                  <div style="height:2px;flex:1;background:{{ n.lineRight }}"></div>
+                </div>
+                <div style="font:{{ n.labelWeight }} 12px/1.3 var(--font-sans);color:{{ n.labelColor }};margin-top:7px;text-align:center">{{ n.t }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- wizard body: work area + side panel -->
+        <div style="flex:1;display:flex;min-height:0">
+          <div class="scroll" style="flex:1;min-width:0;padding:24px 28px 40px">
+            <div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+
+              <sc-if value="{{ w.rechazado }}" hint-placeholder-val="{{ false }}">
+                <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Alert" severity="error" title="Trámite rechazado" hint-size="100%,64px">{{ w.motivoRechazo }} — El trámite se cierra sin emisión. Obtener la constancia requiere iniciar un nuevo trámite.</x-import>
+              </sc-if>
+
+              <!-- ====== PASO 0 · CAPTURA ====== -->
+              <sc-if value="{{ p0 }}" hint-placeholder-val="{{ true }}">
+                <div class="fu" style="display:flex;flex-direction:column;gap:18px">
+                  <!-- clasificacion -->
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                    <div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);margin-bottom:3px">Clasificación del trámite</div>
+                    <div style="font:var(--fw-medium) 12px/1.4 var(--font-sans);color:var(--text-disabled);margin-bottom:16px">Determina el catálogo de requisitos aplicable.</div>
+                    <div style="margin-bottom:16px">
+                      <span class="lbl">Tipo de constancia</span>
+                      <div class="seg">
+                        <label><input type="radio" name="tipo" value="NO_ADEUDO" checked="{{ esNoAdeudo }}" onChange="{{ w.setTipo }}"><span class="dot"></span>Constancia de No Adeudo</label>
+                        <label><input type="radio" name="tipo" value="NO_REGISTRO" checked="{{ esNoRegistro }}" onChange="{{ w.setTipo }}"><span class="dot"></span>Constancia de No Registro</label>
+                      </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                      <div>
+                        <span class="lbl">Personalidad</span>
+                        <div class="seg">
+                          <label><input type="radio" name="pers" value="FISICA" checked="{{ esFisica }}" onChange="{{ w.setPersonalidad }}"><span class="dot"></span>Física</label>
+                          <label><input type="radio" name="pers" value="MORAL" checked="{{ esMoral }}" onChange="{{ w.setPersonalidad }}"><span class="dot"></span>Moral</label>
+                        </div>
+                      </div>
+                      <div>
+                        <span class="lbl">Quién se presenta</span>
+                        <sc-if value="{{ esFisica }}" hint-placeholder-val="{{ true }}">
+                          <div class="seg">
+                            <label><input type="radio" name="rep" value="TITULAR" checked="{{ repTitular }}" onChange="{{ w.setRepresentacion }}"><span class="dot"></span>Titular</label>
+                            <label><input type="radio" name="rep" value="REPRESENTANTE" checked="{{ repRepresentante }}" onChange="{{ w.setRepresentacion }}"><span class="dot"></span>Representante</label>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ esMoral }}" hint-placeholder-val="{{ false }}">
+                          <div style="border:1px solid var(--border-input);border-radius:6px;padding:12px 14px;font:var(--fw-medium) 14px/1.3 var(--font-sans);background:var(--grey-050);color:var(--text-secondary);display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:18px;color:var(--vino-700)">gavel</span>Apoderado legal</div>
+                        </sc-if>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- solicitante -->
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                    <div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);margin-bottom:16px">{{ w.solicitanteTitulo }}</div>
+                    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+                      <div><span class="lbl">{{ w.nombreLabel }}</span><input class="fld" value="{{ w.nombre }}" onInput="{{ w.setNombre }}" placeholder="{{ w.nombrePlaceholder }}"></div>
+                      <div><span class="lbl">RFC (opcional en captura)</span><input class="fld" value="{{ w.rfc }}" onInput="{{ w.setRfc }}" placeholder="XAXX010101000" style="text-transform:uppercase"></div>
+                    </div>
+                    <sc-if value="{{ esNoAdeudo }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                        <div><span class="lbl">NIS / Número de cuenta</span><input class="fld" value="{{ w.nis }}" onInput="{{ w.setNis }}" placeholder="Ej. 4821-0034-17"></div>
+                        <div style="display:flex;align-items:flex-end"><div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);display:flex;gap:7px"><span class="ms" style="font-size:17px;color:var(--info)">info</span>La cuenta se cruza contra el OUC en el paso de validación.</div></div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ esNoRegistro }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:16px">
+                        <div><span class="lbl">Calle y número</span><input class="fld" value="{{ w.calle }}" onInput="{{ w.setCalle }}" placeholder="Av. Reforma 512"></div>
+                        <div><span class="lbl">Colonia</span><input class="fld" value="{{ w.colonia }}" onInput="{{ w.setColonia }}" placeholder="Centro"></div>
+                        <div><span class="lbl">C.P.</span><input class="fld" value="{{ w.cp }}" onInput="{{ w.setCp }}" placeholder="72000"></div>
+                      </div>
+                      <div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);display:flex;gap:7px;margin-top:12px"><span class="ms" style="font-size:17px;color:var(--info)">map</span>Se capturan las coordenadas del SII-Cart como evidencia geográfica en la validación.</div>
+                    </sc-if>
+                  </div>
+
+                  <!-- checklist -->
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                      <span class="ms" style="font-size:20px;color:var(--vino-700)">fact_check</span>
+                      <div style="flex:1"><div style="font:var(--fw-bold) 14px/1.2 var(--font-sans)">Requisitos documentales</div></div>
+                      <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="neutral" hint-size="auto,22px">Catálogo v3 · vigente</x-import>
+                    </div>
+                    <div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);margin-bottom:16px">Todos los grupos son obligatorios (Y). Dentro de cada grupo basta satisfacer una opción (O).</div>
+
+                    <div style="display:flex;flex-direction:column;gap:14px">
+                      <sc-for list="{{ checklist }}" as="g" hint-placeholder-count="3">
+                        <div style="border:1px solid {{ g.borderColor }};border-radius:8px;overflow:hidden">
+                          <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:{{ g.headBg }}">
+                            <span class="ms" style="font-size:18px;color:{{ g.iconColor }}">{{ g.icon }}</span>
+                            <div style="flex:1"><span style="font:var(--fw-bold) 13.5px/1.2 var(--font-sans)">{{ g.nombre }}</span></div>
+                            <span style="font:var(--fw-semibold) 11px/1 var(--font-sans);color:var(--text-disabled);text-transform:uppercase;letter-spacing:.04em">{{ g.logica }}</span>
+                          </div>
+                          <div style="padding:6px 14px 12px">
+                            <sc-for list="{{ g.opciones }}" as="o" hint-placeholder-count="1">
+                              <div style="padding-top:10px">
+                                <sc-if value="{{ o.mostrarO }}" hint-placeholder-val="{{ false }}"><div style="text-align:center;font:var(--fw-bold) 10px/1 var(--font-sans);color:var(--text-disabled);letter-spacing:.1em;margin:2px 0 10px">— O —</div></sc-if>
+                                <div style="display:flex;flex-direction:column;gap:8px">
+                                  <sc-for list="{{ o.docs }}" as="d" hint-placeholder-count="1">
+                                    <div style="display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--border-hairline);border-radius:6px;background:{{ d.rowBg }}">
+                                      <span class="ms" style="font-size:19px;color:{{ d.iconColor }}">{{ d.icon }}</span>
+                                      <div style="flex:1;min-width:0"><div style="font:var(--fw-medium) 13px/1.3 var(--font-sans)">{{ d.nombre }}</div><sc-if value="{{ d.adjuntado }}" hint-placeholder-val="{{ false }}"><div style="font:var(--fw-regular) 11px/1.3 var(--font-sans);color:var(--success);margin-top:2px">{{ d.filename }}</div></sc-if></div>
+                                      <button data-k="{{ d.key }}" data-n="{{ d.nombre }}" onClick="{{ toggleDoc }}" style="border:1px solid {{ d.btnBorder }};background:{{ d.btnBg }};color:{{ d.btnColor }};border-radius:4px;padding:6px 12px;font:var(--fw-bold) 12px/1 var(--font-sans);cursor:pointer;display:inline-flex;align-items:center;gap:6px"><span class="ms" style="font-size:15px">{{ d.btnIcon }}</span>{{ d.btnLabel }}</button>
+                                    </div>
+                                  </sc-for>
+                                  <sc-if value="{{ o.esManual }}" hint-placeholder-val="{{ false }}">
+                                    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px dashed var(--border-strong);border-radius:6px;background:var(--grey-050)"><span class="ms" style="font-size:19px;color:var(--oro-700)">how_to_reg</span><div style="flex:1;font:var(--fw-medium) 13px/1.4 var(--font-sans);color:var(--text-secondary)">{{ o.nombre }} — se verifica manualmente en el paso de validación (OUC).</div></div>
+                                  </sc-if>
+                                </div>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:16px;font:var(--fw-medium) 12px/1.4 var(--font-sans);color:var(--text-disabled)"><span class="ms" style="font-size:16px">folder_zip</span>{{ w.tamanoEvidencia }} · Máx. 30 MB por trámite · PDF, JPG, PNG</div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- ====== PASO 1 · VALIDACIÓN ====== -->
+              <sc-if value="{{ p1 }}" hint-placeholder-val="{{ false }}">
+                <div class="fu" style="display:flex;flex-direction:column;gap:18px">
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                    <div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);margin-bottom:14px">Checklist de requisitos</div>
+                    <div style="display:flex;flex-direction:column;gap:9px">
+                      <sc-for list="{{ resumenReq }}" as="r" hint-placeholder-count="3">
+                        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--border-hairline);border-radius:6px">
+                          <span class="ms" style="font-size:19px;color:{{ r.color }}">{{ r.icon }}</span>
+                          <div style="flex:1"><div style="font:var(--fw-semibold) 13px/1.2 var(--font-sans)">{{ r.nombre }}</div><div style="font:var(--fw-regular) 12px/1.3 var(--font-sans);color:var(--text-disabled);margin-top:2px">{{ r.detalle }}</div></div>
+                          <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="{{ r.badgeColor }}" hint-size="auto,22px">{{ r.badge }}</x-import>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+
+                  <sc-if value="{{ esNoAdeudo }}" hint-placeholder-val="{{ true }}">
+                    <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><span class="ms" style="font-size:20px;color:var(--vino-700)">plumbing</span><div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);flex:1">Validación de no adeudo — OUC</div></div>
+                      <div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);margin-bottom:16px">Cuenta {{ w.nis }} · Cruce manual en el Organismo Único de Cobro.</div>
+                      <sc-if value="{{ w.oucPendiente }}" hint-placeholder-val="{{ true }}">
+                        <div style="display:flex;gap:10px">
+                          <button onClick="{{ oucSinAdeudo }}" style="flex:1;border:1px solid var(--success);background:var(--success-bg);color:var(--success);border-radius:4px;padding:12px;font:var(--fw-bold) 13px/1 var(--font-sans);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px"><span class="ms" style="font-size:18px">check_circle</span>Registrar sin adeudo ($0.00)</button>
+                          <button onClick="{{ oucConAdeudo }}" style="flex:1;border:1px solid var(--error);background:var(--error-bg);color:var(--error);border-radius:4px;padding:12px;font:var(--fw-bold) 13px/1 var(--font-sans);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px"><span class="ms" style="font-size:18px">error</span>Registrar con adeudo</button>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ w.oucResuelto }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid {{ w.oucBorder }};background:{{ w.oucBg }};border-radius:6px">
+                          <span class="ms" style="font-size:22px;color:{{ w.oucColor }}">{{ w.oucIcon }}</span>
+                          <div style="flex:1"><div style="font:var(--fw-bold) 13px/1.2 var(--font-sans);color:{{ w.oucColor }}">{{ w.oucTexto }}</div><div style="font:var(--fw-regular) 12px/1.3 var(--font-sans);color:var(--text-secondary);margin-top:2px">Folio {{ w.oucFolio }} · {{ w.usuario }} · validación manual</div></div>
+                          <span class="lnk" onClick="{{ oucReset }}" style="font-size:12px">Rehacer</span>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ w.requiereConfManual }}" hint-placeholder-val="{{ false }}">
+                    <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                      <div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);margin-bottom:4px">Confirmaciones manuales</div>
+                      <div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);margin-bottom:16px">Verificaciones humanas atribuibles que quedan selladas en la bitácora.</div>
+                      <sc-if value="{{ showFirmas }}" hint-placeholder-val="{{ false }}">
+                        <label class="chk" style="padding:11px 0"><input type="checkbox" checked="{{ w.confFirmas }}" onChange="{{ toggleFirmas }}"><span class="box">check</span><span>Las firmas de la carta poder simple son legibles y coinciden con las identificaciones.</span></label>
+                      </sc-if>
+                      <sc-if value="{{ showFacultades }}" hint-placeholder-val="{{ false }}">
+                        <label class="chk" style="padding:11px 0"><input type="checkbox" checked="{{ w.confFacultades }}" onChange="{{ toggleFacultades }}"><span class="box">check</span><span>El poder notariado contiene facultades suficientes para actos de dominio y administrativos.</span></label>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+
+                  <!-- consulta concesionaria -->
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <span class="ms" style="font-size:20px;color:var(--oro-700)">support_agent</span>
+                      <div style="flex:1"><div style="font:var(--fw-bold) 14px/1.2 var(--font-sans)">Consulta a la concesionaria</div><div style="font:var(--fw-medium) 12px/1.4 var(--font-sans);color:var(--text-disabled);margin-top:2px">¿Se requirió apoyo de Agua de Puebla para una búsqueda profunda?</div></div>
+                      <div class="sw {{ w.consultaSwClass }}" onClick="{{ toggleConsulta }}"></div>
+                    </div>
+                    <sc-if value="{{ w.consultaOn }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:14px">
+                        <textarea class="fld" rows="2" value="{{ w.consultaObs }}" onInput="{{ setConsultaObs }}" placeholder="Describe la consulta: cuenta revisada, persona contactada, hallazgo…" style="resize:vertical"></textarea>
+                        <div style="font:var(--fw-medium) 11px/1.4 var(--font-sans);color:var(--text-disabled);margin-top:8px">Se registra como observación estructurada y atribuible; alimenta el KPI de consultas.</div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- ====== PASO 2 · APROBACIÓN ====== -->
+              <sc-if value="{{ p2 }}" hint-placeholder-val="{{ false }}">
+                <div class="fu" style="display:flex;flex-direction:column;gap:18px">
+                  <div style="background:var(--white);border:1px solid var(--success-border);border-radius:8px;padding:26px;text-align:center">
+                    <div style="width:60px;height:60px;border-radius:50%;background:var(--success-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 14px"><span class="ms" style="font-size:34px;color:var(--success)">verified</span></div>
+                    <div style="font:var(--fw-bold) 18px/1.2 var(--font-sans)">{{ w.aprobTitulo }}</div>
+                    <div style="font:var(--fw-medium) 13px/1.5 var(--font-sans);color:var(--text-secondary);margin-top:6px;max-width:440px;margin-left:auto;margin-right:auto">{{ w.aprobTexto }}</div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                    <div style="background:var(--white);border:1px solid var(--border-hairline);border-left:6px solid var(--oro-500);border-radius:8px;padding:18px">
+                      <div style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);margin-bottom:8px"><span class="ms" style="font-size:18px;color:var(--oro-700)">schedule</span><span style="font:var(--fw-semibold) 12px/1 var(--font-sans)">Plazo de pago</span></div>
+                      <div style="font:var(--fw-bold) 22px/1.1 var(--font-sans)">3 días hábiles</div>
+                      <div style="font:var(--fw-medium) 12px/1.4 var(--font-sans);color:var(--text-secondary);margin-top:4px">Vence el {{ w.plazoFmt }}. Si expira, el trámite se cierra (EXPIRADO).</div>
+                    </div>
+                    <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:18px">
+                      <div style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);margin-bottom:8px"><span class="ms" style="font-size:18px;color:var(--vino-700)">description</span><span style="font:var(--fw-semibold) 12px/1 var(--font-sans)">Constancia</span></div>
+                      <div style="font:var(--fw-bold) 15px/1.3 var(--font-sans)">Aún no se genera</div>
+                      <div style="font:var(--fw-medium) 12px/1.4 var(--font-sans);color:var(--text-secondary);margin-top:4px">Se emite al momento del cobro, con vigencia desde la entrega.</div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- ====== PASO 3 · COBRO Y EMISIÓN ====== -->
+              <sc-if value="{{ p3 }}" hint-placeholder-val="{{ false }}">
+                <div class="fu" style="display:flex;flex-direction:column;gap:18px">
+                  <!-- revalidacion -->
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><span class="ms" style="font-size:20px;color:var(--vino-700)">restart_alt</span><div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);flex:1">Revalidación de no adeudo</div></div>
+                    <div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);margin-bottom:14px">El sistema revalida la situación de adeudo antes de cobrar. Si apareció un adeudo desde la aprobación, no procede el cobro.</div>
+                    <sc-if value="{{ w.revalPendiente }}" hint-placeholder-val="{{ true }}">
+                      <label class="chk" style="margin-bottom:14px;color:var(--text-secondary)"><input type="checkbox" checked="{{ w.adeudoSobrevenido }}" onChange="{{ toggleAdeudoSob }}"><span class="box">check</span><span style="font:var(--fw-medium) 12.5px/1.4 var(--font-sans)">Simular adeudo sobrevenido (para ver la transición a RECHAZADO)</span></label>
+                      <button onClick="{{ revalidar }}" style="border:1px solid var(--vino-800);background:var(--vino-800);color:#fff;border-radius:4px;padding:11px 16px;font:var(--fw-bold) 13px/1 var(--font-sans);cursor:pointer;display:inline-flex;align-items:center;gap:8px"><span class="ms" style="font-size:17px">plumbing</span>Revalidar en OUC</button>
+                    </sc-if>
+                    <sc-if value="{{ w.revalidado }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--success-border);background:var(--success-bg);border-radius:6px"><span class="ms" style="font-size:22px;color:var(--success)">check_circle</span><div style="flex:1"><div style="font:var(--fw-bold) 13px/1.2 var(--font-sans);color:var(--success)">Sin adeudo confirmado</div><div style="font:var(--fw-regular) 12px/1.3 var(--font-sans);color:var(--text-secondary);margin-top:2px">Revalidación al emitir · procede el cobro.</div></div></div>
+                    </sc-if>
+                  </div>
+
+                  <!-- cobro -->
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px;opacity:{{ w.cobroOpacity }};pointer-events:{{ w.cobroPE }}">
+                    <div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);margin-bottom:16px">Cobro</div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--grey-050);border:1px solid var(--border-hairline);border-radius:6px;margin-bottom:16px">
+                      <div><div style="font:var(--fw-medium) 12px/1.2 var(--font-sans);color:var(--text-disabled)">{{ w.tarifaConcepto }} · tarifa v2</div><div style="font:var(--fw-semibold) 13px/1.3 var(--font-sans);margin-top:3px">Monto base</div></div>
+                      <div style="font:var(--fw-bold) 20px/1 var(--font-sans)">{{ w.montoBaseFmt }}</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+                      <div><span class="lbl">Reducción</span><select class="fld" value="{{ w.reduccion }}" onChange="{{ setReduccion }}"><option value="0">Sin reducción</option><option value="25">25 % — INAPAM / discapacidad</option><option value="50">50 % — programa social</option></select></div>
+                      <div><span class="lbl">Forma de pago (SAT)</span><select class="fld" value="{{ w.formaPago }}" onChange="{{ setFormaPago }}"><option value="01">01 · Efectivo</option><option value="03">03 · Transferencia</option><option value="04">04 · Tarjeta de crédito</option><option value="28">28 · Tarjeta de débito</option></select></div>
+                      <div><span class="lbl">Moneda</span><input class="fld" value="MXN" disabled></div>
+                    </div>
+                    <div style="margin-bottom:6px"><span class="lbl">Método de pago</span>
+                      <div class="seg">
+                        <label><input type="radio" name="metodo" value="PUE" checked="{{ w.esPUE }}" onChange="{{ setMetodo }}"><span class="dot"></span>PUE · Pago en una exhibición</label>
+                        <label><input type="radio" name="metodo" value="PPD" checked="{{ w.esPPD }}" onChange="{{ setMetodo }}"><span class="dot"></span>PPD · Pago en parcialidades</label>
+                      </div>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 14px 0;margin-top:14px;border-top:1px solid var(--border-hairline)">
+                      <span style="font:var(--fw-semibold) 14px/1 var(--font-sans);color:var(--text-secondary)">Total a cobrar</span>
+                      <span style="font:var(--fw-bold) 26px/1 var(--font-sans);color:var(--vino-800)">{{ w.montoFinalFmt }}</span>
+                    </div>
+                  </div>
+
+                  <!-- factura branch -->
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px;opacity:{{ w.cobroOpacity }};pointer-events:{{ w.cobroPE }}">
+                    <div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);margin-bottom:4px">Facturación</div>
+                    <div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);margin-bottom:16px">¿El ciudadano requiere factura (CFDI 4.0)?</div>
+                    <div class="seg" style="margin-bottom:2px">
+                      <label><input type="radio" name="fact" value="no" checked="{{ w.factNo }}" onChange="{{ setRequiereFactura }}"><span class="dot"></span>No — público en general</label>
+                      <label><input type="radio" name="fact" value="si" checked="{{ w.factSi }}" onChange="{{ setRequiereFactura }}"><span class="dot"></span>Sí — emitir CFDI</label>
+                    </div>
+                    <sc-if value="{{ w.factNoSel }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:flex-start;gap:10px;margin-top:16px;padding:12px 14px;border:1px solid var(--info-border);background:var(--info-bg);border-radius:6px"><span class="ms" style="font-size:19px;color:var(--info)">groups</span><div style="font:var(--fw-medium) 12.5px/1.5 var(--font-sans);color:var(--text-secondary)">La operación se consolida en la <b>factura global de público en general</b> del periodo, con el RFC genérico. No se emite CFDI individual.</div></div>
+                    </sc-if>
+                    <sc-if value="{{ w.factSiSel }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:16px">
+                        <div style="display:flex;align-items:center;gap:8px;font:var(--fw-medium) 11.5px/1.4 var(--font-sans);color:var(--text-disabled);margin-bottom:14px"><span class="ms" style="font-size:16px;color:var(--warning)">warning</span>Copia los datos tal cual la Constancia de Situación Fiscal del receptor. La discordancia es la causa principal de rechazo del PAC.</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+                          <div><span class="lbl">RFC del receptor</span><input class="fld" value="{{ w.rRfc }}" onInput="{{ setRRfc }}" placeholder="GODE561231GR8" style="text-transform:uppercase"></div>
+                          <div><span class="lbl">Nombre / razón social</span><input class="fld" value="{{ w.rNombre }}" onInput="{{ setRNombre }}" placeholder="Tal cual la CSF"></div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:.7fr 1.4fr 1.4fr;gap:14px">
+                          <div><span class="lbl">C.P. fiscal</span><input class="fld" value="{{ w.rCp }}" onInput="{{ setRCp }}" placeholder="72000"></div>
+                          <div><span class="lbl">Régimen fiscal</span><select class="fld" value="{{ w.rRegimen }}" onChange="{{ setRRegimen }}"><option value="">Selecciona…</option><option value="601">601 · General de Ley PM</option><option value="612">612 · PF Actividades Empresariales</option><option value="626">626 · RESICO</option><option value="605">605 · Sueldos y salarios</option><option value="616">616 · Sin obligaciones fiscales</option></select></div>
+                          <div><span class="lbl">Uso del CFDI</span><select class="fld" value="{{ w.rUso }}" onChange="{{ setRUso }}"><option value="">Selecciona…</option><option value="G03">G03 · Gastos en general</option><option value="S01">S01 · Sin efectos fiscales</option><option value="D10">D10 · Servicios educativos</option></select></div>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- ====== PASO 4 · ENTREGA ====== -->
+              <sc-if value="{{ p4 }}" hint-placeholder-val="{{ false }}">
+                <div class="fu" style="display:flex;flex-direction:column;gap:18px">
+                  <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:24px;display:flex;gap:24px;align-items:center">
+                    <div style="width:132px;height:132px;border:1px solid var(--border-hairline);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--grey-050)"><span class="ms" style="font-size:104px;color:var(--vino-800)">qr_code_2</span></div>
+                    <div style="flex:1;min-width:0">
+                      <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="success" hint-size="auto,24px">Constancia emitida y entregada</x-import>
+                      <div style="font:var(--fw-bold) 20px/1.2 var(--font-sans);margin:12px 0 2px">{{ w.folio }}</div>
+                      <div style="font:var(--fw-medium) 13px/1.5 var(--font-sans);color:var(--text-secondary)">{{ w.tipoLabel }} · {{ w.nombre }}</div>
+                      <div style="display:flex;gap:24px;margin-top:14px">
+                        <div><div style="font:var(--fw-medium) 11px/1 var(--font-sans);color:var(--text-disabled);margin-bottom:4px">VIGENCIA</div><div style="font:var(--fw-semibold) 13px/1.3 var(--font-sans)">{{ w.vigIniFmt }} → {{ w.vigFinFmt }}</div></div>
+                        <div><div style="font:var(--fw-medium) 11px/1 var(--font-sans);color:var(--text-disabled);margin-bottom:4px">FIRMA INSTITUCIONAL</div><div style="font:var(--fw-semibold) 13px/1.3 var(--font-sans);display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px;color:var(--success)">shield</span>PKI SOAPAP · SHA-256</div></div>
+                      </div>
+                      <div style="display:flex;gap:10px;margin-top:16px">
+                        <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" size="sm" hint-size="auto,34px"><span class="ms" style="font-size:16px">download</span>Descargar PDF</x-import>
+                        <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" size="sm" variant="outlined" hint-size="auto,34px"><span class="ms" style="font-size:16px">print</span>Imprimir</x-import>
+                      </div>
+                    </div>
+                  </div>
+
+                  <sc-if value="{{ w.factSiSel }}" hint-placeholder-val="{{ false }}">
+                    <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+                      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span class="ms" style="font-size:20px;color:var(--vino-700)">receipt_long</span><div style="font:var(--fw-bold) 14px/1.2 var(--font-sans);flex:1">Factura CFDI 4.0</div><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="{{ w.facturaColor }}" hint-size="auto,22px">{{ w.facturaLabel }}</x-import></div>
+                      <sc-if value="{{ w.timbrando }}" hint-placeholder-val="{{ true }}">
+                        <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--info-border);background:var(--info-bg);border-radius:6px"><span class="ms spin" style="font-size:20px;color:var(--info)">progress_activity</span><div style="flex:1"><div style="font:var(--fw-bold) 13px/1.2 var(--font-sans);color:var(--info)">Timbrado en proceso</div><div style="font:var(--fw-regular) 12px/1.3 var(--font-sans);color:var(--text-secondary);margin-top:2px">El worker arma el XML y consume el PAC de forma asíncrona. La entrega de la constancia no espera al timbrado.</div></div></div>
+                      </sc-if>
+                      <sc-if value="{{ w.timbrado }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--success-border);background:var(--success-bg);border-radius:6px;margin-bottom:12px"><span class="ms" style="font-size:20px;color:var(--success)">task_alt</span><div style="flex:1"><div style="font:var(--fw-bold) 13px/1.2 var(--font-sans);color:var(--success)">CFDI timbrado</div><div style="font:var(--fw-regular) 11.5px/1.4 var(--font-sans);color:var(--text-secondary);margin-top:2px;word-break:break-all">UUID {{ w.uuid }}</div></div></div>
+                        <div style="display:flex;gap:10px"><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" size="sm" variant="outlined" hint-size="auto,34px"><span class="ms" style="font-size:16px">download</span>XML</x-import><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" size="sm" variant="outlined" hint-size="auto,34px"><span class="ms" style="font-size:16px">picture_as_pdf</span>PDF</x-import></div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+
+                  <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border:1px dashed var(--border-strong);border-radius:8px;background:var(--grey-050)"><span class="ms" style="font-size:19px;color:var(--vino-700)">public</span><div style="font:var(--fw-medium) 12.5px/1.6 var(--font-sans);color:var(--text-secondary)">El ciudadano verifica la autenticidad en <span style="color:var(--vino-700);font-weight:600">soapap.gob.mx/constancias_no_adeudo</span><sc-if value="{{ w.factSiSel }}" hint-placeholder-val="{{ false }}"> y descarga su CFDI en <span style="color:var(--vino-700);font-weight:600">soapap.gob.mx/facturacion</span> (folio + RFC)</sc-if>.</div></div>
+                </div>
+              </sc-if>
+
+            </div>
+          </div>
+
+          <!-- SIDE PANEL: resumen + bitacora -->
+          <sc-if value="{{ mostrarBitacora }}" hint-placeholder-val="{{ true }}">
+            <aside style="width:326px;flex-shrink:0;border-left:1px solid var(--border-hairline);background:var(--white);display:flex;flex-direction:column;min-height:0">
+              <div style="padding:16px 18px;border-bottom:1px solid var(--border-hairline)">
+                <div style="font:var(--fw-bold) 13px/1 var(--font-sans);margin-bottom:12px">Resumen del trámite</div>
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <sc-for list="{{ resumenTramite }}" as="s" hint-placeholder-count="5">
+                    <div style="display:flex;gap:10px;font:var(--fw-medium) 12px/1.3 var(--font-sans)"><span style="color:var(--text-disabled);width:96px;flex-shrink:0">{{ s.k }}</span><span style="color:var(--text-primary);font-weight:600;flex:1;text-align:right">{{ s.v }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="padding:14px 18px 8px;display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:17px;color:var(--vino-700)">history</span><span style="font:var(--fw-bold) 13px/1 var(--font-sans);flex:1">Bitácora de auditoría</span><span style="font:var(--fw-semibold) 10px/1 var(--font-sans);color:var(--text-disabled);border:1px solid var(--border-hairline);border-radius:99px;padding:3px 7px">solo anexado</span></div>
+              <div class="scroll" style="flex:1;min-height:0;padding:6px 18px 18px">
+                <sc-for list="{{ bitacoraView }}" as="b" hint-placeholder-count="3">
+                  <div style="display:flex;gap:11px;padding-bottom:14px;position:relative">
+                    <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:11px;height:11px;border-radius:50%;background:{{ b.dot }};margin-top:3px;border:2px solid var(--white);box-shadow:0 0 0 1px {{ b.dot }}"></div><div style="width:2px;flex:1;background:var(--border-hairline);margin-top:3px"></div></div>
+                    <div style="flex:1;min-width:0;padding-bottom:2px">
+                      <div style="display:flex;align-items:center;gap:6px"><span style="font:var(--fw-bold) 12px/1.3 var(--font-sans)">{{ b.accion }}</span></div>
+                      <sc-if value="{{ b.tieneTransicion }}" hint-placeholder-val="{{ false }}"><div style="display:inline-flex;align-items:center;gap:5px;margin-top:5px;font:var(--fw-semibold) 10.5px/1 var(--font-sans)"><span style="color:var(--text-disabled)">{{ b.estadoAnterior }}</span><span class="ms" style="font-size:13px;color:var(--text-disabled)">arrow_forward</span><span style="color:var(--vino-700)">{{ b.estadoNuevo }}</span></div></sc-if>
+                      <sc-if value="{{ b.detalle }}" hint-placeholder-val="{{ false }}"><div style="font:var(--fw-regular) 11.5px/1.45 var(--font-sans);color:var(--text-secondary);margin-top:4px">{{ b.detalle }}</div></sc-if>
+                      <div style="display:flex;align-items:center;gap:6px;margin-top:5px;font:var(--fw-medium) 10.5px/1 var(--font-sans);color:var(--text-disabled)"><span style="color:{{ b.dot }};font-weight:700">{{ b.origenLabel }}</span><span>·</span><span>{{ b.actor }}</span><span>·</span><span>{{ b.hora }}</span></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </aside>
+          </sc-if>
+        </div>
+
+        <!-- wizard footer -->
+        <div style="flex-shrink:0;border-top:1px solid var(--border-hairline);background:var(--white);padding:14px 28px;display:flex;align-items:center;gap:12px">
+          <sc-if value="{{ w.puedeRetroceder }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" variant="text" onClick="{{ retroceder }}" hint-size="auto,40px"><span class="ms" style="font-size:18px">chevron_left</span>Atrás</x-import></sc-if>
+        <div style="flex:1"></div>
+          <div style="font:var(--fw-medium) 12px/1.3 var(--font-sans);color:var(--text-disabled)">{{ pasoAyuda }}</div>
+          <sc-if value="{{ btnRechazar }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" variant="outlined" onClick="{{ abrirRechazo }}" hint-size="auto,40px">Rechazar</x-import></sc-if>
+          <sc-if value="{{ btnPrimarioVisible }}" hint-placeholder-val="{{ true }}"><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" onClick="{{ accionPrimaria }}" disabled="{{ primarioDisabled }}" hint-size="auto,40px">{{ primarioLabel }}<span class="ms" style="font-size:18px">{{ primarioIcon }}</span></x-import></sc-if>
+        </div>
+
+        <!-- rechazo dialog -->
+        <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Dialog" open="{{ rechazoOpen }}" onClose="{{ cerrarRechazo }}" title="Rechazar trámite" hint-size="0,0">
+          <div style="font:var(--fw-medium) 13px/1.6 var(--font-sans);color:var(--text-secondary);margin-bottom:14px">Indica el motivo del rechazo. Quedará registrado en la bitácora y el trámite se cerrará sin emisión.</div>
+          <span class="lbl">Motivo</span>
+          <textarea class="fld" rows="3" value="{{ motivoDraft }}" onInput="{{ setMotivoDraft }}" placeholder="Ej. Adeudo detectado en la cuenta; requisitos no acreditados…" style="resize:vertical"></textarea>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+            <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" variant="text" onClick="{{ cerrarRechazo }}" hint-size="auto,38px">Cancelar</x-import>
+            <button onClick="{{ confirmarRechazo }}" style="border:1px solid var(--error);background:var(--error);color:#fff;border-radius:4px;padding:10px 18px;font:var(--fw-bold) 14px/1.2 var(--font-sans);cursor:pointer">Rechazar trámite</button>
+          </div>
+        </x-import>
+      </sc-if>
+    </sc-if>
+
+    <!-- ============ FINANZAS ============ -->
+    <sc-if value="{{ esFinanzas }}" hint-placeholder-val="{{ false }}">
+      <div style="height:60px;flex-shrink:0;border-bottom:1px solid var(--border-hairline);background:var(--white);display:flex;align-items:center;padding:0 28px">
+        <div style="flex:1"><div style="font:var(--fw-bold) 17px/1.1 var(--font-sans)">Gerencia de Administración y Finanzas</div><div style="font:var(--fw-medium) 12px/1.3 var(--font-sans);color:var(--text-disabled);margin-top:2px">Timbrado CFDI 4.0 · monitoreo y reintentos</div></div>
+      </div>
+      <div class="scroll" style="flex:1;padding:24px 28px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+          <sc-for list="{{ finKpis }}" as="k" hint-placeholder-count="4">
+            <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:15px 16px">
+              <div style="display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:18px;color:{{ k.color }}">{{ k.icon }}</span><span style="font:var(--fw-semibold) 12px/1.2 var(--font-sans);color:var(--text-secondary)">{{ k.label }}</span></div>
+              <div style="font:var(--fw-bold) 26px/1.1 var(--font-sans);margin-top:8px">{{ k.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div>
+          <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Tabs" tabs="{{ finTabs }}" value="{{ finTab }}" onChange="{{ setFinTab }}" hint-size="100%,44px"></x-import>
+          <div style="margin-top:16px">
+            <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Table" columns="{{ finCols }}" rows="{{ finRows }}" onRowClick="{{ selFactura }}" hint-size="100%,320px"></x-import>
+          </div>
+        </div>
+      </div>
+
+      <!-- factura detail dialog -->
+      <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Dialog" open="{{ finSelOpen }}" onClose="{{ cerrarFactura }}" title="Detalle de factura" maxWidth="560" hint-size="0,0">
+        <sc-if value="{{ finSelOpen }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="{{ finSel.estadoColor }}" hint-size="auto,22px">{{ finSel.estadoLabel }}</x-import><span style="font:var(--fw-bold) 15px/1 var(--font-sans)">{{ finSel.folioConstancia }}</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-bottom:16px">
+              <sc-for list="{{ finSel.campos }}" as="c" hint-placeholder-count="4">
+                <div><div style="font:var(--fw-medium) 11px/1 var(--font-sans);color:var(--text-disabled);margin-bottom:4px">{{ c.k }}</div><div style="font:var(--fw-semibold) 13px/1.4 var(--font-sans);word-break:break-all">{{ c.v }}</div></div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ finSel.tieneError }}" hint-placeholder-val="{{ false }}">
+              <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Alert" severity="error" title="Error reportado por el PAC" hint-size="100%,70px">{{ finSel.error }}</x-import>
+              <div style="font:var(--fw-medium) 12px/1.5 var(--font-sans);color:var(--text-disabled);margin:12px 0 18px">Error de datos: no se reintenta automáticamente. Corrige y reintenta manualmente.</div>
+              <div style="display:flex;justify-content:flex-end;gap:10px">
+                <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" variant="outlined" onClick="{{ cerrarFactura }}" hint-size="auto,38px">Cerrar</x-import>
+                <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Button" onClick="{{ reintentar }}" hint-size="auto,38px"><span class="ms" style="font-size:17px">restart_alt</span>Reintentar timbrado</x-import>
+              </div>
+            </sc-if>
+            <sc-if value="{{ finSel.timbrando }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--info-border);background:var(--info-bg);border-radius:6px"><span class="ms spin" style="font-size:20px;color:var(--info)">progress_activity</span><div style="font:var(--fw-bold) 13px/1.2 var(--font-sans);color:var(--info)">Reintentando timbrado…</div></div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </x-import>
+    </sc-if>
+
+    <!-- ============ DIRECCIÓN ============ -->
+    <sc-if value="{{ esDireccion }}" hint-placeholder-val="{{ false }}">
+      <div style="height:60px;flex-shrink:0;border-bottom:1px solid var(--border-hairline);background:var(--white);display:flex;align-items:center;padding:0 28px">
+        <div style="flex:1"><div style="font:var(--fw-bold) 17px/1.1 var(--font-sans)">Tablero de dirección</div><div style="font:var(--fw-medium) 12px/1.3 var(--font-sans);color:var(--text-disabled);margin-top:2px">Indicadores de desempeño · junio 2026</div></div>
+        <x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="success" hint-size="auto,24px"><span class="ms" style="font-size:14px">fiber_manual_record</span>En tiempo real</x-import>
+      </div>
+      <div class="scroll" style="flex:1;padding:24px 28px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+          <sc-for list="{{ dirKpis }}" as="k" hint-placeholder-count="8">
+            <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between"><span class="ms" style="font-size:20px;color:{{ k.color }}">{{ k.icon }}</span><x-import component-from-global-scope="SOAPAPDesignSystem_cd0592.Badge" color="{{ k.trendColor }}" hint-size="auto,20px">{{ k.trend }}</x-import></div>
+              <div style="font:var(--fw-bold) 25px/1.1 var(--font-sans);margin-top:12px">{{ k.value }}</div>
+              <div style="font:var(--fw-medium) 12px/1.3 var(--font-sans);color:var(--text-secondary);margin-top:3px">{{ k.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px">
+          <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+            <div style="font:var(--fw-bold) 14px/1 var(--font-sans);margin-bottom:2px">Constancias emitidas por mes</div>
+            <div style="font:var(--fw-medium) 12px/1.3 var(--font-sans);color:var(--text-disabled);margin-bottom:18px">Registrados vs. no registrados · 2026</div>
+            <div style="display:flex;align-items:flex-end;gap:14px;height:150px">
+              <sc-for list="{{ dirMeses }}" as="m" hint-placeholder-count="6">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+                  <div style="font:var(--fw-bold) 10px/1 var(--font-sans);color:var(--text-secondary)">{{ m.total }}</div>
+                  <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:4px 4px 0 0;overflow:hidden;height:{{ m.h }}px">
+                    <div style="height:{{ m.hNr }}px;background:var(--oro-500)"></div>
+                    <div style="flex:1;background:var(--vino-700)"></div>
+                  </div>
+                  <div style="font:var(--fw-medium) 10px/1 var(--font-sans);color:var(--text-disabled)">{{ m.mes }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:18px;margin-top:16px;font:var(--fw-medium) 11px/1 var(--font-sans);color:var(--text-secondary)"><span style="display:flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:2px;background:var(--vino-700)"></span>Registrados</span><span style="display:flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:2px;background:var(--oro-500)"></span>No registrados</span></div>
+          </div>
+          <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+            <div style="font:var(--fw-bold) 14px/1 var(--font-sans);margin-bottom:18px">Trámites por estado</div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <sc-for list="{{ dirEstados }}" as="e" hint-placeholder-count="5">
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="width:9px;height:9px;border-radius:50%;background:{{ e.color }}"></span><span style="font:var(--fw-semibold) 12.5px/1 var(--font-sans);flex:1">{{ e.label }}</span><span style="font:var(--fw-bold) 12.5px/1 var(--font-sans)">{{ e.n }}</span></div>
+                  <div style="height:7px;background:var(--grey-100);border-radius:4px;overflow:hidden"><div style="width:{{ e.pct }}%;height:100%;background:{{ e.color }};border-radius:4px"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="background:var(--white);border:1px solid var(--border-hairline);border-radius:8px;padding:20px">
+          <div style="font:var(--fw-bold) 14px/1 var(--font-sans);margin-bottom:16px">Ciclo de vida del trámite</div>
+          <div style="display:flex;align-items:stretch;gap:0">
+            <sc-for list="{{ dirFlujo }}" as="f" hint-placeholder-count="5">
+              <div style="flex:1;display:flex;align-items:center">
+                <div style="flex:1;text-align:center;padding:14px 8px;border:1px solid {{ f.border }};background:{{ f.bg }};border-radius:8px">
+                  <div style="font:var(--fw-bold) 22px/1 var(--font-sans);color:{{ f.color }}">{{ f.n }}</div>
+                  <div style="font:var(--fw-semibold) 11px/1.2 var(--font-sans);color:var(--text-secondary);margin-top:6px">{{ f.label }}</div>
+                </div>
+                <sc-if value="{{ f.flecha }}" hint-placeholder-val="{{ true }}"><span class="ms" style="font-size:20px;color:var(--text-disabled);margin:0 4px">chevron_right</span></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;moduloInicial&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ventanilla&quot;,&quot;finanzas&quot;,&quot;direccion&quot;],&quot;default&quot;:&quot;ventanilla&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototipo&quot;},&quot;mostrarBitacora&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prototipo&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      modulo: (props && props.moduloInicial) || 'ventanilla',
+      vista: 'lista',
+      paso: 0,
+      w: this.fresh(2041),
+      bitacora: [],
+      seq: 0,
+      numeroSeq: 2041,
+      creados: [],
+      rechazoOpen: false,
+      motivoDraft: '',
+      finTab: 'facturas',
+      finSelId: null,
+      facturas: this.seedFacturas(),
+    };
+  }
+
+  // ---------- helpers ----------
+  fresh(numero) {
+    return {
+      numero, tipoConstancia: 'NO_ADEUDO', personalidad: 'FISICA', representacion: 'TITULAR',
+      nis: '', calle: '', colonia: '', cp: '', nombre: '', rfc: '',
+      docs: {}, oucValidado: null, oucFolio: '', confFirmas: false, confFacultades: false,
+      consultaOn: false, consultaObs: '', consultaReg: false,
+      estado: 'CAPTURA', plazoPago: null,
+      adeudoSobrevenido: false, revalidado: false,
+      reduccion: '0', formaPago: '03', metodoPago: 'PUE',
+      requiereFactura: null, rRfc: '', rNombre: '', rCp: '', rRegimen: '', rUso: '',
+      folio: '', constanciaGenerada: false, vigIni: null, vigFin: null,
+      facturaEstado: null, uuid: '',
+      rechazado: false, motivoRechazo: '',
+    };
+  }
+  setW(patch) { this.setState(s => ({ w: { ...s.w, ...patch } })); }
+  meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  fmtFecha(d) { return `${String(d.getDate()).padStart(2,'0')} ${this.meses[d.getMonth()]} ${d.getFullYear()}`; }
+  peso(n) { return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  tipoLabel(t) { return t === 'NO_ADEUDO' ? 'Constancia de No Adeudo' : 'Constancia de No Registro'; }
+  tarifaBase(t) { return t === 'NO_ADEUDO' ? 186 : 248; }
+  estadoInfo(k) {
+    return ({ CAPTURA:['Captura','neutral'], EN_VALIDACION:['En validación','info'], APROBADO:['Aprobado','secondary'],
+      RECHAZADO:['Rechazado','error'], EXPIRADO:['Expirado','neutral'], COBRO:['En cobro','warning'], FINALIZADO:['Finalizado','success'] })[k] || ['—','neutral'];
+  }
+  facturaInfo(k) {
+    return ({ PENDIENTE:['Pendiente','neutral'], TIMBRADO_EN_PROCESO:['Timbrando','info'], TIMBRADO:['Timbrado','success'],
+      TIMBRADO_FALLIDO:['Rechazado por PAC','error'], CANCELADO:['Cancelado','neutral'] })[k] || ['—','neutral'];
+  }
+  origenInfo(o) { return ({ USUARIO:['Usuario','var(--vino-700)'], SISTEMA:['Sistema','var(--grey-500)'], WORKER:['Worker','var(--oro-700)'] })[o] || ['','var(--grey-500)']; }
+
+  log(e) {
+    const now = new Date(Date.now() + this.state.seq * 8000);
+    const [origenLabel] = this.origenInfo(e.origen || 'USUARIO');
+    const entry = {
+      id: this.state.seq,
+      hora: now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      accion: e.accion, estadoAnterior: e.estadoAnterior || null, estadoNuevo: e.estadoNuevo || null,
+      detalle: e.detalle || '', origen: e.origen || 'USUARIO',
+      actor: e.origen === 'SISTEMA' ? 'Servicio' : e.origen === 'WORKER' ? 'pg-boss' : 'M. E. Vázquez',
+    };
+    this.setState(s => ({ seq: s.seq + 1, bitacora: [entry, ...s.bitacora] }));
+  }
+
+  // ---------- catalog ----------
+  grupos(w) {
+    const g = [];
+    let ops;
+    if (w.personalidad === 'FISICA' && w.representacion === 'TITULAR')
+      ops = [{ clave: 'ine_tit', nombre: 'Identificación del titular', docs: ['INE del titular'] }];
+    else if (w.personalidad === 'FISICA')
+      ops = [{ clave: 'carta', nombre: 'Carta poder simple', docs: ['Carta poder simple dirigida al SOAPAP', 'INE de quien otorga el poder', 'INE de quien recibe el poder'] }];
+    else
+      ops = [{ clave: 'poder', nombre: 'Representación de persona moral', docs: ['Acta constitutiva', 'Poder notariado (actos de dominio y administrativos)', 'INE del apoderado legal'] }];
+    g.push({ clave: 'identidad', nombre: 'Identidad', logica: 'Una opción', icon: 'badge', opciones: ops });
+    if (w.tipoConstancia === 'NO_ADEUDO') {
+      g.push({ clave: 'validacion', nombre: 'Validación de saldo', logica: 'Obligatorio', icon: 'account_balance_wallet', opciones: [{ clave: 'sin_adeudo', nombre: 'Sin adeudo en la cuenta', docs: [] }] });
+    } else {
+      g.push({ clave: 'propiedad', nombre: 'Propiedad', logica: 'Una opción', icon: 'home', opciones: [
+        { clave: 'escritura', nombre: 'Escritura pública notariada', docs: ['Escritura pública notariada'] },
+        { clave: 'compraventa', nombre: 'Contrato de compraventa notariado', docs: ['Contrato de compraventa notariado'] } ] });
+      g.push({ clave: 'ubicacion', nombre: 'Ubicación', logica: 'Una opción', icon: 'location_on', opciones: [
+        { clave: 'boleta', nombre: 'Boleta predial', docs: ['Boleta predial'] },
+        { clave: 'alineamiento', nombre: 'Alineamiento + número oficial', docs: ['Alineamiento', 'Número oficial'] } ] });
+    }
+    return g;
+  }
+  slug(s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 26); }
+
+  checklistModel() {
+    const w = this.state.w;
+    return this.grupos(w).map(g => {
+      const opciones = g.opciones.map((o, oi) => {
+        const docs = o.docs.map((d, i) => {
+          const key = `${g.clave}.${o.clave}.${i}`;
+          const adj = !!w.docs[key];
+          return { key, nombre: d, adjuntado: adj, filename: w.docs[key] || '',
+            icon: adj ? 'check_circle' : 'upload_file', iconColor: adj ? 'var(--success)' : 'var(--text-disabled)',
+            rowBg: adj ? 'var(--success-bg)' : 'var(--white)',
+            btnLabel: adj ? 'Quitar' : 'Adjuntar', btnIcon: adj ? 'close' : 'attach_file',
+            btnBg: adj ? 'transparent' : 'var(--vino-800)', btnColor: adj ? 'var(--vino-700)' : '#fff',
+            btnBorder: adj ? 'var(--vino-700)' : 'var(--vino-800)' };
+        });
+        const satisfecha = docs.length ? docs.every(d => d.adjuntado) : false;
+        return { ...o, docs, satisfecha, esManual: o.docs.length === 0, mostrarO: oi > 0 };
+      });
+      let satisfecho;
+      if (g.clave === 'validacion') satisfecho = w.oucValidado === 'SIN_ADEUDO';
+      else satisfecho = opciones.some(o => o.satisfecha);
+      return { ...g, opciones, satisfecho,
+        borderColor: satisfecho ? 'var(--success-border)' : 'var(--border-hairline)',
+        headBg: satisfecho ? 'var(--success-bg)' : 'var(--grey-050)',
+        iconColor: satisfecho ? 'var(--success)' : 'var(--vino-700)',
+        icon: satisfecho ? 'check_circle' : g.icon };
+    });
+  }
+  docGroupsOk() { return this.checklistModel().filter(g => g.clave !== 'validacion').every(g => g.satisfecho); }
+  capturaCompleta() {
+    const w = this.state.w;
+    const idOk = w.nombre.trim().length > 0;
+    const locOk = w.tipoConstancia === 'NO_ADEUDO' ? w.nis.trim().length > 0 : (w.calle.trim() && w.colonia.trim());
+    return this.docGroupsOk() && idOk && !!locOk;
+  }
+  requiereConfManual() { const w = this.state.w; return (w.personalidad === 'FISICA' && w.representacion === 'REPRESENTANTE') || w.personalidad === 'MORAL'; }
+  puedeAprobar() {
+    const w = this.state.w;
+    if (w.tipoConstancia === 'NO_ADEUDO' && w.oucValidado !== 'SIN_ADEUDO') return false;
+    if (w.personalidad === 'FISICA' && w.representacion === 'REPRESENTANTE' && !w.confFirmas) return false;
+    if (w.personalidad === 'MORAL' && !w.confFacultades) return false;
+    return true;
+  }
+  puedeEmitir() {
+    const w = this.state.w;
+    if (!w.revalidado) return false;
+    if (w.requiereFactura === null) return false;
+    if (w.requiereFactura) return !!(w.rRfc.trim() && w.rNombre.trim() && w.rCp.trim() && w.rRegimen && w.rUso);
+    return true;
+  }
+
+  // ---------- seed ----------
+  seedFacturas() {
+    return [
+      { id: 'f1', folioConstancia: 'NA-2026-02038', receptor: 'María González Reyes', rfc: 'GORM850312AB1', cp: '72000', monto: 186, uso: 'G03', regimen: '605', estado: 'TIMBRADO', uuid: 'A3F1C9E2-4B7D-4E1A-9C22-8F0D5B6E1122', fecha: '30 jun 2026' },
+      { id: 'f2', folioConstancia: 'NR-2026-02039', receptor: 'Constructora Angelópolis SA de CV', rfc: 'CAN180420QK3', cp: '72830', monto: 248, uso: 'G03', regimen: '601', estado: 'TIMBRADO_FALLIDO', error: 'CFDI40120 — El nombre del receptor no coincide con la Constancia de Situación Fiscal registrada en el SAT.', fecha: '01 jul 2026' },
+      { id: 'f3', folioConstancia: 'NA-2026-02036', receptor: 'Juan Pérez Salinas', rfc: 'PESJ790101HT4', cp: '72150', monto: 186, uso: 'S01', regimen: '612', estado: 'TIMBRADO_EN_PROCESO', fecha: '01 jul 2026' },
+      { id: 'f4', folioConstancia: 'NA-2026-02033', receptor: 'Rosa Hernández Cruz', rfc: 'HECR920815MP9', cp: '72400', monto: 139.50, uso: 'G03', regimen: '626', estado: 'TIMBRADO', uuid: 'B8E2D1F0-7C34-4A9B-8D11-2E6F9A0C4455', fecha: '29 jun 2026' },
+      { id: 'f5', folioConstancia: 'NR-2026-02030', receptor: 'Grupo Inmobiliario La Paz SC', rfc: 'GIP150610TX2', cp: '72070', monto: 248, uso: 'G03', regimen: '601', estado: 'CANCELADO', uuid: 'C1A4B7D9-3E56-4F2C-9A88-1B3D5E7F9900', fecha: '28 jun 2026' },
+    ];
+  }
+  seedTramites() {
+    return [
+      { numero: 2040, tipoConstancia: 'NO_ADEUDO', solicitante: 'María González Reyes', estado: 'FINALIZADO', fecha: '30 jun 2026', monto: 186 },
+      { numero: 2039, tipoConstancia: 'NO_REGISTRO', solicitante: 'Constructora Angelópolis SA de CV', estado: 'COBRO', fecha: '01 jul 2026', monto: 248 },
+      { numero: 2037, tipoConstancia: 'NO_ADEUDO', solicitante: 'Carlos Mendoza López', estado: 'RECHAZADO', fecha: '01 jul 2026', monto: 0 },
+      { numero: 2035, tipoConstancia: 'NO_ADEUDO', solicitante: 'Ana Flores Domínguez', estado: 'EN_VALIDACION', fecha: '01 jul 2026', monto: 186 },
+      { numero: 2032, tipoConstancia: 'NO_REGISTRO', solicitante: 'Roberto Cházaro Vega', estado: 'APROBADO', fecha: '01 jul 2026', monto: 248 },
+      { numero: 2028, tipoConstancia: 'NO_ADEUDO', solicitante: 'Lucía Marín Osorio', estado: 'EXPIRADO', fecha: '27 jun 2026', monto: 0 },
+    ];
+  }
+
+  // ---------- actions ----------
+  iniciarWizard = () => {
+    this.setState({ vista: 'wizard', paso: 0, w: this.fresh(this.state.numeroSeq), bitacora: [], seq: 0 });
+    setTimeout(() => this.log({ accion: 'Trámite creado', estadoNuevo: 'CAPTURA', detalle: 'Nuevo trámite en captura.' }), 0);
+  };
+  cancelarWizard = () => this.setState({ vista: 'lista' });
+
+  toggleDoc = (e) => {
+    const k = e.currentTarget.dataset.k; const n = e.currentTarget.dataset.n;
+    const w = this.state.w; const docs = { ...w.docs };
+    if (docs[k]) { delete docs[k]; this.setW({ docs }); }
+    else { docs[k] = this.slug(n) + '.pdf'; this.setW({ docs }); this.log({ accion: 'Evidencia adjuntada', detalle: n, origen: 'USUARIO' }); }
+  };
+
+  avanzar = () => {
+    const p = this.state.paso;
+    if (p === 0) { // Captura -> Validación
+      this.setState({ paso: 1 });
+      this.setW({ estado: 'EN_VALIDACION' });
+      this.log({ accion: 'Enviado a validación', estadoAnterior: 'CAPTURA', estadoNuevo: 'EN_VALIDACION', detalle: 'Checklist de requisitos satisfecho (lógica Y/O).' });
+    } else if (p === 1) { // aprobar
+      const plazo = new Date(Date.now() + 3 * 864e5);
+      this.setState({ paso: 2 });
+      this.setW({ estado: 'APROBADO', plazoPago: plazo });
+      this.log({ accion: 'Trámite aprobado', estadoAnterior: 'EN_VALIDACION', estadoNuevo: 'APROBADO', detalle: 'Saldo certificado. Inicia plazo de pago de 3 días.' });
+    } else if (p === 2) { // iniciar cobro
+      this.setState({ paso: 3 });
+      this.setW({ estado: 'COBRO' });
+      this.log({ accion: 'Cobro iniciado', estadoAnterior: 'APROBADO', estadoNuevo: 'COBRO', detalle: 'Pendiente de revalidación de no adeudo.' });
+    } else if (p === 3) { // emitir
+      this.emitir();
+    } else if (p === 4) {
+      this.finalizar();
+    }
+  };
+  retroceder = () => { if (this.state.paso > 0 && this.state.paso < 4 && !this.state.w.constanciaGenerada) this.setState({ paso: this.state.paso - 1 }); };
+
+  oucSinAdeudo = () => { this.setW({ oucValidado: 'SIN_ADEUDO', oucFolio: 'OUC-' + (48210 + this.state.seq) }); this.log({ accion: 'Validación OUC · sin adeudo', detalle: `Cuenta ${this.state.w.nis} — saldo $0.00 (validación manual inicial).` }); };
+  oucConAdeudo = () => { this.setW({ oucValidado: 'CON_ADEUDO', oucFolio: 'OUC-' + (48210 + this.state.seq) }); this.log({ accion: 'Validación OUC · con adeudo', detalle: `Cuenta ${this.state.w.nis} — adeudo detectado.` }); };
+  oucReset = () => this.setW({ oucValidado: null, oucFolio: '' });
+  toggleFirmas = () => { const v = !this.state.w.confFirmas; this.setW({ confFirmas: v }); if (v) this.log({ accion: 'Confirmación manual', detalle: 'Firmas de la carta poder legibles y coincidentes.' }); };
+  toggleFacultades = () => { const v = !this.state.w.confFacultades; this.setW({ confFacultades: v }); if (v) this.log({ accion: 'Confirmación manual', detalle: 'Poder con facultades suficientes (dominio y administración).' }); };
+  toggleConsulta = () => { const v = !this.state.w.consultaOn; this.setW({ consultaOn: v }); if (!v) this.setW({ consultaObs: '', consultaReg: false }); };
+  setConsultaObs = (e) => {
+    const val = e.target.value; this.setW({ consultaObs: val });
+    if (val.trim().length > 3 && !this.state.w.consultaReg) { this.setW({ consultaReg: true }); this.log({ accion: 'Consulta a concesionaria', detalle: 'Se registró apoyo de Agua de Puebla (observación atribuible).' }); }
+  };
+
+  abrirRechazo = () => this.setState({ rechazoOpen: true, motivoDraft: '' });
+  cerrarRechazo = () => this.setState({ rechazoOpen: false });
+  setMotivoDraft = (e) => this.setState({ motivoDraft: e.target.value });
+  confirmarRechazo = () => {
+    const m = this.state.motivoDraft.trim() || 'Requisitos no acreditados.';
+    const prev = this.state.w.estado;
+    this.setState({ rechazoOpen: false });
+    this.setW({ estado: 'RECHAZADO', rechazado: true, motivoRechazo: m });
+    this.log({ accion: 'Trámite rechazado', estadoAnterior: prev, estadoNuevo: 'RECHAZADO', detalle: m });
+  };
+
+  toggleAdeudoSob = () => this.setW({ adeudoSobrevenido: !this.state.w.adeudoSobrevenido });
+  revalidar = () => {
+    const w = this.state.w;
+    if (w.adeudoSobrevenido) {
+      this.setW({ estado: 'RECHAZADO', rechazado: true, motivoRechazo: 'Adeudo sobrevenido detectado en la revalidación al emitir. No procede el cobro.' });
+      this.log({ accion: 'Revalidación · con adeudo', estadoAnterior: 'COBRO', estadoNuevo: 'RECHAZADO', detalle: 'Adeudo apareció entre la aprobación y el cobro.' });
+    } else {
+      this.setW({ revalidado: true });
+      this.log({ accion: 'Revalidación · sin adeudo', detalle: 'Situación de no adeudo confirmada al emitir.' });
+    }
+  };
+  setReduccion = (e) => this.setW({ reduccion: e.target.value });
+  setFormaPago = (e) => this.setW({ formaPago: e.target.value });
+  setMetodo = (e) => this.setW({ metodoPago: e.target.value });
+  setRequiereFactura = (e) => {
+    const si = e.target.value === 'si'; const w = this.state.w;
+    this.setW({ requiereFactura: si, rRfc: si ? w.rfc : '', rNombre: si ? w.nombre : '', rCp: si && w.cp ? w.cp : (si ? w.rCp : '') });
+  };
+  setRRfc = (e) => this.setW({ rRfc: e.target.value });
+  setRNombre = (e) => this.setW({ rNombre: e.target.value });
+  setRCp = (e) => this.setW({ rCp: e.target.value });
+  setRRegimen = (e) => this.setW({ rRegimen: e.target.value });
+  setRUso = (e) => this.setW({ rUso: e.target.value });
+
+  emitir = () => {
+    const w = this.state.w;
+    const abbr = w.tipoConstancia === 'NO_ADEUDO' ? 'NA' : 'NR';
+    const folio = `${abbr}-2026-${String(w.numero).padStart(5, '0')}`;
+    const ini = new Date(); const fin = new Date(); fin.setMonth(fin.getMonth() + 1);
+    this.setState({ paso: 4 });
+    this.setW({ estado: 'FINALIZADO', folio, constanciaGenerada: true, vigIni: ini, vigFin: fin });
+    this.log({ accion: 'Constancia generada', origen: 'SISTEMA', detalle: `Folio ${folio} · QR + hash SHA-256 firmado por el Servicio de Firma (PKI SOAPAP).` });
+    this.log({ accion: 'Constancia entregada', estadoAnterior: 'COBRO', estadoNuevo: 'FINALIZADO', detalle: `Cobro ${this.peso(this.montoFinal())} · vigencia 1 mes desde la entrega.` });
+    if (w.requiereFactura) {
+      this.setW({ facturaEstado: 'TIMBRADO_EN_PROCESO' });
+      this.log({ accion: 'CFDI encolado', origen: 'WORKER', detalle: 'XML CFDI 4.0 encolado para timbrado asíncrono (pg-boss).' });
+      const uuid = this.genUuid();
+      setTimeout(() => {
+        this.setW({ facturaEstado: 'TIMBRADO', uuid });
+        this.log({ accion: 'CFDI timbrado', origen: 'WORKER', detalle: `UUID ${uuid} recibido del PAC. XML y PDF disponibles en el portal.` });
+        this.setState(s => ({ facturas: [{ id: 'w' + w.numero, folioConstancia: folio, receptor: w.rNombre, rfc: w.rRfc, cp: w.rCp, monto: this.montoFinal(), uso: w.rUso, regimen: w.rRegimen, estado: 'TIMBRADO', uuid, fecha: this.fmtFecha(new Date()) }, ...s.facturas] }));
+      }, 2800);
+    }
+  };
+  genUuid() { const h = () => Math.floor(Math.random() * 16).toString(16).toUpperCase(); const s = (n) => Array.from({ length: n }, h).join(''); return `${s(8)}-${s(4)}-4${s(3)}-${s(4)}-${s(12)}`; }
+  montoFinal() { const w = this.state.w; return this.tarifaBase(w.tipoConstancia) * (1 - parseInt(w.reduccion || '0', 10) / 100); }
+
+  finalizar = () => {
+    const w = this.state.w;
+    const nuevo = { numero: w.numero, tipoConstancia: w.tipoConstancia, solicitante: w.nombre || 'Ciudadano', estado: 'FINALIZADO', fecha: this.fmtFecha(new Date()), monto: this.montoFinal() };
+    this.setState(s => ({ creados: [nuevo, ...s.creados], numeroSeq: s.numeroSeq + 1, vista: 'lista' }));
+  };
+
+  // ---------- navigation ----------
+  navVentanilla = () => this.setState({ modulo: 'ventanilla' });
+  navFinanzas = () => this.setState({ modulo: 'finanzas' });
+  navDireccion = () => this.setState({ modulo: 'direccion' });
+  setFinTab = (t) => this.setState({ finTab: t });
+  selFactura = (r) => this.setState({ finSelId: r.id });
+  cerrarFactura = () => this.setState({ finSelId: null });
+  reintentar = () => {
+    const id = this.state.finSelId;
+    this.setState(s => ({ facturas: s.facturas.map(f => f.id === id ? { ...f, estado: 'TIMBRADO_EN_PROCESO', error: null } : f) }));
+    const uuid = this.genUuid();
+    setTimeout(() => this.setState(s => ({ facturas: s.facturas.map(f => f.id === id ? { ...f, estado: 'TIMBRADO', uuid } : f) })), 2600);
+  };
+
+  // ---------- badge react helper ----------
+  B(color, txt, extra) {
+    const NS = (typeof window !== 'undefined' && window.SOAPAPDesignSystem_cd0592) || {};
+    const st = { fontSize: 11, ...(extra || {}) };
+    return NS.Badge ? React.createElement(NS.Badge, { color, style: st }, txt) : React.createElement('span', null, txt);
+  }
+
+  renderVals() {
+    const s = this.state; const w = s.w;
+    const mostrarBitacora = this.props.mostrarBitacora ?? true;
+    const [eLabel, eColor] = this.estadoInfo(w.estado);
+    const base = this.tarifaBase(w.tipoConstancia);
+    const final = this.montoFinal();
+    const pasos = [{ t: 'Captura' }, { t: 'Validación' }, { t: 'Aprobación' }, { t: 'Cobro y emisión' }, { t: 'Entrega' }];
+
+    // progress nodes
+    const progressNodes = pasos.map((p, i) => {
+      const done = i < s.paso, current = i === s.paso;
+      const circleStyle = done
+        ? 'background:var(--vino-800);color:#fff;border:2px solid var(--vino-800)'
+        : current
+          ? 'background:var(--white);color:var(--vino-800);border:2px solid var(--vino-800)'
+          : 'background:var(--white);color:var(--text-disabled);border:2px solid var(--border-strong)';
+      const doneLine = 'var(--vino-800)', futureLine = 'var(--border-hairline)';
+      return { t: p.t, num: i + 1, showCheck: done, showNum: !done, circleStyle,
+        lineLeft: i === 0 ? 'transparent' : (i <= s.paso ? doneLine : futureLine),
+        lineRight: i === pasos.length - 1 ? 'transparent' : (i < s.paso ? doneLine : futureLine),
+        labelColor: (done || current) ? 'var(--text-primary)' : 'var(--text-disabled)',
+        labelWeight: current ? 'var(--fw-bold)' : 'var(--fw-medium)' };
+    });
+
+    // checklist
+    const checklist = this.checklistModel();
+
+    // resumen requisitos (paso validacion)
+    const resumenReq = checklist.map(g => {
+      const ok = g.satisfecho;
+      let detalle;
+      if (g.clave === 'validacion') detalle = w.oucValidado === 'SIN_ADEUDO' ? 'Validado en OUC · sin adeudo' : w.oucValidado === 'CON_ADEUDO' ? 'OUC reporta adeudo' : 'Pendiente de validación en OUC';
+      else { const sat = g.opciones.find(o => o.satisfecha); detalle = sat ? sat.nombre : 'Sin opción satisfecha'; }
+      return { nombre: g.nombre, detalle, color: ok ? 'var(--success)' : 'var(--text-disabled)', icon: ok ? 'check_circle' : 'radio_button_unchecked',
+        badge: ok ? 'Completo' : 'Pendiente', badgeColor: ok ? 'success' : 'neutral' };
+    });
+
+    // resumen lateral
+    const resumenTramite = [
+      { k: 'N° trámite', v: String(w.numero) },
+      { k: 'Tipo', v: w.tipoConstancia === 'NO_ADEUDO' ? 'No Adeudo' : 'No Registro' },
+      { k: 'Personalidad', v: w.personalidad === 'FISICA' ? 'Física' : 'Moral' },
+      { k: 'Presenta', v: w.representacion === 'TITULAR' ? 'Titular' : w.representacion === 'REPRESENTANTE' ? 'Representante' : 'Apoderado' },
+      { k: w.tipoConstancia === 'NO_ADEUDO' ? 'NIS' : 'Ubicación', v: w.tipoConstancia === 'NO_ADEUDO' ? (w.nis || '—') : (w.colonia || '—') },
+      { k: 'Solicitante', v: w.nombre || '—' },
+      { k: 'Catálogo', v: 'v3 · vigente' },
+      { k: 'Tarifa base', v: this.peso(base) },
+    ];
+
+    // bitacora view
+    const bitacoraView = s.bitacora.map(b => {
+      const [origenLabel, dot] = this.origenInfo(b.origen);
+      return { ...b, origenLabel, dot, tieneTransicion: !!(b.estadoAnterior && b.estadoNuevo),
+        estadoAnterior: b.estadoAnterior ? this.estadoInfo(b.estadoAnterior)[0] : '',
+        estadoNuevo: b.estadoNuevo ? this.estadoInfo(b.estadoNuevo)[0] : '' };
+    });
+
+    // footer primary button
+    let primarioLabel = 'Continuar', primarioIcon = 'chevron_right', primarioDisabled = false, btnPrimarioVisible = true, btnRechazar = false;
+    if (s.paso === 0) { primarioLabel = 'Continuar a validación'; primarioDisabled = !this.capturaCompleta(); }
+    else if (s.paso === 1) { primarioLabel = 'Aprobar trámite'; primarioIcon = 'check'; primarioDisabled = !this.puedeAprobar() || w.rechazado; btnRechazar = !w.rechazado; }
+    else if (s.paso === 2) { primarioLabel = 'Iniciar cobro'; primarioIcon = 'payments'; }
+    else if (s.paso === 3) { primarioLabel = 'Emitir constancia'; primarioIcon = 'verified'; primarioDisabled = !this.puedeEmitir() || w.rechazado; }
+    else if (s.paso === 4) { primarioLabel = 'Finalizar'; primarioIcon = 'done_all'; }
+    if (w.rechazado && s.paso !== 4) { btnPrimarioVisible = (s.paso === 4); }
+    if (w.rechazado) { btnPrimarioVisible = false; btnRechazar = false; }
+    const pasoAyuda = ['Adjunta la documentación y clasifica el trámite.', 'Valida en OUC y confirma los requisitos.', 'Trámite aprobado — procede al cobro.', 'Revalida, cobra y captura la facturación.', 'Constancia entregada.'][s.paso] || '';
+
+    // lista
+    const seedT = this.seedTramites();
+    const rowsLista = [...s.creados, ...seedT].map((t, i) => {
+      const [lbl, col] = this.estadoInfo(t.estado);
+      return { id: 'l' + i, numero: t.numero, tipo: this.tipoLabel(t.tipoConstancia), tipoAbbr: t.tipoConstancia === 'NO_ADEUDO' ? 'No Adeudo' : 'No Registro',
+        solicitante: t.solicitante, estadoLabel: lbl, estadoColor: col, fecha: t.fecha, monto: t.monto ? this.peso(t.monto) : '—' };
+    });
+    const colsLista = [
+      { key: 'numero', label: 'N° trámite', width: 108, render: (v) => React.createElement('span', { style: { fontWeight: 700 } }, v) },
+      { key: 'tipoAbbr', label: 'Tipo', render: (v) => this.B(v === 'No Adeudo' ? 'primary' : 'secondary', v) },
+      { key: 'solicitante', label: 'Solicitante' },
+      { key: 'estadoLabel', label: 'Estado', render: (v, r) => this.B(r.estadoColor, v) },
+      { key: 'fecha', label: 'Fecha', width: 118 },
+      { key: 'monto', label: 'Monto', align: 'right', width: 100 },
+    ];
+    const finalizadas = rowsLista.filter(r => r.estadoLabel === 'Finalizado').length;
+    const listaKpis = [
+      { icon: 'assignment', color: 'var(--vino-700)', label: 'En cola hoy', value: String(rowsLista.length) },
+      { icon: 'hourglass_top', color: 'var(--info)', label: 'En validación', value: String(rowsLista.filter(r => r.estadoLabel === 'En validación').length) },
+      { icon: 'task_alt', color: 'var(--success)', label: 'Finalizadas', value: String(finalizadas) },
+      { icon: 'timer', color: 'var(--oro-700)', label: 'T. prom. atención', value: '11 min' },
+    ];
+
+    // finanzas
+    const finTabs = [{ value: 'facturas', label: 'Todas las facturas' }, { value: 'fallidos', label: 'Timbrados fallidos' }, { value: 'global', label: 'Global público' }];
+    let facturas = s.facturas;
+    if (s.finTab === 'fallidos') facturas = facturas.filter(f => f.estado === 'TIMBRADO_FALLIDO');
+    const finRows = facturas.map(f => { const [lbl, col] = this.facturaInfo(f.estado); return { id: f.id, folioConstancia: f.folioConstancia, receptor: f.receptor, rfc: f.rfc, monto: this.peso(f.monto), estadoLabel: lbl, estadoColor: col, fecha: f.fecha }; });
+    const finCols = [
+      { key: 'folioConstancia', label: 'Folio constancia', width: 150, render: (v) => React.createElement('span', { style: { fontWeight: 700 } }, v) },
+      { key: 'receptor', label: 'Receptor' },
+      { key: 'rfc', label: 'RFC', width: 130 },
+      { key: 'monto', label: 'Monto', align: 'right', width: 90 },
+      { key: 'estadoLabel', label: 'Estado', render: (v, r) => this.B(r.estadoColor, v) },
+      { key: 'fecha', label: 'Fecha', width: 110 },
+    ];
+    const nFall = s.facturas.filter(f => f.estado === 'TIMBRADO_FALLIDO').length;
+    const nProc = s.facturas.filter(f => f.estado === 'TIMBRADO_EN_PROCESO').length;
+    const nOk = s.facturas.filter(f => f.estado === 'TIMBRADO').length;
+    const finKpis = [
+      { icon: 'task_alt', color: 'var(--success)', label: 'Timbrados exitosos', value: String(nOk) },
+      { icon: 'progress_activity', color: 'var(--info)', label: 'En proceso', value: String(nProc) },
+      { icon: 'error', color: 'var(--error)', label: 'Fallidos', value: String(nFall) },
+      { icon: 'percent', color: 'var(--oro-700)', label: 'Tasa de éxito', value: '97.3%' },
+    ];
+    const fsel = s.facturas.find(f => f.id === s.finSelId);
+    let finSel = null;
+    if (fsel) {
+      const [lbl, col] = this.facturaInfo(fsel.estado);
+      finSel = { ...fsel, estadoLabel: lbl, estadoColor: col, tieneError: fsel.estado === 'TIMBRADO_FALLIDO', timbrando: fsel.estado === 'TIMBRADO_EN_PROCESO',
+        campos: [
+          { k: 'Receptor', v: fsel.receptor }, { k: 'RFC', v: fsel.rfc },
+          { k: 'C.P. fiscal', v: fsel.cp }, { k: 'Régimen', v: fsel.regimen },
+          { k: 'Uso CFDI', v: fsel.uso }, { k: 'Monto', v: this.peso(fsel.monto) },
+          ...(fsel.uuid ? [{ k: 'UUID (folio fiscal)', v: fsel.uuid }] : []),
+        ] };
+    }
+
+    // direccion
+    const dirKpis = [
+      { icon: 'description', color: 'var(--vino-700)', label: 'Constancias emitidas', value: '1,284', trend: '+6.1%', trendColor: 'success' },
+      { icon: 'timer', color: 'var(--oro-700)', label: 'Tiempo prom. atención', value: '11 min', trend: '-1.4', trendColor: 'success' },
+      { icon: 'verified', color: 'var(--success)', label: 'Éxito de timbrado', value: '97.3%', trend: '+0.8%', trendColor: 'success' },
+      { icon: 'event_busy', color: 'var(--error)', label: 'Vencidos sin pago', value: '4.1%', trend: '-0.6', trendColor: 'success' },
+      { icon: 'support_agent', color: 'var(--oro-700)', label: 'Consultas concesionaria', value: '8.6%', trend: '+1.2', trendColor: 'neutral' },
+      { icon: 'restart_alt', color: 'var(--warning)', label: 'Revalidación fallida', value: '1.4%', trend: '=', trendColor: 'neutral' },
+      { icon: 'sell', color: 'var(--vino-700)', label: 'Con reducción de costo', value: '3.2%', trend: '+0.4', trendColor: 'neutral' },
+      { icon: 'cancel', color: 'var(--grey-500)', label: 'Cancelaciones CFDI', value: '0.9%', trend: '-0.2', trendColor: 'success' },
+    ];
+    const mesesData = [{ mes: 'Ene', reg: 850, nr: 130 }, { mes: 'Feb', reg: 910, nr: 140 }, { mes: 'Mar', reg: 970, nr: 150 }, { mes: 'Abr', reg: 930, nr: 145 }, { mes: 'May', reg: 1050, nr: 160 }, { mes: 'Jun', reg: 1097, nr: 187 }];
+    const maxTot = Math.max(...mesesData.map(m => m.reg + m.nr));
+    const dirMeses = mesesData.map(m => { const tot = m.reg + m.nr; const h = Math.round(tot / maxTot * 130); return { mes: m.mes, total: tot.toLocaleString('es-MX'), h, hNr: Math.round(m.nr / maxTot * 130) }; });
+    const estData = [{ label: 'Finalizado', n: 1180, color: 'var(--success)' }, { label: 'Rechazado', n: 74, color: 'var(--error)' }, { label: 'En validación', n: 62, color: 'var(--info)' }, { label: 'Expirado', n: 53, color: 'var(--grey-500)' }, { label: 'En cobro', n: 28, color: 'var(--warning)' }];
+    const maxEst = Math.max(...estData.map(e => e.n));
+    const dirEstados = estData.map(e => ({ ...e, pct: Math.round(e.n / maxEst * 100) }));
+    const flujoData = [{ label: 'Captura', n: 34 }, { label: 'Validación', n: 62 }, { label: 'Aprobado', n: 41 }, { label: 'Cobro', n: 28 }, { label: 'Finalizado', n: 1180 }];
+    const dirFlujo = flujoData.map((f, i) => ({ label: f.label, n: f.n.toLocaleString('es-MX'), flecha: i < flujoData.length - 1,
+      border: i === flujoData.length - 1 ? 'var(--success-border)' : 'var(--border-hairline)', bg: i === flujoData.length - 1 ? 'var(--success-bg)' : 'var(--grey-050)',
+      color: i === flujoData.length - 1 ? 'var(--success)' : 'var(--vino-800)' }));
+
+    return {
+      // nav
+      esVentanilla: s.modulo === 'ventanilla', esFinanzas: s.modulo === 'finanzas', esDireccion: s.modulo === 'direccion',
+      navVentanilla: this.navVentanilla, navFinanzas: this.navFinanzas, navDireccion: this.navDireccion,
+      finBadge: nFall > 0 ? nFall : null,
+      usuario: s.modulo === 'finanzas' ? { iniciales: 'JR', nombre: 'J. Ramírez Nolasco', rol: 'Finanzas' }
+        : s.modulo === 'direccion' ? { iniciales: 'GM', nombre: 'Dir. G. Morales', rol: 'Dirección' }
+        : { iniciales: 'MV', nombre: 'M. E. Vázquez', rol: 'Ventanilla' },
+      mostrarBitacora,
+
+      // ventanilla
+      vtLista: s.vista === 'lista', vtWizard: s.vista === 'wizard',
+      iniciarWizard: this.iniciarWizard, cancelarWizard: this.cancelarWizard,
+      listaKpis, colsLista, rowsLista,
+
+      // wizard flags
+      p0: s.paso === 0, p1: s.paso === 1, p2: s.paso === 2, p3: s.paso === 3, p4: s.paso === 4,
+      esNoAdeudo: w.tipoConstancia === 'NO_ADEUDO', esNoRegistro: w.tipoConstancia === 'NO_REGISTRO',
+      esFisica: w.personalidad === 'FISICA', esMoral: w.personalidad === 'MORAL',
+      repTitular: w.representacion === 'TITULAR', repRepresentante: w.representacion === 'REPRESENTANTE',
+      showFirmas: w.personalidad === 'FISICA' && w.representacion === 'REPRESENTANTE',
+      showFacultades: w.personalidad === 'MORAL',
+      progressNodes, checklist, resumenReq, resumenTramite, bitacoraView,
+      pasoAyuda, primarioLabel, primarioIcon, primarioDisabled, btnPrimarioVisible, btnRechazar,
+      accionPrimaria: this.avanzar, abrirRechazo: this.abrirRechazo, retroceder: this.retroceder,
+      toggleDoc: this.toggleDoc, oucSinAdeudo: this.oucSinAdeudo, oucConAdeudo: this.oucConAdeudo, oucReset: this.oucReset,
+      toggleFirmas: this.toggleFirmas, toggleFacultades: this.toggleFacultades, toggleConsulta: this.toggleConsulta,
+      setConsultaObs: this.setConsultaObs, toggleAdeudoSob: this.toggleAdeudoSob, revalidar: this.revalidar,
+      setReduccion: this.setReduccion, setFormaPago: this.setFormaPago, setMetodo: this.setMetodo,
+      setRequiereFactura: this.setRequiereFactura, setRRfc: this.setRRfc, setRNombre: this.setRNombre, setRCp: this.setRCp, setRRegimen: this.setRRegimen, setRUso: this.setRUso,
+      rechazoOpen: s.rechazoOpen, cerrarRechazo: this.cerrarRechazo, confirmarRechazo: this.confirmarRechazo, setMotivoDraft: this.setMotivoDraft, motivoDraft: s.motivoDraft,
+
+      // wizard view model
+      w: {
+        folioNum: String(w.numero), tipoLabel: this.tipoLabel(w.tipoConstancia), estadoLabel: eLabel, estadoColor: eColor,
+        personaResumen: (w.nombre || 'Sin solicitante') + ' · ' + (w.personalidad === 'FISICA' ? 'Persona física' : 'Persona moral'),
+        rechazado: w.rechazado, motivoRechazo: w.motivoRechazo,
+        setTipo: this.setTipoH, setPersonalidad: this.setPersonalidadH, setRepresentacion: this.setRepresentacionH,
+        solicitanteTitulo: w.personalidad === 'MORAL' ? 'Datos de la persona moral' : 'Datos del solicitante',
+        nombreLabel: w.personalidad === 'MORAL' ? 'Razón social' : 'Nombre completo',
+        nombrePlaceholder: w.personalidad === 'MORAL' ? 'Constructora Angelópolis SA de CV' : 'María González Reyes',
+        nombre: w.nombre, rfc: w.rfc, nis: w.nis, calle: w.calle, colonia: w.colonia, cp: w.cp,
+        setNombre: (e) => this.setW({ nombre: e.target.value }), setRfc: (e) => this.setW({ rfc: e.target.value }),
+        setNis: (e) => this.setW({ nis: e.target.value }), setCalle: (e) => this.setW({ calle: e.target.value }),
+        setColonia: (e) => this.setW({ colonia: e.target.value }), setCp: (e) => this.setW({ cp: e.target.value }),
+        tamanoEvidencia: (Object.keys(w.docs).length * 1.8).toFixed(1) + ' MB en ' + Object.keys(w.docs).length + ' archivo(s)',
+        oucPendiente: !w.oucValidado, oucResuelto: !!w.oucValidado, oucFolio: w.oucFolio,
+        oucBorder: w.oucValidado === 'SIN_ADEUDO' ? 'var(--success-border)' : 'var(--error-border)',
+        oucBg: w.oucValidado === 'SIN_ADEUDO' ? 'var(--success-bg)' : 'var(--error-bg)',
+        oucColor: w.oucValidado === 'SIN_ADEUDO' ? 'var(--success)' : 'var(--error)',
+        oucIcon: w.oucValidado === 'SIN_ADEUDO' ? 'check_circle' : 'error',
+        oucTexto: w.oucValidado === 'SIN_ADEUDO' ? 'Sin adeudo · saldo $0.00' : 'Adeudo detectado en la cuenta',
+        usuario: 'M. E. Vázquez',
+        requiereConfManual: this.requiereConfManual(), confFirmas: w.confFirmas, confFacultades: w.confFacultades,
+        consultaOn: w.consultaOn, consultaObs: w.consultaObs, consultaSwClass: w.consultaOn ? 'on' : '',
+        aprobTitulo: w.tipoConstancia === 'NO_ADEUDO' ? 'Saldo certificado en $0.00' : 'Predio sin registro (sin NIS)',
+        aprobTexto: w.tipoConstancia === 'NO_ADEUDO' ? 'Se acredita que la cuenta no presenta adeudo. El trámite queda aprobado.' : 'Se acredita que el predio no cuenta con NIS en el padrón. El trámite queda aprobado.',
+        plazoFmt: w.plazoPago ? this.fmtFecha(w.plazoPago) : '—',
+        revalPendiente: !w.revalidado, revalidado: w.revalidado, adeudoSobrevenido: w.adeudoSobrevenido,
+        cobroOpacity: w.revalidado ? '1' : '.5', cobroPE: w.revalidado ? 'auto' : 'none',
+        tarifaConcepto: w.tipoConstancia === 'NO_ADEUDO' ? 'Derecho por constancia de no adeudo' : 'Derecho por constancia de no registro',
+        montoBaseFmt: this.peso(base), montoFinalFmt: this.peso(final), reduccion: w.reduccion, formaPago: w.formaPago,
+        esPUE: w.metodoPago === 'PUE', esPPD: w.metodoPago === 'PPD',
+        factNo: w.requiereFactura === false, factSi: w.requiereFactura === true, factNoSel: w.requiereFactura === false, factSiSel: w.requiereFactura === true,
+        rRfc: w.rRfc, rNombre: w.rNombre, rCp: w.rCp, rRegimen: w.rRegimen, rUso: w.rUso,
+        folio: w.folio, vigIniFmt: w.vigIni ? this.fmtFecha(w.vigIni) : '', vigFinFmt: w.vigFin ? this.fmtFecha(w.vigFin) : '',
+        facturaLabel: this.facturaInfo(w.facturaEstado || 'PENDIENTE')[0], facturaColor: this.facturaInfo(w.facturaEstado || 'PENDIENTE')[1],
+        timbrando: w.facturaEstado === 'TIMBRADO_EN_PROCESO', timbrado: w.facturaEstado === 'TIMBRADO', uuid: w.uuid,
+        puedeRetroceder: s.paso > 0 && s.paso < 4 && !w.constanciaGenerada && !w.rechazado,
+      },
+
+      // finanzas
+      finTabs, finTab: s.finTab, setFinTab: this.setFinTab, finKpis, finCols, finRows, selFactura: this.selFactura,
+      finSelOpen: !!finSel, finSel, cerrarFactura: this.cerrarFactura, reintentar: this.reintentar,
+
+      // direccion
+      dirKpis, dirMeses, dirEstados, dirFlujo,
+    };
+  }
+
+  // classification handlers (defined as arrows on instance)
+  setTipoH = (e) => this.setW({ tipoConstancia: e.target.value, docs: {}, oucValidado: null });
+  setPersonalidadH = (e) => { const v = e.target.value; this.setW({ personalidad: v, representacion: v === 'MORAL' ? 'APODERADO' : 'TITULAR', docs: {}, confFirmas: false, confFacultades: false }); };
+  setRepresentacionH = (e) => this.setW({ representacion: e.target.value, docs: {}, confFirmas: false });
+}
+</script>
+</body>
+</html>

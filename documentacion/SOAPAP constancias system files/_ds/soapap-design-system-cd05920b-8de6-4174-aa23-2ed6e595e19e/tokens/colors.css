@@ -1,0 +1,85 @@
+/* ============================================================
+   SOAPAP — Color tokens
+   Institutional flat palette. Deep maroon (vino) primary,
+   gold (oro) secondary, on a near-white paper system.
+   ============================================================ */
+
+:root {
+  /* ---- Brand: Vino (primary maroon) ---- */
+  --vino-900: #2B000F; /* primary.dark   — pressed */
+  --vino-800: #3D0017; /* primary.main   — institutional maroon */
+  --vino-700: #5B132B; /* primary.light  — hover, links */
+  --vino-600: #7A203D; /* link hover, text-button hover */
+  --vino-400: #8B5A6B; /* visited links */
+  --vino-050: #F8F1F3; /* outlined-button hover wash */
+
+  /* ---- Brand: Oro (secondary gold) ---- */
+  --oro-700: #9F7122; /* secondary.dark — pressed, card accent hover */
+  --oro-500: #B8822A; /* secondary.main — gold */
+  --oro-400: #D89A2E; /* secondary.light — hover */
+
+  /* ---- Neutrals (greys) ---- */
+  --grey-900: #191C1E; /* text primary, ink */
+  --grey-700: #544245; /* text secondary (warm) */
+  --grey-500: #A7ADB3; /* text disabled */
+  --grey-400: #D8DADC; /* input border */
+  --grey-300: #E0E3E5;
+  --grey-200: #E6E8EA;
+  --grey-150: #E9ECEF; /* divider / hairline */
+  --grey-100: #F2F4F6; /* row hover, subtle fill */
+  --grey-050: #F8F9FB; /* app background, zebra */
+  --white:    #FFFFFF;
+
+  /* ---- Semantic status ---- */
+  --error:        #BA1A1A;
+  --error-bg:     #FFEBEE;
+  --error-border: #F5C2C7;
+
+  --warning:        #C58A00;
+  --warning-bg:     #FFF7E0;
+  --warning-border: #F0D89A;
+
+  --success:        #2E7D32;
+  --success-bg:     #E8F5E9;
+  --success-border: #C8E6C9;
+
+  --info:        #1565C0;
+  --info-bg:     #EAF2FD;
+  --info-border: #C9DDF8;
+
+  /* ============================================================
+     Semantic aliases — reference these in components
+     ============================================================ */
+  --color-primary:        var(--vino-800);
+  --color-primary-hover:  var(--vino-700);
+  --color-primary-active: var(--vino-900);
+  --color-on-primary:     var(--white);
+
+  --color-secondary:        var(--oro-500);
+  --color-secondary-hover:  var(--oro-400);
+  --color-secondary-active: var(--oro-700);
+  --color-on-secondary:     var(--white);
+
+  --color-accent: var(--oro-500);          /* tab indicator, card accent */
+  --color-link:        var(--vino-700);
+  --color-link-hover:  var(--vino-600);
+  --color-link-visited:var(--vino-400);
+
+  --text-primary:   var(--grey-900);
+  --text-secondary: var(--grey-700);
+  --text-disabled:  var(--grey-500);
+  --text-on-dark:   var(--white);
+
+  --surface-page:   var(--grey-050);
+  --surface-card:   var(--white);
+  --surface-subtle: var(--grey-100);
+  --surface-zebra:  var(--grey-050);
+
+  --border-hairline: var(--grey-150);
+  --border-strong:   var(--grey-400);
+  --border-input:    var(--grey-400);
+  --border-focus:    var(--vino-700);
+
+  --selection-bg: var(--vino-700);
+  --selection-fg: var(--white);
+}

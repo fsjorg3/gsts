@@ -1,0 +1,11 @@
+/* ============================================================
+   SOAPAP — Webfonts
+   Montserrat (Google Fonts). The institutional theme specifies
+   Montserrat as the sole family.
+
+   NOTE: loaded from the Google Fonts CDN rather than self-hosted
+   binaries. If you need fully offline/self-hosted woff2 files,
+   ask and we'll vendor them into /assets/fonts.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap");

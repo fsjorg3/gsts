@@ -1,0 +1,301 @@
+SOAPAP
+Sistema Operador de los Servicios de Agua Potable y Alcantarillado del Municipio de Puebla
+Departamento de Informática
+Pre-desarrollo
+Sistema Integrado de Constancias de No Adeudo y Facturación
+Documento
+Propuesta de pre-desarrollo
+Versión
+2.5
+Fecha
+29 de junio de 2026
+Estado
+En revisión — pendiente de validación
+Área responsable
+Departamento de Informática
+Contenido
+1. Definición del problema
+El modelo actual de Atención Ciudadana y administración financiera presenta cuellos de botella operativos derivados de:
+Dependencia de validaciones externas: se requieren consultas manuales en el OUC y en el Sistema Integral Cartográfico (SII-Cart).
+Falta de trazabilidad cuando los operadores de ventanilla requieren apoyo de personal de Agua de Puebla para búsquedas profundas en cuentas con dudas de adeudo.
+Retrasos administrativos severos en la Gerencia de Administración y Finanzas a causa de la generación y timbrado manual de facturas en plataformas de terceros.
+Carencia de evidencia documental centralizada (capturas geográficas o capturas de pantalla del OUC) que respalde la emisión de constancias.
+Ausencia de un catálogo de requisitos uniforme: los documentos exigidos varían según el tipo de constancia y la representación del solicitante, sin un control que garantice su integridad antes de emitir.
+2. Objetivo del proyecto
+Desarrollar, aprovisionar y desplegar un sistema transaccional de alta disponibilidad que:
+Agilice la validación, emisión y entrega de Constancias de No Adeudo para ciudadanos registrados y no registrados.
+Automatice el proceso de facturación electrónica (CFDI 4.0) mediante integración por Web Services, eliminando la carga de trabajo manual de la Gerencia de Administración y Finanzas.
+Cuando la generación automática del CFDI falle tras [N] reintentos, permita al personal de la Gerencia de Administración y Finanzas acceder a un módulo donde, mediante el folio de la constancia, consulte sus datos relacionados, los datos para generar el XML y los errores reportados.
+Permita al solicitante, mediante el folio único de la constancia, acceder al portal institucional (soapap.gob.mx/constancias_no_adeudo) para validar la autenticidad y vigencia de su constancia.
+Permita al solicitante, mediante el folio único de la constancia, acceder al portal institucional (soapap.gob.mx/facturacion) para descargar su CFDI, si lo solicitó al momento del trámite.
+Garantice la integridad documental mediante un catálogo de requisitos parametrizable que valide la presencia de la documentación antes de la emisión.
+Siente la base tecnológica escalable para una futura migración del trámite hacia portales web o kioscos de autoservicio.
+3. Arquitectura del ecosistema y stack tecnológico
+El sistema se construirá sobre una arquitectura de alto rendimiento optimizada para la infraestructura actual, garantizando estabilidad en las comunicaciones VPN site-to-site de las sucursales remotas.
+3.1 Fundaciones compartidas del ecosistema (principio fundamental)
+Dado que se desarrollarán módulos adicionales para otras áreas, este sistema se concibe como el primer componente de un ecosistema, no como una aplicación aislada. Como principio fundamental, las capas transversales se construyen una sola vez y se comparten entre módulos, de modo que cada nuevo módulo las reutilice en lugar de reimplementarlas:
+Monolito modular: un único despliegue con módulos de límites claros (trámites, facturación, identidad, catálogos, auditoría); se evita la complejidad de microservicios a esta escala.
+Identidad única (SSO): autenticación centralizada mediante OIDC con un servidor Keycloak autohospedado. Un realm institucional y cada módulo como cliente OIDC dentro de él. La autenticación reside en Keycloak; la autorización (los roles) permanece local en cada aplicación.
+Sistema de diseño compartido: el tema y los componentes de Material UI se extraen a una librería común reutilizable por todos los módulos.
+Auditoría y RBAC comunes: un enfoque único de bitácora y control de acceso, reutilizable desde el primer módulo.
+Servicio de Firma institucional (PKI): un servicio centralizado de firma digital, desplegado en un contenedor LXC dedicado, que recibe hashes de documentos y devuelve firmas. Ningún módulo maneja material criptográfico directamente; todos consumen este servicio. Se describe en detalle en la sección 3.8.
+3.2 Infraestructura
+Clúster Proxmox VE conformado por dos servidores físicos y un QDevice para quórum de alta disponibilidad.
+Ubuntu Server como sistema operativo base.
+NAS Synology configurados en Alta Disponibilidad (SHA).
+Almacenamiento mediante NFS para documentos digitalizados.
+Almacenamiento mediante iSCSI para bases de datos y volúmenes críticos.
+Aseguramiento perimetral y túneles de comunicación cifrada gestionados a través de firewall FortiGate.
+3.3 Frontend
+React + Vite + Material UI (MUI).
+Arquitectura de cliente ligero para evitar congelamientos de interfaz ante posibles latencias de la VPN.
+Formularios dinámicos que renderizan el checklist de requisitos en función de la clasificación del trámite (tipo de constancia, personalidad y representación).
+3.4 Backend y base de datos
+Node.js + Express.
+PostgreSQL como base de datos transaccional.
+Prisma (ORM): capa de acceso a datos tipada sobre PostgreSQL. Se aplica el principio de dos territorios: el esquema de Prisma (schema.prisma) modela tablas, columnas, enums, relaciones e índices; las reglas de integridad que Prisma no puede expresar (trigger de append-only de la bitácora, CHECK de transiciones válidas, inmutabilidad del catálogo, particionado) se escriben como migraciones SQL complementarias mediante prisma migrate dev --create-only y se versionan junto con el esquema. La base de datos es la fuente de integridad; Prisma es la capa de acceso.
+Connection pooling: PgBouncer entre el backend y PostgreSQL para controlar el número de conexiones activas, especialmente al correr múltiples instancias del backend y el worker.
+3.5 Procesamiento asíncrono
+Dado que el timbrado puede tardar varios segundos y depende de un servicio externo, se desacopla del ciclo de la petición HTTP:
+Cola de trabajos persistente: el timbrado se ejecuta como un job (sobre PostgreSQL, mediante pg-boss) para dar resiliencia y reintentos controlados.
+Worker de timbrado: proceso que arma el XML, lo sella y consume la API del PAC fuera del camino de la petición del usuario.
+Consulta de estado: la constancia se genera y entrega de forma síncrona en COBRO, por lo que el operador no espera al PAC. El estado del timbrado se consulta en el módulo de Finanzas y en el portal de facturación; no se requiere comunicación en tiempo real (WebSockets) con el frontend.
+3.6 Integridad documental
+Los documentos digitalizados y comprobantes fiscales no se almacenan dentro de PostgreSQL.
+Los archivos se alojan en almacenamiento NFS sobre los NAS institucionales y se asocian mediante referencias lógicas.
+Se ejecutará un proceso periódico de reconciliación para detectar archivos huérfanos o referencias sin archivo, evitando inconsistencias entre el sistema de archivos y la base de datos.
+3.7 Observabilidad técnica (Pino)
+El sistema distingue explícitamente dos capas de registro con propósitos distintos:
+Log técnico (Pino): registro estructurado en JSON de eventos operativos (tiempos de respuesta, errores de red, llamadas al PAC, salud del worker). Pino escribe a stdout en producción; la infraestructura lo recoge y agrega. Es efímero, rotable y destinado a monitoreo y debugging, no a fiscalización.
+Bitácora de negocio (PostgreSQL): registro autoritativo de decisiones e intenciones en la base de datos, descrita en la sección 11. Es inmutable y destinada a auditoría y fiscalización.
+Correlación: cada petición HTTP genera un request_id único que viaja en el header y se estampa tanto en las líneas de Pino como en los registros de bitácora, permitiendo trazar una operación completa en los dos mundos.
+Redacción (redact): Pino se configura para nunca escribir secretos, contraseñas de CSD, headers de autorización ni RFC en los logs; los campos sensibles se redactan antes de escribir.
+Separación de entornos: en desarrollo se usa un transport de Pino para imprimir el log de forma legible; en producción, JSON crudo a stdout.
+3.8 Infraestructura de Clave Pública (PKI) y Servicio de Firma
+La firma digital de constancias y documentos administrativos se respalda en una PKI institucional jerárquica propia, desplegada sobre la infraestructura de SOAPAP. El propósito es doble: garantizar la integridad y autenticidad verificable de los documentos emitidos, y exponer la capacidad de firma como un servicio compartido reutilizable por todos los módulos del ecosistema.
+3.8.1 Jerarquía de certificados
+La PKI se organiza en tres capas. La separación garantiza que la rotación o el compromiso de un nivel no invalide las firmas históricas emitidas con certificados anteriores:
+Capa
+Rol
+Vigencia
+Operación
+CA Raíz (Root CA)
+Ancla de confianza del ecosistema. Su clave privada se genera una sola vez y se resguarda offline (medio físico desconectado).
+10 años
+Offline — solo se usa para firmar la CA Intermedia o revocarla.
+CA Intermedia (Issuing CA)
+Emite los certificados operativos. Si se compromete, se revoca y se emite una nueva desde la Root CA; las firmas históricas siguen verificables.
+3 años
+Online — operada por Step CA en el LXC del Servicio de Firma.
+Certificado de firma de documentos
+Usado por la aplicación para firmar constancias y otros documentos. Se rota automáticamente antes de su vencimiento.
+1 año
+Online — cargado en memoria por el Servicio de Firma; nunca expuesto a los módulos clientes.
+Herramienta: Step CA (Smallstep), desplegada en el LXC del Servicio de Firma. Provee API REST, renovación automática de certificados, CRL (lista de revocación) y responder OCSP.
+Revocación: en caso de compromiso del certificado de firma, se publica una CRL y se levanta un responder OCSP. El verificador público consulta el estado de revocación antes de aceptar una firma.
+Alcance institucional: la PKI otorga integridad verificable y no repudio técnico dentro del ámbito de SOAPAP. No equivale a fe pública ni a firma electrónica avanzada reconocida por la SE; si jurídico determinara que se requiere ese nivel, se evalúa en una fase posterior un PSC autorizado.
+3.8.2 Servicio de Firma (LXC dedicado)
+La clave privada del certificado de firma nunca sale del Servicio de Firma ni es accesible directamente por los módulos del ecosistema. Todos los módulos que necesiten firmar un documento lo hacen a través de este servicio, que opera como una pieza de la fundación compartida.
+Despliegue: contenedor LXC dedicado dentro del clúster Proxmox, aislado en la red interna. No tiene acceso público desde Internet.
+Contrato de la API: el módulo cliente envía el hash SHA-256 del documento (nunca el documento completo), el tipo de documento, el identificador del módulo solicitante y un request_id de correlación. El servicio devuelve la firma digital, el identificador del certificado usado y la cadena de certificación.
+El documento nunca sale: el módulo calcula el hash localmente y lo envía; el Servicio de Firma opera únicamente sobre el hash. La clave privada y el documento nunca coinciden fuera del módulo que lo genera.
+Autenticación entre servicios: cada módulo cliente se autentica ante el Servicio de Firma mediante un secreto compartido o mTLS (TLS mutuo). El servicio rechaza peticiones de clientes no registrados.
+Bitácora propia: el Servicio de Firma registra cada operación de firma: módulo solicitante, tipo de documento, hash firmado, identificador del certificado usado, timestamp y request_id. Este registro es append-only e independiente de la bitácora de negocio de cada módulo.
+Escalabilidad del ecosistema: el primer consumidor es SICNAF (constancias). Futuros módulos (SGD, Supervisión) reutilizan el mismo servicio sin duplicar infraestructura criptográfica. Añadir un nuevo tipo de documento firmado es una operación de configuración, no de desarrollo.
+Administración: la gestión del Servicio de Firma, la rotación de certificados y el resguardo de la CA Raíz son responsabilidad exclusiva del Administrador TI. La CA Raíz se almacena offline y su uso requiere un procedimiento documentado.
+4. Modelo operativo y máquinas de estado
+El proceso involucra dos ciclos de vida distintos que pueden avanzar y fallar de forma independiente: el del trámite (constancia) y el de la factura. Se modelan como dos máquinas de estado separadas y desacopladas.
+4.1 Ciclo de vida del trámite (constancia)
+Estado
+Descripción
+Transiciones
+CAPTURA
+El operador clasifica el trámite (tipo de constancia, personalidad y quién se presenta), ingresa el NIS o levanta el formulario de ubicación, y adjunta las evidencias requeridas.
+→ EN_VALIDACIÓN
+EN_VALIDACIÓN
+Cruce de información en OUC o SII-Cart y verificación del checklist de requisitos. Si el trámite presenta inconsistencias o posibles adeudos ocultos, se consulta de forma informal con personal de Agua de Puebla y se registra el hecho como una observación estructurada y atribuible (quién y cuándo).
+→ APROBADO, RECHAZADO
+APROBADO
+Se certifica el saldo en $0.00 o se acredita que el predio no cuenta con NIS. Inicia un plazo de 3 días para el pago; la constancia aún no se genera (se generará al momento del cobro).
+→ COBRO
+RECHAZADO
+Se dictamina la existencia de adeudo o requisitos no acreditados. Se finaliza el trámite sin emisión de documento.
+Terminal
+EXPIRADO
+Venció el plazo de 3 días sin que se realizara el pago. El trámite se cierra; obtener la constancia requiere iniciar un nuevo trámite.
+Terminal
+4.2 Ciclo de vida de la factura
+Estado
+Descripción
+Transiciones
+COBRO
+Todas las constancias tienen costo (excepcionalmente con un porcentaje de reducción; no se emiten gratuitas). Al iniciar el cobro, el sistema revalida la situación de adeudo antes de cobrar: si apareció un adeudo desde la aprobación, no procede el cobro ni la emisión y el trámite pasa a RECHAZADO. Si la revalidación es correcta, se registra el importe, la forma y el método de pago y la moneda; se genera la constancia en PDF con folio único, código QR y vigencia de un mes a partir de este momento, y se entrega. Si el ciudadano requiere factura, se capturan los datos del receptor; en caso contrario, la operación se marca como público en general.
+→ TIMBRADO_EN_PROCESO (si requiere factura) o FINALIZADO
+TIMBRADO_EN_PROCESO
+El worker arma el XML CFDI 4.0, lo sella y consume de forma asíncrona la API del Proveedor Autorizado de Certificación (PAC).
+→ TIMBRADO, TIMBRADO_FALLIDO
+TIMBRADO
+Se recibe el UUID (folio fiscal) y el XML certificado; se genera la representación impresa (PDF).
+→ FINALIZADO, CANCELADO
+TIMBRADO_FALLIDO
+El PAC rechaza el comprobante por error de datos. Finanzas puede visualizar el fallo desde su módulo; si el usuario lo solicita, corrige y reintenta. Se distingue el error de datos (no reintentar automáticamente) del transitorio (reintentable).
+→ TIMBRADO_EN_PROCESO
+CANCELADO
+Cancelación con motivo (y UUID sustituto si el motivo es 01) y acuse del SAT, conforme a CFDI 4.0.
+Terminal
+FINALIZADO
+Trámite cerrado. Si hubo factura, el UUID y el XML quedan guardados y disponibles para descarga en soapap.gob.mx/facturacion.
+Terminal
+4.3 Principio de desacoplamiento
+Entrega independiente del timbrado: la constancia se genera y entrega en el estado COBRO, antes del timbrado asíncrono. La indisponibilidad del PAC no bloquea la entrega de la constancia ni retiene al ciudadano en ventanilla.
+Vigencia desde la entrega: la vigencia de la constancia corre a partir de su emisión en COBRO, no desde la aprobación, para que el ciudadano reciba el periodo completo prometido.
+Transiciones como guardas: el avance de CAPTURA a EN_VALIDACIÓN exige que el checklist de requisitos del tipo de trámite esté satisfecho según su lógica Y/O; y la emisión en COBRO exige una revalidación de no adeudo vigente.
+5. Catálogo de requisitos documentales
+5.1 Modelo catalogado con aplicabilidad condicional
+Los requisitos no se codifican de forma fija: se gestionan como un catálogo parametrizable. Existen dos ejes condicionales independientes — el tipo de constancia y la personalidad/representación del solicitante — que en conjunto determinan el conjunto de documentos exigidos.
+Grupos de requisitos: cada grupo posee una condición de aplicabilidad (un predicado sobre los atributos del trámite: tipo de constancia, personalidad y quién se presenta).
+Lógica Y/O: todos los grupos aplicables son obligatorios (Y); dentro de cada grupo basta con satisfacer una de sus opciones (O).
+Opciones compuestas: una opción puede exigir más de un documento (por ejemplo, “alineamiento + número oficial” cuenta como una sola opción que requiere ambos documentos).
+Versionado del catálogo: el catálogo es versionado e inmutable; cada trámite se enlaza a la versión vigente al momento de capturarlo, lo que permite reproducir las reglas con las que se validó y obtener KPIs comparables a lo largo del tiempo.
+5.2 Requisitos por tipo de constancia
+Tipo
+Grupo
+Lógica
+Opciones / contenido
+No Adeudo
+Identidad
+según personalidad (§5.3)
+Ver eje de personalidad y representación
+No Adeudo
+Validación
+obligatorio
+Sin adeudo en la cuenta (validación manual en OUC)
+No Registro
+Identidad
+según personalidad (§5.3)
+Ver eje de personalidad y representación
+No Registro
+Propiedad
+una opción (O)
+Escritura pública notariada  /  Contrato de compraventa notariado
+No Registro
+Ubicación
+una opción (O)
+Boleta predial  /  (Alineamiento + número oficial)
+5.3 Requisitos por personalidad y representación
+Cuando el propietario o titular no se presenta personalmente, el bloque de identidad se resuelve según la personalidad del titular y la representación acreditada.
+Caso
+Documentos requeridos
+Validación manual
+Persona física — acude el titular
+INE del titular.
+—
+Persona física — acude un representante
+Carta poder simple dirigida al SOAPAP; copia de INE de quien otorga y de quien recibe el poder.
+Firmas legibles.
+Persona moral (a través de apoderado)
+Copia de acta constitutiva; poder notariado con facultades de actos de dominio y administrativos; copia de INE del apoderado legal.
+Facultades suficientes del poder.
+5.4 Condiciones de validación manual
+Determinadas condiciones no son documentos ni reglas automatizables, sino verificaciones humanas que realiza el operador. Se modelan como confirmaciones explícitas (con sello de quién y cuándo) y quedan registradas en la bitácora de auditoría:
+Inexistencia de adeudo en la cuenta (revisión en OUC).
+Legibilidad de las firmas en la carta poder simple.
+Suficiencia de las facultades (actos de dominio y administrativos) en el poder notariado.
+6. Gestión documental y evidencias
+El sistema funcionará como repositorio de evidencia técnica y fiscal.
+Formatos permitidos para captura de evidencia (SII-Cart, OUC y documentación): PDF, JPG, JPEG y PNG.
+Restricciones: tamaño máximo total de los archivos de 30 MB por trámite.
+Documentos de salida generados: Constancia (PDF con folio único, código QR y vigencia de un mes) y Factura (PDF y XML). Al emitir la constancia, el backend calcula el hash SHA-256 del PDF y lo envía al Servicio de Firma institucional (sección 3.8), que devuelve la firma digital; ambos se almacenan junto al registro.
+Asociación lógica: cada evidencia se vincula al requisito u opción que satisface, permitiendo verificar la integridad del checklist.
+7. Autenticidad y verificación de la constancia
+La constancia es un documento administrativo, no fiscal. Su autenticidad y vigencia se respaldan con un certificado institucional emitido por la PKI de SOAPAP, independiente del Certificado de Sello Digital (CSD) que el SAT emite para el CFDI. La firma la realiza el Servicio de Firma institucional (sección 3.8); la verificación se realiza contra la infraestructura de SOAPAP.
+7.1 Folio único, firma institucional y verificación por QR
+Cada constancia se emite con un folio único (corto y legible) y, por separado, el hash SHA-256 de su contenido para detectar manipulación.
+Al emitir, el backend calcula el hash del PDF, lo envía al Servicio de Firma y recibe la firma digital junto con el identificador del certificado usado. Ambos se almacenan junto al registro de la constancia.
+Un código QR enlaza al servicio público de verificación, que confirma la autenticidad y muestra los datos canónicos (predio o RFC, fecha de emisión, vigencia y estado), validándolos contra los registros de SOAPAP.
+Alcance: la PKI institucional permite verificar el documento contra los registros de SOAPAP y garantiza que no fue alterado tras su emisión (integridad verificable y no repudio técnico). Por sí misma no equivale a fe pública ni a firma electrónica avanzada reconocida por la SE; si jurídico determinara que se requiere ese nivel, se evaluará en una fase posterior un PSC autorizado.
+7.2 Vigencia del documento
+La constancia tiene una vigencia de un mes a partir de su fecha de emisión (en COBRO). El servicio de verificación distingue tres resultados: válida y vigente, válida pero vencida, y no encontrada (posible falsificación). Una constancia vencida es auténtica, pero ha expirado; su renovación implica un nuevo trámite con una nueva validación, no la reimpresión del documento anterior.
+8. Proceso de facturación electrónica (CFDI 4.0)
+8.1 Tarifas (catálogo versionado)
+Todas las constancias tienen costo; excepcionalmente puede aplicarse un porcentaje de reducción, pero no se emiten gratuitas. Los precios y los porcentajes de reducción se gestionan como un catálogo de tarifas parametrizable y versionado en la base de datos —igual que el catálogo de requisitos—, inmutable por versión. Cada trámite estampa la versión de tarifa con la que se cobró, de modo que un trámite histórico siempre refleje el precio vigente en su momento. Las tarifas no se incrustan en código.
+8.2 Cobro y captura de datos del receptor
+Al pasar de APROBADO a COBRO, y tras revalidar el no adeudo, el operador de Ventanilla registra el importe, la forma y el método de pago y la moneda. El punto de bifurcación es si el ciudadano requiere factura:
+Si no requiere factura: la operación se marca explícitamente y se consolida en la factura global de público en general del periodo; se entrega la constancia y, en su caso, el comprobante de pago, sin emitir un CFDI individual.
+Si requiere factura: se capturan los datos fiscales del receptor y se le indica que podrá descargar el XML y el PDF en el portal de facturación mediante su folio.
+Consideraciones sobre la captura y la descarga:
+El receptor puede ser distinto del propietario; los datos se prellenan con los del propietario capturado en CAPTURA, pero el operador puede sobrescribirlos.
+Para evitar rechazos, se solicita la Constancia de Situación Fiscal del receptor y se copian sus datos (nombre o razón social, RFC, código postal fiscal y régimen) tal cual; además se captura el uso del CFDI.
+La descarga en el portal exige un segundo dato además del folio (por ejemplo, el RFC) para proteger los datos fiscales del comprobante.
+Si el timbrado falló, el portal muestra un mensaje genérico indicando que se comunique con la Gerencia de Administración y Finanzas, sin exponer el detalle técnico del error; la causa solo es visible en el módulo de Finanzas.
+8.3 Validación del receptor
+En CFDI 4.0, el nombre o razón social, el RFC, el código postal del domicilio fiscal y el régimen fiscal del receptor deben coincidir exactamente con su Constancia de Situación Fiscal. El sistema valida estos datos (idealmente contra el validador de RFC del SAT) antes de enviar el comprobante al PAC, ya que la discordancia es la causa principal de rechazo. La personalidad del titular (física o moral), capturada en la clasificación, determina el formato de RFC y el régimen y se reutiliza en este punto.
+8.4 Facturación a público en general
+Cuando el ciudadano no solicita factura, las operaciones se consolidan en una factura global por periodo con el RFC genérico, en lugar de emitir un CFDI por trámite. Esto evita timbres innecesarios y se ajusta a las disposiciones del SAT.
+8.5 Timbrado asíncrono e idempotencia
+Patrón asíncrono: el API responde de inmediato y el worker procesa el timbrado en segundo plano; si falla, el caso se muestra en el módulo gestionado por la Gerencia de Administración y Finanzas.
+Idempotencia: cada operación lleva una clave única (restricción UNIQUE en PostgreSQL) que impide generar dos UUID para el mismo trámite ante reintentos.
+Sellado: se definirá con el PAC si el sellado con el CSD lo realiza el sistema o el propio PAC, ya que ello condiciona las dependencias del worker.
+8.6 Cancelaciones
+El sistema contempla la cancelación de comprobantes conforme a CFDI 4.0: registro del motivo, captura del UUID sustituto cuando el motivo es 01, y gestión del acuse del SAT.
+9. Control de acceso basado en roles (RBAC)
+La autenticación se realiza mediante inicio de sesión único (SSO) con Keycloak; la autorización por rol que se describe a continuación es local a la aplicación.
+Rol
+Responsabilidades
+Ventanilla de Atención
+Clasifica y captura datos, adjunta evidencias, valida el checklist de requisitos, registra la observación de consulta a la concesionaria cuando aplica, registra el cobro y, cuando se requiere factura, captura los datos fiscales del receptor; emite constancias directas.
+Finanzas
+Administra los catálogos del SAT, visualiza el panel de facturas exitosas, consulta desde su módulo la causa de los timbrados fallidos y gestiona su reintento, y administra la facturación global a público en general.
+Administrador TI
+Gestiona parámetros de conexión, la carga y el resguardo cifrado de llaves privadas del CSD (.key) y certificados de sello digital (.cer), la operación del Servicio de Firma institucional (LXC), la PKI institucional (CA Raíz offline, CA Intermedia y rotación de certificados de firma) y la gestión de secretos del motor de facturación.
+Dirección / Gerencia
+Visualiza tableros (dashboards) de desempeño en tiempo real.
+10. Integraciones externas críticas
+Facturación electrónica: conexión vía Web Service (API) a Factura Inteligente para el envío del XML estructurado y la recepción del UUID timbrado. Se confirmará con el proveedor el soporte explícito a CFDI 4.0, el ambiente de pruebas (sandbox), el protocolo del API y el modelo de sellado.
+Disponibilidad del PAC: al ser un servicio externo, se trata como punto crítico; el diseño asíncrono y la cola persistente permiten que el trámite continúe y el timbrado se complete una vez restablecido el servicio.
+Validación de no adeudo (Fase 1 - Asistida): integración operativa (humana) mediante captura obligatoria de folios del OUC y coordenadas del SII-Cart.
+Validación de no adeudo (Fase 2 - Automatizada): endpoint de la empresa concesionaria para validar el no adeudo con un solo clic, que automatiza la verificación manual en el OUC. Convierte la condición de validación manual en una guarda automática de la transición EN_VALIDACIÓN y de la revalidación en COBRO, reduciendo la carga del operador. Depende de que la concesionaria exponga dicho endpoint.
+11. Seguridad, auditoría y observabilidad
+Resguardo de material criptográfico: las llaves privadas del CSD fiscal (.key) se almacenan cifradas y se cargan en memoria únicamente en el servidor que las requiere. La clave privada del certificado de firma institucional vive exclusivamente dentro del Servicio de Firma (LXC dedicado, sección 3.8) y nunca es accesible por los módulos de aplicación. La CA Raíz se resguarda offline. La administración de todo el material criptográfico es responsabilidad exclusiva del Administrador TI.
+11.1 Bitácora de auditoría (principios de diseño)
+La bitácora es el registro autoritativo de decisiones e intenciones del sistema para efectos de fiscalización. No es un log de aplicación; ese rol corresponde a Pino (§3.7). La bitácora registra el qué y el quién; Pino registra el cómo técnico.
+Append-only sin excepciones: ningún UPDATE ni DELETE toca la tabla de bitácora. Las correcciones son entradas nuevas que referencian la original. Esta propiedad se hace cumplir en dos capas: un trigger de PostgreSQL que aborta cualquier operación que no sea INSERT, y un rol de base de datos de la aplicación sin privilegios de UPDATE/DELETE sobre la tabla.
+Atribución completa: cada entrada registra usuario_id (la persona, no el sistema), el rol en el momento como snapshot (el rol puede cambiar después), la dirección IP, el user_agent y el timestamp en UTC. Se distingue el origen: usuario (acción humana), sistema (efecto automático) o worker (timbrado asíncrono).
+Snapshot de estado: cada entrada guarda el estado anterior y el estado nuevo, más un snapshot JSONB de los campos relevantes en ese momento, no referencias a entidades que pueden cambiar después. Un auditor puede reconstruir el valor exacto de cualquier campo en cualquier punto del tiempo.
+Correlación por request_id: el identificador único de petición se estampa en cada entrada de bitácora de esa operación; si una acción genera múltiples entradas, comparten el mismo request_id. El worker de timbrado usa el job_id de pg-boss como identificador equivalente.
+Transaccionalidad: la entrada de bitácora y la operación de negocio van en la misma transacción de PostgreSQL (prisma.$transaction). Ambas se confirman o ambas se revierten; la bitácora no puede quedar inconsistente con el estado real.
+Separación acción / efecto: se distingue la intención del usuario (el operador aprobó) del efecto del sistema (el sistema generó la constancia). Para fiscalización, el responsable es la persona que aprobó, no el proceso que ejecutó.
+Retención: la bitácora no se purga dentro del periodo de retención fiscal (cinco años). Si el volumen lo requiere, se particiona por año y las particiones antiguas se mueven a almacenamiento frío, pero no se eliminan.
+11.2 Otras medidas de seguridad
+Verificación pública de constancias: el código QR implica un servicio accesible desde Internet, alojado en un VPS externo, conectado mediante VPN a la red interna con accesibilidad únicamente al servidor que genera las constancias, para minimizar el área de exposición.
+Integridad del backend como única puerta: la lógica de negocio y todas las transiciones de estado ocurren y se validan en el backend. Se prohíbe el acceso directo a las tablas de negocio (UPDATE/DELETE) desde fuera de la aplicación; los roles de base de datos de la app no tienen esos privilegios sobre las tablas críticas.
+Autenticación de canal SSO: las sesiones van firmadas por Keycloak (OIDC); el backend valida el token en cada petición.
+12. Respaldos, retención y recuperación
+La naturaleza fiscal y administrativa del sistema exige garantizar la conservación y recuperación de la información.
+Respaldo de base de datos: respaldos periódicos y automatizados de PostgreSQL, con pruebas periódicas de restauración.
+Respaldo de documentos: los archivos en NFS (evidencias, constancias y XML) se respaldan junto con la base, manteniendo la correspondencia con sus referencias lógicas.
+Retención fiscal: los CFDI (XML) se conservan al menos cinco años, conforme a la normativa del SAT.
+Inmutabilidad: el XML timbrado y la bitácora de auditoría son de solo anexado (append-only); no se modifican ni se eliminan dentro del periodo de retención.
+Recuperación: se definen objetivos de recuperación (RPO y RTO) acordes a la criticidad, aprovechando la alta disponibilidad del clúster.
+Identidad: Keycloak, como proveedor de identidad del ecosistema, se respalda y opera en alta disponibilidad por ser un componente crítico: su indisponibilidad impediría el acceso a todos los módulos.
+Servicio de Firma y PKI: el LXC del Servicio de Firma se respalda junto con los certificados operativos. La CA Raíz se resguarda en un medio offline independiente del clúster. La disponibilidad del Servicio de Firma es crítica para la emisión de constancias; se define un procedimiento documentado de recuperación y una política de rotación de certificados.
+13. Indicadores estratégicos (KPIs)
+Volumen de constancias emitidas (registrados vs. no registrados).
+Tiempo promedio de atención en ventanilla (desde captura hasta APROBADO o RECHAZADO).
+Tasa de trámites que requirieron consulta a la concesionaria (medida por el flag de consulta registrado en EN_VALIDACIÓN).
+Tasa de trámites aprobados que vencen sin pago dentro del plazo de 3 días (estado EXPIRADO).
+Tasa de revalidación fallida al emitir (adeudo sobrevenido entre la aprobación y el cobro).
+Tiempo promedio de timbrado (desde el cobro hasta la recepción del UUID); indicador técnico para calibrar la ventana de tiempo entre reintentos.
+Tasa de éxito de timbrado automatizado vs. errores de facturación.
+Tasa de cancelaciones y distribución por motivo.
+Porcentaje de constancias con reducción de costo aplicada.
+Carga de trabajo por operador de ventanilla.
+14. Consideraciones para la validación
+Esta propuesta queda sujeta a revisión. Para avanzar al diseño detallado y la estimación, se solicita la validación de los siguientes puntos:
+Confirmación del esquema de cobro: monto y fundamento del derecho por cada tipo de constancia, y el esquema de reducción de costo (porcentajes y casos excepcionales).
+Aprobación del catálogo de requisitos documentales y su lógica de aplicabilidad por tipo y personalidad.
+Definición del modelo de sellado con el PAC (sellado propio o delegado) y confirmación de soporte a CFDI 4.0 y complementos aplicables.
+Validación de los roles y de las responsabilidades de validación manual.
+Alcance legal del certificado institucional interno: confirmar con el área jurídica si la verificación de alcance institucional es suficiente o si se requerirá un certificado de autoridad reconocida.
+Confirmación con la empresa concesionaria de la disponibilidad de un endpoint de validación de no adeudo (Fase 2).
+Confirmación de la exposición pública del servicio de verificación de constancias y sus controles de seguridad.

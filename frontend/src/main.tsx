@@ -1,0 +1,57 @@
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux';
+import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider } from '@mui/material/styles';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from 'react-oidc-context';
+import { RouterProvider } from 'react-router/dom';
+import { store } from '@/app/store';
+import { router } from '@/app/router';
+import { theme } from '@/app/theme';
+import { AuthGate } from '@/auth/AuthGate';
+import { userManager } from '@/auth/oidc';
+
+// Tipografía e iconografía del design system (self-host, sin CDN).
+import '@fontsource/montserrat/400.css';
+import '@fontsource/montserrat/500.css';
+import '@fontsource/montserrat/600.css';
+import '@fontsource/montserrat/700.css';
+import 'material-symbols/rounded.css';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Los triggers de negocio viven en el backend: reintentos automáticos
+      // sólo para fallas de red, nunca para 4xx.
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 30_000,
+    },
+  },
+});
+
+const rootElement = document.getElementById('root');
+if (!rootElement) throw new Error('No existe el elemento #root');
+
+// Al volver del login de Keycloak, limpiar code/state de la URL.
+function onSigninCallback() {
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+createRoot(rootElement).render(
+  <StrictMode>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider userManager={userManager} onSigninCallback={onSigninCallback}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <AuthGate>
+              <RouterProvider router={router} />
+            </AuthGate>
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </Provider>
+  </StrictMode>,
+);

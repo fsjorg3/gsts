@@ -1,0 +1,53 @@
+/* ============================================================
+   SOAPAP — Spacing, radii, borders & effects
+   Base unit 8px. FLAT system: no drop shadows anywhere —
+   depth comes from hairline borders and surface fills.
+   ============================================================ */
+
+:root {
+  /* ---- Spacing scale (8px base) ---- */
+  --space-0: 0;
+  --space-1: 4px;   /* 0.5x */
+  --space-2: 8px;   /* 1x  base unit */
+  --space-3: 12px;  /* 1.5x */
+  --space-4: 16px;  /* 2x */
+  --space-5: 20px;
+  --space-6: 24px;  /* 3x */
+  --space-8: 32px;  /* 4x */
+  --space-10: 40px;
+  --space-12: 48px; /* 6x */
+  --space-16: 64px; /* 8x */
+  --space-20: 80px;
+
+  /* ---- Radii ---- */
+  --radius-xs: 4px;   /* buttons, inputs, chips-square, tooltips */
+  --radius-sm: 8px;   /* cards, tables, alerts */
+  --radius-md: 12px;  /* floating app bar "island" */
+  --radius-pill: 9999px; /* chips / badges */
+
+  /* ---- Borders ---- */
+  --border-width: 1px; /* @kind spacing */
+  --border-accent-width: 10px; /* @kind spacing */
+  --hairline: 1px solid var(--border-hairline); /* @kind other */
+
+  /* ---- Elevation: FLAT. Shadows are intentionally none. ----
+     The single exception is an optional focus ring. */
+  --shadow-none: none;
+  --focus-ring: 0 0 0 3px rgba(91, 19, 43, 0.18);
+
+  /* ---- Glass (floating app bar) ---- */
+  --glass-blur: blur(10px); /* @kind other */
+  --glass-bg: rgba(91, 19, 43, 0.95); /* @kind color */
+
+  /* ---- Motion ---- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1); /* @kind other */
+  --ease-out: ease-out; /* @kind other */
+  --dur-fast: 120ms;   /* @kind other */
+  --dur-base: 180ms;   /* @kind other */
+  --dur-slow: 300ms;   /* @kind other */
+
+  /* ---- Layout ---- */
+  --container-max: 1200px; /* @kind spacing */
+  --sidebar-width: 264px;  /* @kind spacing */
+  --appbar-height: 64px;   /* @kind spacing */
+}

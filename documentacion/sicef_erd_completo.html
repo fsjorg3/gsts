@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SICNAF — Diagrama Entidad-Relación</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* Variables de Diseño (Light / Dark Mode) */
+    :root {
+      --bg-color: #f8fafc;
+      --text-color: #0f172a;
+      --card-bg: #ffffff;
+      --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      --border-color: #e2e8f0;
+
+      /* Colores del Diagrama */
+      --line-color: #64748b;
+      --header-bg: #eff6ff;
+      --header-text: #1e40af;
+      --body-bg: #ffffff;
+      --body-text: #334155;
+      --key-text: #059669;
+      --type-text: #64748b;
+
+      /* UI Elements */
+      --badge-bg: #e2e8f0;
+      --badge-text: #475569;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #090d16;
+      --text-color: #f8fafc;
+      --card-bg: #111c30;
+      --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -10px rgba(0, 0, 0, 0.3);
+      --border-color: #1e293b;
+
+      /* Colores del Diagrama */
+      --line-color: #475569;
+      --header-bg: #1e293b;
+      --header-text: #60a5fa;
+      --body-bg: #111c30;
+      --body-text: #94a3b8;
+      --key-text: #34d399;
+      --type-text: #475569;
+
+      /* UI Elements */
+      --badge-bg: #1e293b;
+      --badge-text: #94a3b8;
+    }
+
+    /* Reset & Estilos Base */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Header Premium */
+    header {
+      background: rgba(var(--card-bg), 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      width: 100%;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-container {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .title-container h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .title-container p {
+      font-size: 11px;
+      color: var(--badge-text);
+      margin-top: 1px;
+    }
+
+    /* Botón de Tema */
+    .theme-toggle {
+      background: var(--badge-bg);
+      border: none;
+      color: var(--text-color);
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    /* Contenedor Principal */
+    main {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      gap: 20px;
+    }
+
+    /* Tarjeta del Diagrama */
+    .diagram-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+    }
+
+    /* Área de renderizado del ERD */
+    #erd {
+      width: 100%;
+      height: 650px;
+      overflow: hidden;
+      position: relative;
+      background: var(--body-bg);
+      cursor: grab;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #erd:active {
+      cursor: grabbing;
+    }
+
+    #erd svg {
+      transform-origin: 0 0;
+      cursor: inherit;
+    }
+
+    .zoom-controls {
+      display: flex;
+      gap: 4px;
+      background: var(--badge-bg);
+      padding: 2px;
+      border-radius: 8px;
+    }
+
+    .control-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-color);
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .control-btn:hover {
+      background: var(--card-bg);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    /* ============================================================
+       Sobrescribir estilos de Mermaid para garantizar contraste absoluto
+       ============================================================ */
+
+    /* Fondo e integridad de los cuadros */
+    svg.erDiagram rect.entityBox {
+      fill: var(--header-bg) !important;
+      stroke: var(--border-color) !important;
+      stroke-width: 1.5px !important;
+    }
+
+    svg.erDiagram rect.attributeBox {
+      fill: var(--body-bg) !important;
+      stroke: var(--border-color) !important;
+      stroke-width: 1.5px !important;
+    }
+
+    /* Título de las Entidades */
+    svg.erDiagram text.entityLabel {
+      fill: var(--header-text) !important;
+      font-family: 'Inter', sans-serif !important;
+      font-weight: 700 !important;
+      font-size: 13px !important;
+    }
+
+    /* Atributos dentro de la tabla */
+    svg.erDiagram .attributeBox text {
+      fill: var(--body-text) !important;
+      font-family: 'Inter', sans-serif !important;
+      font-size: 11px !important;
+    }
+
+    /* Llaves (PK, FK, UK) */
+    svg.erDiagram .attributeBox text[style*="bold"],
+    svg.erDiagram .attributeBox text.key {
+      fill: var(--key-text) !important;
+      font-weight: 600 !important;
+    }
+
+    /* Tipos de datos (int, uuid, string) */
+    svg.erDiagram .attributeBox text.type {
+      fill: var(--type-text) !important;
+      font-style: italic !important;
+    }
+
+    /* Líneas de relación y conectores */
+    svg.erDiagram .relationshipLine {
+      stroke: var(--line-color) !important;
+      stroke-width: 1.5px !important;
+    }
+
+    svg.erDiagram .relationshipLabel {
+      fill: var(--body-text) !important;
+      font-family: 'Inter', sans-serif !important;
+      font-size: 10px !important;
+    }
+
+    svg.erDiagram .divider {
+      stroke: var(--border-color) !important;
+      stroke-width: 1px !important;
+    }
+
+    /* Quitar bordes internos extraños */
+    svg.erDiagram .row-rect-odd path,
+    svg.erDiagram .row-rect-odd rect,
+    svg.erDiagram .row-rect-even path,
+    svg.erDiagram .row-rect-even rect {
+      stroke: none !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="logo-container">SICNAF</div>
+      <div class="title-container">
+        <h1>Diagrama Entidad-Relación</h1>
+        <p>Estructura lógica de la base de datos (PostgreSQL)</p>
+      </div>
+    </div>
+
+    <button class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">
+      <span id="theme-icon">🌙</span>
+      <span id="theme-text">Modo Oscuro</span>
+    </button>
+  </header>
+
+  <main>
+    <div class="diagram-card">
+      <div class="card-header">
+        <div class="card-title">Esquema Físico Completo</div>
+        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background: var(--header-bg)"></div>
+              <span>Encabezado</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: var(--body-bg)"></div>
+              <span>Atributos</span>
+            </div>
+            <div class="legend-item">
+              <span style="color: var(--key-text); font-weight: bold;">PK / FK / UK</span>
+              <span>Restricciones</span>
+            </div>
+          </div>
+          <div class="zoom-controls">
+            <button class="control-btn" id="zoom-in" title="Acercar">➕</button>
+            <button class="control-btn" id="zoom-out" title="Alejar">➖</button>
+            <button class="control-btn" id="zoom-reset" title="Restablecer vista">🎯</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="erd"></div>
+    </div>
+  </main>
+
+  <script type="module">
+    import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+
+    // Determinar e inicializar el tema
+    const getSystemTheme = () => matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    let currentTheme = localStorage.getItem('sicnaf-theme') || getSystemTheme();
+    document.documentElement.setAttribute('data-theme', currentTheme);
+
+    const updateToggleUI = (theme) => {
+      const icon = document.getElementById('theme-icon');
+      const text = document.getElementById('theme-text');
+      if (theme === 'dark') {
+        icon.textContent = '☀️';
+        text.textContent = 'Modo Claro';
+      } else {
+        icon.textContent = '🌙';
+        text.textContent = 'Modo Oscuro';
+      }
+    };
+
+    updateToggleUI(currentTheme);
+
+    // Inicializar Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        darkMode: currentTheme === 'dark',
+        fontSize: '13px',
+        fontFamily: '"Inter", sans-serif',
+      }
+    });
+
+    // Renderizar diagrama
+    const renderDiagram = async () => {
+      const container = document.getElementById('erd');
+      container.innerHTML = ''; // Limpiar previo
+
+      const diagramDefinition = `erDiagram
+        ACTOR ||--o{ TRAMITE : "crea"
+        ACTOR ||--o{ EVIDENCIA : "sube"
+        ACTOR ||--o{ VALIDACION_NO_ADEUDO : "valida"
+        ACTOR ||--o{ CONFIRMACION_MANUAL : "confirma"
+        ACTOR ||--o{ CONSULTA_CONCESIONARIA : "realiza"
+        ACTOR ||--o{ COBRO : "cobra"
+        ACTOR ||--o{ BORRADOR_COBRO : "crea / actualiza"
+        ACTOR ||--o{ SOLICITUD_FACTURA : "resuelve"
+        ACTOR ||--o{ CONFIGURACION_PLAZOS : "configura"
+        ACTOR ||--o{ BITACORA : "registra"
+
+        VERSION_CATALOGO ||--o{ GRUPO_REQUISITO : "agrupa"
+        VERSION_CATALOGO ||--o{ TRAMITE : "estampa"
+        GRUPO_REQUISITO ||--o{ OPCION_REQUISITO : "ofrece"
+        OPCION_REQUISITO ||--o{ OPCION_DOCUMENTO : "exige"
+
+        PERSONA ||--o{ TRAMITE_PERSONA : "participa"
+        TRAMITE ||--o{ TRAMITE_PERSONA : "vincula"
+
+        TRAMITE ||--o{ EVIDENCIA : "acumula"
+        OPCION_DOCUMENTO ||--o{ EVIDENCIA : "cubre"
+        TRAMITE ||--o{ VALIDACION_NO_ADEUDO : "verifica"
+        TRAMITE ||--o{ CONFIRMACION_MANUAL : "documenta"
+        TRAMITE ||--o{ CONSULTA_CONCESIONARIA : "consulta"
+        TRAMITE ||--o{ BORRADOR_COBRO : "conserva"
+
+        TRAMITE ||--o| COBRO : "genera"
+        TRAMITE ||--o| CONSTANCIA : "emite"
+        TARIFA ||--o{ COBRO : "tarifica"
+        TARIFA ||--o{ BORRADOR_COBRO : "provisional"
+        MOTIVO_REDUCCION ||--o{ COBRO : "reduce"
+        MOTIVO_REDUCCION ||--o{ BORRADOR_COBRO : "reduce"
+        BORRADOR_COBRO o|--o| COBRO : "aplica"
+        COBRO ||--o| FACTURA : "factura individual"
+        COBRO ||--o{ SOLICITUD_FACTURA : "recibe"
+        SOLICITUD_FACTURA o|--o| FACTURA : "origina"
+        FACTURA_GLOBAL ||--o{ FACTURA_GLOBAL_DETALLE : "concentra"
+        COBRO ||--o| FACTURA_GLOBAL_DETALLE : "integra"
+        CONSTANCIA ||--o{ ARCHIVO_GENERADO : "genera"
+        FACTURA ||--o{ ARCHIVO_GENERADO : "genera"
+        FACTURA_GLOBAL ||--o{ ARCHIVO_GENERADO : "genera"
+
+        ACTOR {
+          uuid id PK
+          string keycloak_sub UK
+          datetime created_at
+        }
+        PERSONA {
+          uuid id PK
+          enum tipo
+          string nombre_razon_social
+          string rfc
+        }
+        VERSION_CATALOGO {
+          uuid id PK
+          int version UK
+          bool publicada
+          bool activa
+        }
+        GRUPO_REQUISITO {
+          uuid id PK
+          uuid version_catalogo_id FK
+          string clave
+          enum aplica_tipo
+        }
+        OPCION_REQUISITO {
+          uuid id PK
+          uuid grupo_id FK
+          string clave
+        }
+        OPCION_DOCUMENTO {
+          uuid id PK
+          uuid opcion_id FK
+          string nombre
+        }
+        TRAMITE {
+          uuid id PK
+          int numero_tramite UK
+          enum tipo_constancia
+          enum estado
+          uuid version_catalogo_id FK
+          uuid creado_por_id FK
+          enum domicilio_pertenece_a
+        }
+        TRAMITE_PERSONA {
+          uuid id PK
+          uuid tramite_id FK
+          uuid persona_id FK
+          enum rol
+        }
+        EVIDENCIA {
+          uuid id PK
+          uuid tramite_id FK
+          uuid opcion_documento_id FK
+          uuid creado_por_id FK
+          string hash_sha256
+          string mime_type
+          int tamano_bytes
+          enum estado
+        }
+        VALIDACION_NO_ADEUDO {
+          uuid id PK
+          uuid tramite_id FK
+          enum momento
+          enum resultado
+          uuid validado_por_id FK
+          string tramite_momento UK
+        }
+        CONFIRMACION_MANUAL {
+          uuid id PK
+          uuid tramite_id FK
+          enum tipo
+          uuid confirmado_por_id FK
+          string tramite_tipo UK
+        }
+        CONSULTA_CONCESIONARIA {
+          uuid id PK
+          uuid tramite_id FK
+          uuid realizada_por_id FK
+        }
+        TARIFA {
+          uuid id PK
+          enum tipo_constancia
+          string concepto
+          decimal monto
+          int version
+        }
+        MOTIVO_REDUCCION {
+          uuid id PK
+          string clave UK
+          decimal porcentaje
+          bool activo
+        }
+        CONFIGURACION_PLAZOS {
+          string id PK
+          int plazo_pago_dias
+          int plazo_solicitud_factura_dias
+          bool activa
+          uuid actualizado_por_id FK
+        }
+        BORRADOR_COBRO {
+          uuid id PK
+          uuid tramite_id FK
+          uuid tarifa_id FK
+          uuid motivo_reduccion_id FK
+          uuid cobro_id UK
+          enum estado
+          decimal monto_final
+          uuid comprobante_archivo_uuid UK
+          uuid creado_por_id FK
+          uuid actualizado_por_id FK
+        }
+        COBRO {
+          uuid id PK
+          uuid tramite_id FK
+          uuid tarifa_id FK
+          uuid motivo_reduccion_id FK
+          decimal monto_final
+          uuid comprobante_archivo_uuid UK
+          uuid cobrado_por_id FK
+        }
+        CONSTANCIA {
+          uuid id PK
+          uuid tramite_id FK
+          string folio_unico UK
+          datetime vigencia_fin
+        }
+        FACTURA {
+          uuid id PK
+          uuid cobro_id FK
+          enum estado
+          string idempotency_key UK
+        }
+        SOLICITUD_FACTURA {
+          uuid id PK
+          uuid cobro_id FK
+          uuid factura_id UK
+          enum estado
+          string receptor_rfc
+          datetime fecha_limite
+          uuid resuelta_por_id FK
+        }
+        FACTURA_GLOBAL {
+          uuid id PK
+          datetime periodo_inicio
+          datetime periodo_fin
+          string receptor_rfc
+          enum estado
+          string idempotency_key UK
+        }
+        FACTURA_GLOBAL_DETALLE {
+          uuid id PK
+          uuid factura_global_id FK
+          uuid cobro_id UK
+        }
+        ARCHIVO_GENERADO {
+          uuid id PK
+          uuid constancia_id FK
+          uuid factura_id FK
+          uuid factura_global_id FK
+          string tipo
+          string hash_sha256
+          string mime_type
+          int tamano_bytes
+          enum conservacion
+        }
+        BITACORA {
+          uuid id PK
+          uuid actor_id FK
+          json roles_snapshot
+          uuid correccion_de_id FK
+          string entidad
+          uuid entidad_id
+          string accion
+        }`;
+
+      try {
+        const { svg } = await mermaid.render('erd-svg', diagramDefinition);
+        container.innerHTML = svg;
+        postProcessSVG();
+
+        // Timeout para asegurar que el DOM cargó el SVG antes de calcular sus dimensiones
+        setTimeout(resetZoom, 50);
+      } catch (error) {
+        console.error("Error al renderizar el diagrama con Mermaid:", error);
+      }
+    };
+
+    // Redondear las esquinas de los rectángulos
+    const postProcessSVG = () => {
+      document.querySelectorAll('#erd svg.erDiagram .node').forEach(node => {
+        const firstPath = node.querySelector('path[d]');
+        if (!firstPath) return;
+        const d = firstPath.getAttribute('d');
+        const nums = d.match(/-?[\d.]+/g)?.map(Number);
+        if (!nums || nums.length < 8) return;
+        const xs = [nums[0], nums[2], nums[4], nums[6]];
+        const ys = [nums[1], nums[3], nums[5], nums[7]];
+        const x = Math.min(...xs), y = Math.min(...ys);
+        const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', w);
+        rect.setAttribute('height', h);
+        rect.setAttribute('rx', '8');
+
+        // Copiar clases del path original
+        if (firstPath.hasAttribute('class')) {
+          rect.setAttribute('class', firstPath.getAttribute('class'));
+        }
+
+        firstPath.replaceWith(rect);
+      });
+    };
+
+    // --- LÓGICA DE ZOOM Y ARRASTRE (PAN & ZOOM) ---
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    const erdContainer = document.getElementById('erd');
+
+    const applyTransform = () => {
+      const svg = erdContainer.querySelector('svg');
+      if (svg) {
+        svg.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      }
+    };
+
+    const resetZoom = () => {
+      const svg = erdContainer.querySelector('svg');
+      if (!svg) {
+        console.warn("resetZoom: No se encontró el elemento SVG.");
+        return;
+      }
+
+      let svgW = 1000;
+      let svgH = 800;
+
+      const viewBoxAttr = svg.getAttribute('viewBox');
+      console.log("resetZoom: viewBox =", viewBoxAttr);
+
+      if (viewBoxAttr) {
+        // Extraer todos los números usando regex
+        const parts = viewBoxAttr.match(/-?[\d.]+/g)?.map(Number);
+        if (parts && parts.length >= 4 && !parts.some(isNaN)) {
+          svgW = parts[2] - parts[0];
+          svgH = parts[3] - parts[1];
+        } else {
+          console.warn("resetZoom: Falló el parseo del viewBox, partes:", parts);
+        }
+      } else {
+        svgW = svg.clientWidth || svg.getBoundingClientRect().width || 1000;
+        svgH = svg.clientHeight || svg.getBoundingClientRect().height || 800;
+      }
+
+      const containerW = erdContainer.clientWidth || 800;
+      const containerH = erdContainer.clientHeight || 650;
+
+      console.log(`resetZoom: svgDims=(${svgW}, ${svgH}), containerDims=(${containerW}, ${containerH})`);
+
+      if (svgW <= 0 || svgH <= 0 || isNaN(svgW) || isNaN(svgH)) {
+        svgW = 1000;
+        svgH = 800;
+      }
+
+      // Calcular escala de ajuste
+      const scaleX = (containerW - 40) / svgW;
+      const scaleY = (containerH - 40) / svgH;
+      scale = Math.min(scaleX, scaleY, 1); // No agrandar más del 100% inicialmente
+
+      // Si la escala es inválida o demasiado pequeña, usar un default seguro
+      if (isNaN(scale) || scale <= 0.001 || !isFinite(scale)) {
+        scale = 0.5;
+      }
+
+      // Centrar el SVG
+      panX = (containerW - svgW * scale) / 2;
+      panY = (containerH - svgH * scale) / 2;
+
+      if (isNaN(panX) || !isFinite(panX)) panX = 0;
+      if (isNaN(panY) || !isFinite(panY)) panY = 0;
+
+      console.log(`resetZoom: scale=${scale}, panX=${panX}, panY=${panY}`);
+
+      applyTransform();
+    };
+
+    // Arrastrar (Pan)
+    erdContainer.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // Solo click izquierdo
+      const svg = erdContainer.querySelector('svg');
+      if (!svg) return;
+      isDragging = true;
+      startX = e.clientX - panX;
+      startY = e.clientY - panY;
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    erdContainer.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      panX = e.clientX - startX;
+      panY = e.clientY - startY;
+      applyTransform();
+    });
+
+    // Zoom con rueda del mouse (centrado en cursor)
+    erdContainer.addEventListener('wheel', (e) => {
+      const svg = erdContainer.querySelector('svg');
+      if (!svg) return;
+
+      e.preventDefault();
+      const zoomFactor = 1.08;
+
+      const rect = erdContainer.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const svgMouseX = (mouseX - panX) / scale;
+      const svgMouseY = (mouseY - panY) / scale;
+
+      if (e.deltaY < 0) {
+        scale = Math.min(scale * zoomFactor, 6);
+      } else {
+        scale = Math.max(scale / zoomFactor, 0.15);
+      }
+
+      panX = mouseX - svgMouseX * scale;
+      panY = mouseY - svgMouseY * scale;
+
+      applyTransform();
+    }, { passive: false });
+
+    // Controles de botón
+    document.getElementById('zoom-in').addEventListener('click', () => {
+      const rect = erdContainer.getBoundingClientRect();
+      const mouseX = rect.width / 2;
+      const mouseY = rect.height / 2;
+      const svgMouseX = (mouseX - panX) / scale;
+      const svgMouseY = (mouseY - panY) / scale;
+
+      scale = Math.min(scale * 1.2, 6);
+      panX = mouseX - svgMouseX * scale;
+      panY = mouseY - svgMouseY * scale;
+      applyTransform();
+    });
+
+    document.getElementById('zoom-out').addEventListener('click', () => {
+      const rect = erdContainer.getBoundingClientRect();
+      const mouseX = rect.width / 2;
+      const mouseY = rect.height / 2;
+      const svgMouseX = (mouseX - panX) / scale;
+      const svgMouseY = (mouseY - panY) / scale;
+
+      scale = Math.max(scale / 1.2, 0.15);
+      panX = mouseX - svgMouseX * scale;
+      panY = mouseY - svgMouseY * scale;
+      applyTransform();
+    });
+
+    document.getElementById('zoom-reset').addEventListener('click', resetZoom);
+    erdContainer.addEventListener('dblclick', resetZoom);
+    window.addEventListener('resize', resetZoom);
+
+    // Escuchar el botón para cambiar el tema
+    document.getElementById('theme-toggle').addEventListener('click', async () => {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      localStorage.setItem('sicnaf-theme', currentTheme);
+      updateToggleUI(currentTheme);
+
+      // Reinicializar y volver a renderizar
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        themeVariables: {
+          darkMode: currentTheme === 'dark',
+          fontSize: '13px',
+          fontFamily: '"Inter", sans-serif',
+        }
+      });
+      await renderDiagram();
+    });
+
+    // Renderizado inicial
+    await document.fonts.ready;
+    await renderDiagram();
+  </script>
+</body>
+
+</html>

@@ -12,10 +12,19 @@ npm install
 npm run prisma:generate
 npm run prisma:migrate                        # 1. estructura (prisma migrate deploy)
 psql "$env:DIRECT_DATABASE_URL" -f prisma/migration_complementaria.sql   # 2. reglas complementarias
+psql "$env:DIRECT_DATABASE_URL" -q -v ON_ERROR_STOP=1 -f prisma/verificacion_integridad.sql   # 3. comprobación
 npm run dev
 ```
 
 El paso 2 se ejecuta una sola vez por versión de base, después de aplicar la estructura. `prisma migrate` por sí solo **no** instala las reglas complementarias.
+
+### Paso 3: comprobar que las reglas quedaron vivas
+
+`prisma/verificacion_integridad.sql` recorre el flujo completo —captura, validación, aprobación, borrador, cobro con comprobante, constancia y cierre— y comprueba una por una las guardias de la capa complementaria. Termina imprimiendo la lista de fallas y un resumen.
+
+Existe porque **PostgreSQL no valida los nombres de columna dentro del cuerpo de una función plpgsql al crearla**: `CREATE FUNCTION` reporta éxito aunque el cuerpo referencie columnas inexistentes, y el error sólo aparece cuando el trigger se dispara por primera vez. Que `migration_complementaria.sql` se instale sin errores no prueba que las reglas funcionen.
+
+Todo ocurre dentro de una transacción que termina en `ROLLBACK`, así que puede correrse cuantas veces se quiera y también sobre una base con datos.
 
 Las bases de desarrollo y pruebas deben iniciarse vacías. No se usa ni se requiere una semilla para configurar catálogos: un actor con claim `ti` realiza esa configuración desde la API.
 

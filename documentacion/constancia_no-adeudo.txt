@@ -1,0 +1,30 @@
+Texto autoritativo de la constancia de no adeudo.
+Transcrito de FORMATO CONSTANCIA.pdf (pagina 1), el documento que SOAPAP emite
+hoy. Es la fuente contra la que backend/tests/unit/constancia-plantilla.test.ts
+compara la plantilla, parrafo por parrafo. No parafrasear.
+
+Placeholders: [Titular] [NIS] [Domicilio] [Vigencia]
+
+[Domicilio] cubre tambien la coletilla "perteneciente a EL MUNICIPIO / LA JUNTA
+AUXILIAR ...", que formatearDomicilio() ya arma; en el formato original venian
+como dos huecos separados.
+
+El enfasis (negritas, subrayado) no se marca aqui: este archivo fija el texto,
+la presentacion vive en la plantilla.
+
+[fecha]
+[Folio]
+Constancia de no adeudo (titulo)
+'''cuerpo
+El presente documento hace constar que el propietario y/o titular de pago [Titular] usuario ligado al número de suministro [NIS] correspondiente a la propiedad ubicada en [Domicilio] ha realizado el pago total de los servicios que le presta la Empresa “CONCESIONES INTEGRALES S.A. DE C.V.”, en el domicilio arriba citado hasta el período actual correspondiente a la fecha en que se suscribe esta constancia, por lo que en este momento no presenta adeudo alguno corriente o vencido por los servicios referidos.
+Lo anterior se concluye de la revisión hecha a la cuenta en la base de datos del padrón de usuarios.
+“Este Sistema Operador se reserva el derecho de generar cargos a la cuenta, en aquellos casos donde se detecta el uso de los servicios para fines distintos a los contratados; cuando existan derivaciones no reportadas; alteraciones en los aparatos de medición; descuentos o bonificaciones no procedentes; así como el pago de últimos adeudos y/o el costo del presente formato mediante documentos no cobrables, por lo que la presente constancia no libera al titular del suministro de cubrir los pagos procedentes al incurrir en cualquiera de estos supuestos.”
+Cabe destacar que dicha constancia cuenta con una vigencia de [Vigencia] días a partir de su fecha de expedición.
+Sin otro particular, le reitero la seguridad de mi atenta y distinguida consideración.
+'''
+''' firma
+ATENTAMENTE
+[Firmante]
+[Cargo]
+C.c.p. Archivo.
+'''

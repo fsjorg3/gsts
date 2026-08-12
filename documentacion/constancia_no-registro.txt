@@ -1,16 +1,28 @@
+Texto autoritativo de la constancia de predio no registrado.
+Transcrito de FORMATO CONSTANCIA.pdf (pagina 2), el documento que SOAPAP emite
+hoy. Es la fuente contra la que backend/tests/unit/constancia-plantilla.test.ts
+compara la plantilla, parrafo por parrafo. No parafrasear: son citas de
+articulos y su redaccion es la aprobada.
+
+Placeholders: [Domicilio] [Vigencia]
+
+El enfasis (negritas, subrayado) no se marca aqui: este archivo fija el texto,
+la presentacion vive en la plantilla.
+
 [fecha]
 [Folio]
 Constancia de predio no registrado (titulo)
 '''cuerpo
-Con fundamento en lo dispuesto por el articulo 8 de la constitución política de los estados unidos mexicanos, 1,2,4,5 fracción V, 6 y 28 fracción XXIV del reglamento interior del Sistema Operador de los Servicios de Agua Potable y Alcantarillado del Municipio de Puebla, y con respecto al predio ubicado en [Domicilio]; hago de su conocimiento lo siguiente: 
+Con fundamento en lo dispuesto por el artículo 8 de la Constitución Política de los Estados Unidos Mexicanos, 1, 2, 4, 5 Fracción V, 6 y 28 Fracción XXIV del Reglamento Interior del Sistema Operador de los Servicios de Agua Potable y Alcantarillado del Municipio de Puebla, y con respecto al predio ubicado en [Domicilio]; hago de su conocimiento lo siguiente:
 En una minuciosa revisión al sistema para verificar la existencia de registro del citado predio, se observó que no existe registro alguno, dando como consecuencia que no tengo número de cuenta asignado.
-El interesado deberá dar aviso durante los primeros 30 días naturales a esta autoridad sobre cualquier cambio realizado al predio, con la finalidad de emitir la facturación correspondiente por los servicios que proporciona este Organismo, los interesados deberán celebrar el contrato respectivo del servicio que se trae, así como cumplir con los requisitos y condiciones que establecen los artículos 43, 44, 45 y 48 de la ley del Agua para el estado de Puebla respectivamente, evitando incurrir en las fracciones previstas en el artículo 43, 44, 45 y 48 de la Ley del Agua para el Estado de Puebla respectivamente, evitando incurrir en las infracciones previstas en el artículo 128, fracciones VI, VII, XXXV y XLI, mismas que serán sancionadas conforme a lo dispuesto del artículo 128 de dicho ordenamiento.
-No omito manifestar que la presente Constancia, no exime al interesado de responsabilidad alguna respecto a las obligaciones que pudiera tener con este Sistema Operador, derivado de una visita de inspección o verificación de la que podría ser sujeto el predio en cuestión, a partir de la emisión del presente documento.
-Cabe destacar que dicha constancia cuenta con una vigencia de 30 días naturales a partir de su fecha de expedición.
+El interesado deberá dar aviso durante los primeros 30 días naturales a esta Autoridad sobre cualquier cambio realizado al predio, con la finalidad de emitir la facturación correspondiente por los servicios que proporciona este Organismo, los interesados deberán celebrar el contrato respectivo del servicio que se trate, así como cumplir con los requisitos y condiciones que establecen los artículos 43, 44, 45 y 48 de la Ley del Agua para el Estado de Puebla respectivamente, evitando incurrir en las infracciones previstas en el artículo 128, fracciones VI, VII, XXXV y XLI mismas que serán sancionadas conforme a lo dispuesto del artículo 130 de dicho ordenamiento.
+No omito manifestar que la presente Constancia, no exime al interesado de responsabilidad alguna respecto a las obligaciones que pudiera tener con este Sistema Operador, derivado de una visita de inspección o verificación de la que podrá ser sujeto el predio en cuestión, a partir de la emisión del presente documento.
+Cabe destacar que dicha constancia cuenta con una vigencia de [Vigencia] días a partir de su fecha de expedición.
 Sin otro particular, le reitero la seguridad de mi atenta y distinguida consideración.
 '''
 ''' firma
-Atentamente 
-Dattoli Mora Miguel Ángel
-Gerencia de Supervisión Técnica de los Servicios
+ATENTAMENTE
+[Firmante]
+[Cargo]
+C.c.p. Archivo.
 '''

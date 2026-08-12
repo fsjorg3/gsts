@@ -10,14 +10,22 @@ import { fileURLToPath } from 'node:url';
 // Coordenadas, márgenes y logotipos salen literalmente de la plantilla oficial
 // (documentacion/plantilla.docx): se extrajo su XML (pgMar y el offset/extent
 // de cada imagen) en vez de adivinar la composición.
-const logo = (nombre: string): string => fileURLToPath(new URL(`../../../../recursos/logotipos/${nombre}`, import.meta.url));
+const recurso = (ruta: string): string => fileURLToPath(new URL(`../../../../recursos/${ruta}`, import.meta.url));
 
 export const LOGOS = {
-  soapap: logo('soapap.png'),
-  gobiernoPuebla: logo('gobierno-puebla.png'),
-  porAmorAPuebla: logo('por-amor-a-puebla.png'),
-  pensarEnGrande: logo('pensar-en-grande.png'),
+  soapap: recurso('logotipos/soapap.png'),
+  gobiernoPuebla: recurso('logotipos/gobierno-puebla.png'),
+  porAmorAPuebla: recurso('logotipos/por-amor-a-puebla.png'),
+  pensarEnGrande: recurso('logotipos/pensar-en-grande.png'),
 } as const;
+
+/**
+ * Firma autógrafa escaneada del titular de la Gerencia. El formato oficial deja
+ * el espacio en blanco para firmar a mano; SICEF la estampa para que la
+ * constancia salga de ventanilla lista para entregar. La validez jurídica sigue
+ * apoyándose en esta firma y en la verificación pública por QR — no hay PKI.
+ */
+export const FIRMA_AUTOGRAFA = recurso('firma/firma.png');
 
 /** pgMar de la plantilla oficial: 993/1041/1440/1440 twips ≈ 50/52/72/72 pt. */
 export const MARGENES = { top: 72, bottom: 72, left: 50, right: 52 } as const;

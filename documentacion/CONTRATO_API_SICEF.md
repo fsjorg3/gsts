@@ -120,7 +120,8 @@ stateDiagram-v2
 - **`POST /tramites/{id}/constancias` no lleva cuerpo**: el backend **genera** el PDF, no lo recibe. Antes aceptaba `pdfBase64` y `vigenciaFin`; ambos desaparecieron del contrato.
 - Sólo se emite para un trámite en estado `COBRO`. El trámite debe tener una persona con rol `TITULAR`; sin ella responde `409 INVALID_STATE`.
 - Requiere que exista **configuración** (`ConfiguracionConstancia`) para el tipo del trámite; si no, `409 CONSTANCIA_CONFIG_NOT_SET`. No hay valor por defecto a propósito: la vigencia y el firmante de un documento oficial no deben caer a un número que nadie decidió.
-- Requiere que exista una **plantilla** registrada para ese tipo; si no, `409 TEMPLATE_NOT_CONFIGURED`. Hoy sólo existe la de `NO_REGISTRO`: el texto legal de `NO_ADEUDO` aún no está confirmado, y emitir ese tipo se rechaza en vez de producir un documento con contenido inventado.
+- Requiere que exista una **plantilla** registrada para ese tipo; si no, `409 TEMPLATE_NOT_CONFIGURED`. Los dos tipos existentes ya la tienen, transcrita del documento que SOAPAP emite hoy (`documentacion/constancia_no-registro.txt` y `constancia_no-adeudo.txt`); el registro sigue siendo parcial para que un tipo nuevo sin texto aprobado se rechace en vez de producir un documento con contenido inventado.
+- Para `NO_ADEUDO`, el trámite debe traer **NIS**: el cuerpo del documento nombra el número de suministro. Sin él, `409 INVALID_STATE` — antes que imprimir un hueco en un documento oficial, no se emite.
 - `vigenciaFin` se calcula en el servidor como `emitidaAt + vigenciaDias` (días naturales) tomando `vigenciaDias` de la configuración. El mismo número se interpola en el cuerpo impreso, de modo que el documento nunca puede contradecir su propia vigencia registrada.
 - El QR de verificación va **estampado en el PDF**. Por eso el folio, el `versionToken` y la `urlVerificacion` se resuelven *antes* de renderizar: el orden es `folio → token/URL → renderizar → guardar → hashear → firmar → INSERT`. Nada puede modificarse después de firmar sin invalidar la firma.
 - **La emisión no firma digitalmente.** El Servicio de Firma quedó fuera del proyecto (tentativamente), así que `firmaDigital` y `certificadoId` nacen en `null` — el modelo ya los declaraba opcionales. El backend sí calcula y persiste el hash SHA-256 del PDF (`hashPdf`) como ancla de integridad del archivo. La autenticidad del documento se sostiene en la **firma autógrafa** del papel y en la **verificación pública por QR**.
@@ -203,9 +204,9 @@ Todos siguen el formato `{ "error": { "code", "message", "details"? } }` ([share
 | `DRAFT_ALREADY_OPEN` | 409 | Ya existe un `borrador_cobro` `ABIERTO` para el trámite |
 | `DRAFT_NOT_OPEN` | 409 | Se intenta aplicar un borrador que no está `ABIERTO` |
 | `DRAFT_INCOMPLETE` | 422 | Faltan tarifa/forma de pago/método de pago/`facturaSolicitadaEnVentanilla` para aplicar el borrador |
-| `INVALID_STATE` | 409 | Se intenta emitir constancia sin que el trámite esté en `COBRO` |
+| `INVALID_STATE` | 409 | Se intenta emitir constancia sin que el trámite esté en `COBRO`, sin titular, o sin NIS cuando el tipo es `NO_ADEUDO` |
 | `CONSTANCIA_CONFIG_NOT_SET` | 409 | No hay `ConfiguracionConstancia` para el tipo del trámite: TI debe definir vigencia y firmante |
-| `TEMPLATE_NOT_CONFIGURED` | 409 | No existe plantilla de constancia para ese tipo (hoy: `NO_ADEUDO`) |
+| `TEMPLATE_NOT_CONFIGURED` | 409 | No existe plantilla de constancia para ese tipo (hoy ninguno: los dos tipos están cubiertos) |
 | `FILE_TOO_LARGE` | 422 | La evidencia excede `MAX_EVIDENCIA_TOTAL_BYTES` |
 | `INVALID_PATH` | 400 | Un parámetro de ruta (`:id`, `:tramiteId`, etc.) llegó vacío o repetido |
 | `INTERNAL_ERROR` | 500 | Cualquier error no anticipado (incluye fallas de trigger SQL que no se mapean explícitamente) |

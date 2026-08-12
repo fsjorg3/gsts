@@ -48,6 +48,12 @@ export function createConstanciasRouter(storage: NfsStorage, env: Env): Router {
       if (tramite.estado !== 'COBRO') throw new AppError(409, 'INVALID_STATE', 'La constancia solo se emite para un tramite cobrado');
       const titular = tramite.personas[0];
       if (!titular) throw new AppError(409, 'INVALID_STATE', 'El tramite no tiene titular registrado');
+      // El cuerpo de No Adeudo nombra el número de suministro, y `nis` es
+      // opcional en el trámite. Antes que imprimir un hueco en un documento
+      // oficial, no se emite — mismo criterio que CONSTANCIA_CONFIG_NOT_SET.
+      if (tramite.tipoConstancia === 'NO_ADEUDO' && !tramite.nis?.trim()) {
+        throw new AppError(409, 'INVALID_STATE', 'La constancia de no adeudo requiere el numero de suministro (NIS) del tramite');
+      }
 
       // Sin configuración no se emite: la vigencia y el firmante de un documento
       // oficial no deben caer a un valor por defecto que nadie decidió.

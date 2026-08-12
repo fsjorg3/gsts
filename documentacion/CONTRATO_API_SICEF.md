@@ -97,6 +97,19 @@ stateDiagram-v2
 - `POST /catalogos/requisitos` y `POST /catalogos/tarifas` aceptan `clonarDesdeId` para partir de una versión/tarifa previa como base editable.
 - `GET /catalogos/requisitos/{id}/validar` corre las mismas comprobaciones que `publicar` exige internamente (claves/orden sin duplicar, cobertura de combinaciones tipo×personalidad×representación) sin publicar nada — úsalo antes de intentar publicar.
 
+**Edición del borrador.** Mientras la versión no esté publicada, su estructura se corrige y se descarta:
+
+| Ruta | Efecto |
+|---|---|
+| `PATCH /catalogos/grupos/{id}` | Cambia clave, nombre, orden o aplicabilidad. **Mandar `null` en un `aplica*` quita el filtro** y devuelve el grupo a «aplica a todos»; omitirlo lo deja como está. Un cuerpo vacío es `422` |
+| `PATCH /catalogos/opciones/{id}` · `PATCH /catalogos/documentos/{id}` | Cambian clave/nombre/orden |
+| `DELETE /catalogos/grupos/{id}` | Borra el grupo **con sus opciones y documentos** |
+| `DELETE /catalogos/opciones/{id}` | Borra la opción con sus documentos |
+| `DELETE /catalogos/documentos/{id}` | Borra el documento |
+| `DELETE /catalogos/requisitos/{id}` | Descarta el borrador completo |
+
+Los borrados responden `{ "data": { "id" } }`, no `204`, para conservar la envolvente del contrato. Todas exigen rol `ti` y responden **`409 CATALOG_ALREADY_PUBLISHED`** si la versión ya está publicada: un catálogo publicado no se edita ni se borra, y un cambio funcional es una versión nueva. La comprobación la hace el router, pero la garantía real sigue siendo el trigger de `migration_complementaria.sql`.
+
 ### Trámites (`POST /tramites`)
 - El domicilio del predio (`domicilioCalle`, `domicilioNumero`, `domicilioColonia`, `domicilioPerteneceA` ∈ `{JUNTA_AUXILIAR, MUNICIPIO}`, `domicilioPerteneceANombre`) es opcional a nivel de contrato — el backend lo acepta vacío igual que `nis`. Solo tiene sentido para `NO_REGISTRO`, porque va impreso en la constancia; la UI de ventanilla lo exige antes de crear el trámite de ese tipo, pero no hay validación equivalente en el servidor.
 - Sin catálogo de juntas auxiliares/municipios: `domicilioPerteneceANombre` es texto libre. La zona de cobertura de SOAPAP abarca Puebla y 4 municipios más, por lo que una lista fija no era manejable; el domicilio se captura en mayúsculas desde el frontend para no fragmentar agrupaciones futuras por variaciones de mayúsculas/minúsculas.
@@ -209,6 +222,13 @@ Todos siguen el formato `{ "error": { "code", "message", "details"? } }` ([share
 | `TEMPLATE_NOT_CONFIGURED` | 409 | No existe plantilla de constancia para ese tipo (hoy ninguno: los dos tipos están cubiertos) |
 | `FILE_TOO_LARGE` | 422 | La evidencia excede `MAX_EVIDENCIA_TOTAL_BYTES` |
 | `INVALID_PATH` | 400 | Un parámetro de ruta (`:id`, `:tramiteId`, etc.) llegó vacío o repetido |
-| `INTERNAL_ERROR` | 500 | Cualquier error no anticipado (incluye fallas de trigger SQL que no se mapean explícitamente) |
+| `UNIQUE_CONFLICT` | 409 | Ya existe un registro con ese valor. `details.campos` trae las columnas en conflicto (nunca el valor) |
+| `REFERENCE_CONFLICT` | 409 | Llave foránea: se apunta a algo que no existe, o se intenta borrar algo todavía referenciado |
+| `RULE_VIOLATION` | 409 / 422 | Una regla de la base rechazó la operación. 409 si fue un trigger de negocio, 422 si fue un `CHECK` |
+| `INTERNAL_ERROR` | 500 | Cualquier error no anticipado |
 
-Nota: muchas condiciones "de negocio" (transición inválida, tarifa no compatible, checklist incompleto) las detecta primero un **trigger de PostgreSQL**, no un `if` en el router. Cuando eso ocurre y el error no fue anticipado con un `AppError` específico, cae en `INTERNAL_ERROR` (500) con el mensaje crudo de Postgres en el log — no en la respuesta al cliente.
+**Cómo llegan las reglas de la base al cliente.** Muchas condiciones de negocio (transición inválida, tarifa no compatible, checklist incompleto, catálogo publicado inmutable) las detecta primero un **trigger de PostgreSQL**, no un `if` en el router. `traducirErrorPrisma` ([shared/prisma-errors.ts](backend/src/shared/prisma-errors.ts)) las convierte en los códigos de arriba antes de que el manejador central caiga en `INTERNAL_ERROR`.
+
+En `RULE_VIOLATION` producido por un trigger, el `message` es **el texto que levantó Postgres**, que está redactado en español y para leerse («No se modifica la estructura de un catalogo publicado»); `verificacion_integridad.sql` fija esos mensajes caso por caso, así que no cambian en silencio. Los mensajes de `CHECK` **no** se reenvían: nombran la restricción y Postgres los acompaña de la fila completa con todos sus valores.
+
+Un `AppError` explícito del router siempre gana sobre esta traducción: donde el código anticipa la condición, el cliente recibe el código específico (`CATALOG_ALREADY_PUBLISHED`, `INVALID_STATE`, …) y no el genérico.

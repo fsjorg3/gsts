@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { actualizarDocumentoSchema, actualizarGrupoSchema, actualizarOpcionSchema } from '@sicef/contracts';
 import { erroresCatalogo } from '../../src/modules/catalogos/catalogos.router.js';
 
 const grupo = (over: Partial<Parameters<typeof erroresCatalogo>[0]['grupos'][number]> = {}) => ({
@@ -42,5 +43,34 @@ describe('erroresCatalogo', () => {
       grupo({ clave: 'PM', aplicaTipo: 'NO_ADEUDO', aplicaPersonalidad: 'MORAL', opciones: [{ clave: 'ACTA', orden: 0, documentos: [] }] }),
     ] });
     expect(errores.some((mensaje) => mensaje.includes('NO_ADEUDO/MORAL') && mensaje.includes('PM'))).toBe(true);
+  });
+});
+
+describe('esquemas de edición del borrador', () => {
+  it('acepta un cambio parcial de un solo campo', () => {
+    expect(actualizarGrupoSchema.parse({ nombre: 'Identificación oficial' })).toEqual({ nombre: 'Identificación oficial' });
+    expect(actualizarOpcionSchema.parse({ orden: 3 })).toEqual({ orden: 3 });
+    expect(actualizarDocumentoSchema.parse({ nombre: 'INE vigente' })).toEqual({ nombre: 'INE vigente' });
+  });
+
+  // Es la distinción que justifica .nullable(): omitir el campo lo deja como
+  // está, mandar null es la única forma de volver el grupo a «aplica a todos».
+  it('distingue omitir un filtro de aplicabilidad de borrarlo', () => {
+    expect(actualizarGrupoSchema.parse({ nombre: 'X' })).not.toHaveProperty('aplicaTipo');
+    expect(actualizarGrupoSchema.parse({ aplicaTipo: null })).toEqual({ aplicaTipo: null });
+    expect(actualizarGrupoSchema.parse({ aplicaPersonalidad: 'MORAL' })).toEqual({ aplicaPersonalidad: 'MORAL' });
+  });
+
+  it('rechaza un cuerpo vacío: un PATCH sin campos es un error, no un no-op', () => {
+    expect(() => actualizarGrupoSchema.parse({})).toThrow();
+    expect(() => actualizarOpcionSchema.parse({})).toThrow();
+    expect(() => actualizarDocumentoSchema.parse({})).toThrow();
+  });
+
+  it('sigue validando el contenido de los campos que sí llegan', () => {
+    expect(() => actualizarGrupoSchema.parse({ clave: '   ' })).toThrow();
+    expect(() => actualizarGrupoSchema.parse({ aplicaTipo: 'OTRO' })).toThrow();
+    expect(() => actualizarOpcionSchema.parse({ orden: -1 })).toThrow();
+    expect(() => actualizarDocumentoSchema.parse({ nombre: '' })).toThrow();
   });
 });

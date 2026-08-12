@@ -1,19 +1,17 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
-import { crearCatalogoSchema, crearTarifaSchema, paginationSchema } from '@sicef/contracts';
+import {
+  actualizarDocumentoSchema, actualizarGrupoSchema, actualizarOpcionSchema,
+  crearCatalogoSchema, crearTarifaSchema, documentoRequestSchema,
+  grupoRequestSchema, opcionRequestSchema, paginationSchema,
+} from '@sicef/contracts';
+import type { Prisma } from '@prisma/client';
 import { prisma, withBusinessTransaction } from '../../infrastructure/database/prisma.js';
 import { auditarUsuario } from '../auditoria/service.js';
 import { requireRoles } from '../auth/middleware.js';
 import { requestContext } from '../../shared/request-context.js';
 import { AppError } from '../../shared/errors.js';
 import { routeParam } from '../../api/shared/params.js';
-
-const grupoSchema = z.object({
-  clave: z.string().trim().min(1).max(80), nombre: z.string().trim().min(1).max(200), orden: z.number().int().min(0),
-  aplicaTipo: z.enum(['NO_ADEUDO', 'NO_REGISTRO']).optional(), aplicaPersonalidad: z.enum(['FISICA', 'MORAL']).optional(), aplicaRepresentacion: z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO']).optional(),
-});
-const opcionSchema = z.object({ clave: z.string().trim().min(1).max(80), nombre: z.string().trim().min(1).max(200), orden: z.number().int().min(0) });
-const documentoSchema = z.object({ nombre: z.string().trim().min(1).max(200), orden: z.number().int().min(0) });
 
 type OpcionValidar = { clave: string; orden: number; documentos: Array<{ orden: number }> };
 type GrupoValidar = { clave: string; orden: number; aplicaTipo: string | null; aplicaPersonalidad: string | null; aplicaRepresentacion: string | null; opciones: OpcionValidar[] };
@@ -52,6 +50,40 @@ export function erroresCatalogo(catalogo: CatalogoParaValidar): string[] {
     if (incompletos.length > 0) errores.push(`La combinación ${tipo}/${personalidad}/${representacion} tiene grupos sin ruta de cumplimiento: ${incompletos.map((grupo) => grupo.clave).join(', ')}.`);
   }
   return [...new Set(errores)];
+}
+
+/** Nivel del árbol del catálogo sobre el que actúa una ruta de edición. */
+type NivelCatalogo = 'version' | 'grupo' | 'opcion' | 'documento';
+
+/**
+ * Sube por la jerarquía hasta la versión y exige que siga siendo un borrador.
+ *
+ * La garantía real la dan los triggers de `migration_complementaria.sql`, que
+ * rechazan cualquier cambio sobre estructura publicada. Esto se adelanta para
+ * dar un 404/409 con un mensaje propio en vez de depender de la traducción del
+ * error de la base — pero el trigger sigue siendo la red, y con
+ * `traducirErrorPrisma` también responde 409 si alguna ruta futura se salta
+ * esta llamada.
+ */
+async function exigirBorradorEditable(tx: Prisma.TransactionClient, nivel: NivelCatalogo, id: string): Promise<void> {
+  const versionPublicada = { select: { publicada: true } } as const;
+  const encontrado = await (async () => {
+    switch (nivel) {
+      case 'version':
+        return tx.versionCatalogo.findUnique({ where: { id }, select: { publicada: true } });
+      case 'grupo':
+        return (await tx.grupoRequisito.findUnique({ where: { id }, select: { versionCatalogo: versionPublicada } }))?.versionCatalogo;
+      case 'opcion':
+        return (await tx.opcionRequisito.findUnique({ where: { id }, select: { grupo: { select: { versionCatalogo: versionPublicada } } } }))?.grupo.versionCatalogo;
+      case 'documento':
+        return (await tx.opcionDocumento.findUnique({ where: { id }, select: { opcion: { select: { grupo: { select: { versionCatalogo: versionPublicada } } } } } }))?.opcion.grupo.versionCatalogo;
+    }
+  })();
+
+  if (!encontrado) throw new AppError(404, 'NOT_FOUND', 'El elemento del catálogo no existe');
+  if (encontrado.publicada) {
+    throw new AppError(409, 'CATALOG_ALREADY_PUBLISHED', 'El catálogo publicado es inmutable: cree una versión nueva para cambiarlo');
+  }
 }
 
 export function createCatalogosRouter(internal: RequestHandler[]): Router {
@@ -133,14 +165,122 @@ export function createCatalogosRouter(internal: RequestHandler[]): Router {
     } catch (error) { next(error); }
   });
   router.post('/requisitos/:id/grupos', async (request, response, next) => {
-    try { const input = grupoSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const group = await tx.grupoRequisito.create({ data: { ...input, versionCatalogoId: routeParam(request.params.id, 'id') } }); await auditarUsuario(tx, context, { entidad: 'grupo_requisito', entidadId: group.id, accion: 'AGREGAR_A_BORRADOR' }); return group; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
+    try { const input = grupoRequestSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const group = await tx.grupoRequisito.create({ data: { ...input, versionCatalogoId: routeParam(request.params.id, 'id') } }); await auditarUsuario(tx, context, { entidad: 'grupo_requisito', entidadId: group.id, accion: 'AGREGAR_A_BORRADOR' }); return group; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
   });
   router.post('/grupos/:id/opciones', async (request, response, next) => {
-    try { const input = opcionSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const option = await tx.opcionRequisito.create({ data: { ...input, grupoId: routeParam(request.params.id, 'id') } }); await auditarUsuario(tx, context, { entidad: 'opcion_requisito', entidadId: option.id, accion: 'AGREGAR_A_BORRADOR' }); return option; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
+    try { const input = opcionRequestSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const option = await tx.opcionRequisito.create({ data: { ...input, grupoId: routeParam(request.params.id, 'id') } }); await auditarUsuario(tx, context, { entidad: 'opcion_requisito', entidadId: option.id, accion: 'AGREGAR_A_BORRADOR' }); return option; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
   });
   router.post('/opciones/:id/documentos', async (request, response, next) => {
-    try { const input = documentoSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const document = await tx.opcionDocumento.create({ data: { ...input, opcionId: routeParam(request.params.id, 'id') } }); await auditarUsuario(tx, context, { entidad: 'opcion_documento', entidadId: document.id, accion: 'AGREGAR_A_BORRADOR' }); return document; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
+    try { const input = documentoRequestSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const document = await tx.opcionDocumento.create({ data: { ...input, opcionId: routeParam(request.params.id, 'id') } }); await auditarUsuario(tx, context, { entidad: 'opcion_documento', entidadId: document.id, accion: 'AGREGAR_A_BORRADOR' }); return document; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
   });
+  // ---------- Edición y borrado del borrador ----------
+  // Sólo mientras la versión no esté publicada. Las rutas van llaveadas por el
+  // id de la propia entidad, igual que las altas de opciones y documentos.
+
+  router.patch('/grupos/:id', async (request, response, next) => {
+    try {
+      const input = actualizarGrupoSchema.parse(request.body);
+      const context = requestContext(request);
+      const id = routeParam(request.params.id, 'id');
+      const data = await withBusinessTransaction(context, async (tx) => {
+        await exigirBorradorEditable(tx, 'grupo', id);
+        const grupo = await tx.grupoRequisito.update({ where: { id }, data: input });
+        await auditarUsuario(tx, context, { entidad: 'grupo_requisito', entidadId: id, accion: 'EDITAR_EN_BORRADOR' });
+        return grupo;
+      });
+      response.json({ data, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+  router.delete('/grupos/:id', async (request, response, next) => {
+    try {
+      const context = requestContext(request);
+      const id = routeParam(request.params.id, 'id');
+      await withBusinessTransaction(context, async (tx) => {
+        await exigirBorradorEditable(tx, 'grupo', id);
+        // De abajo hacia arriba: ninguna relación del catálogo declara
+        // onDelete: Cascade, así que los hijos se borran explícitamente.
+        await tx.opcionDocumento.deleteMany({ where: { opcion: { grupoId: id } } });
+        await tx.opcionRequisito.deleteMany({ where: { grupoId: id } });
+        await tx.grupoRequisito.delete({ where: { id } });
+        await auditarUsuario(tx, context, { entidad: 'grupo_requisito', entidadId: id, accion: 'QUITAR_DE_BORRADOR' });
+      });
+      response.json({ data: { id }, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+
+  router.patch('/opciones/:id', async (request, response, next) => {
+    try {
+      const input = actualizarOpcionSchema.parse(request.body);
+      const context = requestContext(request);
+      const id = routeParam(request.params.id, 'id');
+      const data = await withBusinessTransaction(context, async (tx) => {
+        await exigirBorradorEditable(tx, 'opcion', id);
+        const opcion = await tx.opcionRequisito.update({ where: { id }, data: input });
+        await auditarUsuario(tx, context, { entidad: 'opcion_requisito', entidadId: id, accion: 'EDITAR_EN_BORRADOR' });
+        return opcion;
+      });
+      response.json({ data, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+  router.delete('/opciones/:id', async (request, response, next) => {
+    try {
+      const context = requestContext(request);
+      const id = routeParam(request.params.id, 'id');
+      await withBusinessTransaction(context, async (tx) => {
+        await exigirBorradorEditable(tx, 'opcion', id);
+        await tx.opcionDocumento.deleteMany({ where: { opcionId: id } });
+        await tx.opcionRequisito.delete({ where: { id } });
+        await auditarUsuario(tx, context, { entidad: 'opcion_requisito', entidadId: id, accion: 'QUITAR_DE_BORRADOR' });
+      });
+      response.json({ data: { id }, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+
+  router.patch('/documentos/:id', async (request, response, next) => {
+    try {
+      const input = actualizarDocumentoSchema.parse(request.body);
+      const context = requestContext(request);
+      const id = routeParam(request.params.id, 'id');
+      const data = await withBusinessTransaction(context, async (tx) => {
+        await exigirBorradorEditable(tx, 'documento', id);
+        const documento = await tx.opcionDocumento.update({ where: { id }, data: input });
+        await auditarUsuario(tx, context, { entidad: 'opcion_documento', entidadId: id, accion: 'EDITAR_EN_BORRADOR' });
+        return documento;
+      });
+      response.json({ data, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+  router.delete('/documentos/:id', async (request, response, next) => {
+    try {
+      const context = requestContext(request);
+      const id = routeParam(request.params.id, 'id');
+      await withBusinessTransaction(context, async (tx) => {
+        await exigirBorradorEditable(tx, 'documento', id);
+        await tx.opcionDocumento.delete({ where: { id } });
+        await auditarUsuario(tx, context, { entidad: 'opcion_documento', entidadId: id, accion: 'QUITAR_DE_BORRADOR' });
+      });
+      response.json({ data: { id }, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+
+  // Descartar el borrador completo. Sin esto, un borrador equivocado quedaba
+  // para siempre en la lista de versiones sin publicar.
+  router.delete('/requisitos/:id', async (request, response, next) => {
+    try {
+      const context = requestContext(request);
+      const id = routeParam(request.params.id, 'id');
+      await withBusinessTransaction(context, async (tx) => {
+        await exigirBorradorEditable(tx, 'version', id);
+        await tx.opcionDocumento.deleteMany({ where: { opcion: { grupo: { versionCatalogoId: id } } } });
+        await tx.opcionRequisito.deleteMany({ where: { grupo: { versionCatalogoId: id } } });
+        await tx.grupoRequisito.deleteMany({ where: { versionCatalogoId: id } });
+        await tx.versionCatalogo.delete({ where: { id } });
+        await auditarUsuario(tx, context, { entidad: 'version_catalogo', entidadId: id, accion: 'DESCARTAR_BORRADOR' });
+      });
+      response.json({ data: { id }, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+
   router.post('/tarifas', async (request, response, next) => {
     try {
       const { clonarDesdeId, ...input } = crearTarifaSchema.parse(request.body); const context = requestContext(request);

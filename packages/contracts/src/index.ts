@@ -166,6 +166,58 @@ export const resultadoValidacionSchema = z.enum(['SIN_ADEUDO', 'CON_ADEUDO']);
 export const tipoConfirmacionSchema = z.enum(['SIN_ADEUDO_OUC', 'FIRMAS_LEGIBLES', 'FACULTADES_PODER']);
 export const metodoPagoSchema = z.enum(['PUE', 'PPD']);
 export const perteneceASchema = z.enum(['JUNTA_AUXILIAR', 'MUNICIPIO']);
+
+// --- Estructura del borrador de catálogo: grupo → opción → documento ---
+// Se definen aquí, después de los enums que usan. Sólo se aceptan mientras la
+// versión no esté publicada: publicada, el catálogo es inmutable y un cambio
+// funcional es una versión nueva.
+
+export const grupoRequestSchema = z.object({
+  clave: z.string().trim().min(1).max(80),
+  nombre: z.string().trim().min(1).max(200),
+  orden: z.number().int().min(0),
+  // Ausente = «aplica a todos». No es lo mismo que «no aplica».
+  aplicaTipo: tipoConstanciaSchema.optional(),
+  aplicaPersonalidad: personalidadSchema.optional(),
+  aplicaRepresentacion: representacionSchema.optional(),
+});
+export const opcionRequestSchema = z.object({
+  clave: z.string().trim().min(1).max(80),
+  nombre: z.string().trim().min(1).max(200),
+  orden: z.number().int().min(0),
+});
+export const documentoRequestSchema = z.object({
+  nombre: z.string().trim().min(1).max(200),
+  orden: z.number().int().min(0),
+});
+
+/** Un PATCH sin campos es un error del cliente, no un no-op silencioso. */
+const alMenosUnCampo = (valor: object, ctx: z.RefinementCtx): void => {
+  if (Object.keys(valor).length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Indique al menos un campo a modificar' });
+  }
+};
+
+// `.nullable()` en los tres filtros de aplicabilidad es deliberado y no
+// intercambiable con `.optional()`: omitir el campo lo deja como está, mandar
+// null es la única forma de QUITAR el filtro y devolver el grupo a «aplica a
+// todos». Con sólo `.optional()` ese cambio sería inexpresable.
+export const actualizarGrupoSchema = grupoRequestSchema
+  .extend({
+    aplicaTipo: tipoConstanciaSchema.nullable(),
+    aplicaPersonalidad: personalidadSchema.nullable(),
+    aplicaRepresentacion: representacionSchema.nullable(),
+  })
+  .partial()
+  .superRefine(alMenosUnCampo);
+export const actualizarOpcionSchema = opcionRequestSchema.partial().superRefine(alMenosUnCampo);
+export const actualizarDocumentoSchema = documentoRequestSchema.partial().superRefine(alMenosUnCampo);
+
+/**
+ * Respuesta de un borrado. Conserva la envolvente `{ data }` del contrato en
+ * vez de responder 204 sin cuerpo, para que el cliente confirme qué se borró.
+ */
+export const recursoEliminadoDto = z.object({ id: z.string().uuid() });
 // Estado de una constancia que existe y cuyo token de verificación es válido.
 // No incluye NO_ENCONTRADA: folio inexistente y token inválido responden 404
 // con el mismo cuerpo, para no permitir enumeración de folios.

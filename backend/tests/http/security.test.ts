@@ -38,6 +38,14 @@ describe('controles HTTP', () => {
     const requests = [
       request(app).get('/api/v1/auth/me'),
       request(app).get('/api/v1/catalogos/requisitos/activo'),
+      // Edición y borrado del borrador de catálogo (rol ti).
+      request(app).delete('/api/v1/catalogos/requisitos/00000000-0000-0000-0000-000000000000'),
+      request(app).patch('/api/v1/catalogos/grupos/00000000-0000-0000-0000-000000000000'),
+      request(app).delete('/api/v1/catalogos/grupos/00000000-0000-0000-0000-000000000000'),
+      request(app).patch('/api/v1/catalogos/opciones/00000000-0000-0000-0000-000000000000'),
+      request(app).delete('/api/v1/catalogos/opciones/00000000-0000-0000-0000-000000000000'),
+      request(app).patch('/api/v1/catalogos/documentos/00000000-0000-0000-0000-000000000000'),
+      request(app).delete('/api/v1/catalogos/documentos/00000000-0000-0000-0000-000000000000'),
       request(app).put('/api/v1/administracion/plazos'),
       request(app).get('/api/v1/administracion/constancias/NO_REGISTRO'),
       request(app).put('/api/v1/administracion/constancias/NO_REGISTRO'),

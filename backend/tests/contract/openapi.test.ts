@@ -31,6 +31,10 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   ['get', '/catalogos/requisitos/{id}/validar'], ['get', '/catalogos/requisitos/{id}/vista-previa'],
   ['post', '/catalogos/requisitos/{id}/publicar'], ['post', '/catalogos/requisitos/{id}/grupos'],
   ['post', '/catalogos/grupos/{id}/opciones'], ['post', '/catalogos/opciones/{id}/documentos'],
+  ['delete', '/catalogos/requisitos/{id}'],
+  ['patch', '/catalogos/grupos/{id}'], ['delete', '/catalogos/grupos/{id}'],
+  ['patch', '/catalogos/opciones/{id}'], ['delete', '/catalogos/opciones/{id}'],
+  ['patch', '/catalogos/documentos/{id}'], ['delete', '/catalogos/documentos/{id}'],
   ['get', '/catalogos/tarifas/activas'],
   ['post', '/catalogos/tarifas'], ['post', '/catalogos/tarifas/{id}/publicar'],
   ['get', '/administracion/plazos'], ['put', '/administracion/plazos'],
@@ -55,6 +59,7 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
 const RUTAS_CON_REQUEST_BODY = new Set([
   'post /catalogos/requisitos', 'post /catalogos/requisitos/{id}/grupos', 'post /catalogos/grupos/{id}/opciones',
   'post /catalogos/opciones/{id}/documentos', 'post /catalogos/tarifas', 'put /administracion/plazos',
+  'patch /catalogos/grupos/{id}', 'patch /catalogos/opciones/{id}', 'patch /catalogos/documentos/{id}',
   'post /personas', 'post /motivos-reduccion', 'patch /motivos-reduccion/{id}',
   'put /administracion/constancias/{tipo}',
   'post /tramites', 'post /tramites/{id}/evidencias', 'patch /tramites/{id}/evidencias/{evidenciaId}',

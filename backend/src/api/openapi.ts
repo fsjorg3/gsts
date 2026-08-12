@@ -23,6 +23,13 @@ import {
   bitacoraDto,
   versionCatalogoDto,
   versionCatalogoConArbolDto,
+  grupoRequestSchema,
+  opcionRequestSchema,
+  documentoRequestSchema,
+  actualizarGrupoSchema,
+  actualizarOpcionSchema,
+  actualizarDocumentoSchema,
+  recursoEliminadoDto,
   grupoRequisitoDto,
   opcionRequisitoDto,
   opcionDocumentoDto,
@@ -49,18 +56,12 @@ import {
 
 // ===================== Mirrors de esquemas de request definidos localmente en cada
 // router (no exportados de @sicef/contracts). Existen solo para documentar el
-// contrato; los routers siguen validando con su propia copia. =====================
+// contrato; los routers siguen validando con su propia copia.
+//
+// Los de catálogo (grupo/opción/documento) dejaron de estar aquí: viven en
+// @sicef/contracts junto con sus variantes de actualización, para no mantener
+// seis copias a mano. =====================
 
-const grupoRequestSchema = z.object({
-  clave: z.string().trim().min(1).max(80),
-  nombre: z.string().trim().min(1).max(200),
-  orden: z.number().int().min(0),
-  aplicaTipo: tipoConstanciaSchema.optional(),
-  aplicaPersonalidad: personalidadSchema.optional(),
-  aplicaRepresentacion: representacionSchema.optional(),
-});
-const opcionRequestSchema = z.object({ clave: z.string().trim().min(1).max(80), nombre: z.string().trim().min(1).max(200), orden: z.number().int().min(0) });
-const documentoRequestSchema = z.object({ nombre: z.string().trim().min(1).max(200), orden: z.number().int().min(0) });
 const evidenciaRequestSchema = z.object({
   opcionDocumentoId: z.string().uuid(),
   nombreOriginal: z.string().trim().min(1).max(255),
@@ -123,6 +124,10 @@ const GuardarBorradorCobro = def('GuardarBorradorCobro', guardarBorradorCobroSch
 const GrupoRequest = def('GrupoRequest', grupoRequestSchema);
 const OpcionRequest = def('OpcionRequest', opcionRequestSchema);
 const DocumentoRequest = def('DocumentoRequest', documentoRequestSchema);
+const ActualizarGrupo = def('ActualizarGrupo', actualizarGrupoSchema);
+const ActualizarOpcion = def('ActualizarOpcion', actualizarOpcionSchema);
+const ActualizarDocumento = def('ActualizarDocumento', actualizarDocumentoSchema);
+const RecursoEliminado = def('RecursoEliminado', recursoEliminadoDto);
 const EvidenciaRequest = def('EvidenciaRequest', evidenciaRequestSchema);
 const ValidacionRequest = def('ValidacionRequest', validacionRequestSchema);
 const CobroRequest = def('CobroRequest', cobroRequestSchema);
@@ -201,6 +206,8 @@ function errorResponse(description: string) {
 const ERRORES_AUTENTICACION = { '401': errorResponse('No autenticado'), '403': errorResponse('Sin permisos suficientes') };
 const ERRORES_VALIDACION = { '422': errorResponse('Entrada inválida') };
 const ERRORES_NO_ENCONTRADO = { '404': errorResponse('No encontrado') };
+const ERRORES_CATALOGO_PUBLICADO = { '409': errorResponse('CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable') };
+const PARAM_ID_CATALOGO = { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } } as const;
 
 const PARAM_TIPO_CONSTANCIA = { name: 'tipo', in: 'path', required: true, schema: { type: 'string', enum: ['NO_ADEUDO', 'NO_REGISTRO'] } };
 
@@ -249,12 +256,27 @@ export const openApiDocument = {
       },
       post: { tags: ['Catálogos'], security: bearer, summary: 'Crear borrador de catálogo (opcionalmente clonando otra versión vía clonarDesdeId)', requestBody: body(CrearCatalogo), responses: { '201': envelope(VersionCatalogo, { description: 'Borrador creado' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } },
     },
+    '/catalogos/requisitos/{id}': {
+      delete: { tags: ['Catálogos'], security: bearer, summary: 'Descartar un borrador de catálogo completo (rol ti; sólo si no está publicado)', parameters: [PARAM_ID_CATALOGO], responses: { '200': envelope(RecursoEliminado, { description: 'Borrador descartado' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_CATALOGO_PUBLICADO } },
+    },
     '/catalogos/requisitos/{id}/validar': { get: { tags: ['Catálogos'], security: bearer, summary: 'Validar borrador de catálogo (claves/orden duplicados, cobertura de combinaciones)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '200': envelope(CatalogoValidacion), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO } } },
     '/catalogos/requisitos/{id}/vista-previa': { get: { tags: ['Catálogos'], security: bearer, summary: 'Obtener vista previa del catálogo (árbol completo)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '200': envelope(VersionCatalogoConArbol), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO } } },
     '/catalogos/requisitos/{id}/publicar': { post: { tags: ['Catálogos'], security: bearer, summary: 'Publicar y activar catálogo validado (desactiva la versión anterior)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '200': envelope(VersionCatalogo, { description: 'Catálogo publicado' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, '409': errorResponse('El catálogo ya estaba publicado'), ...ERRORES_VALIDACION } } },
     '/catalogos/requisitos/{id}/grupos': { post: { tags: ['Catálogos'], security: bearer, summary: 'Agregar grupo al borrador', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(GrupoRequest), responses: { '201': envelope(GrupoRequisito, { description: 'Grupo agregado' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
     '/catalogos/grupos/{id}/opciones': { post: { tags: ['Catálogos'], security: bearer, summary: 'Agregar opción a un grupo', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(OpcionRequest), responses: { '201': envelope(OpcionRequisito, { description: 'Opción agregada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
     '/catalogos/opciones/{id}/documentos': { post: { tags: ['Catálogos'], security: bearer, summary: 'Agregar documento a una opción', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(DocumentoRequest), responses: { '201': envelope(OpcionDocumento, { description: 'Documento agregado' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
+    '/catalogos/grupos/{id}': {
+      patch: { tags: ['Catálogos'], security: bearer, summary: 'Editar un grupo del borrador (rol ti; null en aplica* quita el filtro)', parameters: [PARAM_ID_CATALOGO], requestBody: body(ActualizarGrupo), responses: { '200': envelope(GrupoRequisito, { description: 'Grupo actualizado' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_CATALOGO_PUBLICADO, ...ERRORES_VALIDACION } },
+      delete: { tags: ['Catálogos'], security: bearer, summary: 'Quitar un grupo del borrador con sus opciones y documentos (rol ti)', parameters: [PARAM_ID_CATALOGO], responses: { '200': envelope(RecursoEliminado, { description: 'Grupo eliminado' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_CATALOGO_PUBLICADO } },
+    },
+    '/catalogos/opciones/{id}': {
+      patch: { tags: ['Catálogos'], security: bearer, summary: 'Editar una opción del borrador (rol ti)', parameters: [PARAM_ID_CATALOGO], requestBody: body(ActualizarOpcion), responses: { '200': envelope(OpcionRequisito, { description: 'Opción actualizada' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_CATALOGO_PUBLICADO, ...ERRORES_VALIDACION } },
+      delete: { tags: ['Catálogos'], security: bearer, summary: 'Quitar una opción del borrador con sus documentos (rol ti)', parameters: [PARAM_ID_CATALOGO], responses: { '200': envelope(RecursoEliminado, { description: 'Opción eliminada' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_CATALOGO_PUBLICADO } },
+    },
+    '/catalogos/documentos/{id}': {
+      patch: { tags: ['Catálogos'], security: bearer, summary: 'Editar un documento del borrador (rol ti)', parameters: [PARAM_ID_CATALOGO], requestBody: body(ActualizarDocumento), responses: { '200': envelope(OpcionDocumento, { description: 'Documento actualizado' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_CATALOGO_PUBLICADO, ...ERRORES_VALIDACION } },
+      delete: { tags: ['Catálogos'], security: bearer, summary: 'Quitar un documento del borrador (rol ti)', parameters: [PARAM_ID_CATALOGO], responses: { '200': envelope(RecursoEliminado, { description: 'Documento eliminado' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_CATALOGO_PUBLICADO } },
+    },
     '/catalogos/tarifas/activas': { get: { tags: ['Catálogos'], security: bearer, summary: 'Listar tarifas publicadas y activas (opcionalmente por tipo de constancia)', parameters: [{ name: 'tipo', in: 'query', schema: { type: 'string', enum: ['NO_ADEUDO', 'NO_REGISTRO'] } }], responses: { '200': envelopeLista(Tarifa, 'Tarifas vigentes'), ...ERRORES_AUTENTICACION } } },
     '/catalogos/tarifas': { post: { tags: ['Catálogos'], security: bearer, summary: 'Crear borrador de tarifa (opcionalmente clonando otra vía clonarDesdeId)', requestBody: body(CrearTarifa), responses: { '201': envelope(Tarifa, { description: 'Borrador creado' }), ...ERRORES_AUTENTICACION, '422': errorResponse('Entrada inválida o faltan tipo/concepto/monto sin clonarDesdeId') } } },
     '/catalogos/tarifas/{id}/publicar': { post: { tags: ['Catálogos'], security: bearer, summary: 'Publicar y activar tarifa (desactiva la anterior del mismo tipo+concepto)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '200': envelope(Tarifa, { description: 'Tarifa publicada' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO } } },

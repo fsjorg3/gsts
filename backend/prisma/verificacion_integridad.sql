@@ -140,12 +140,16 @@ SELECT pg_temp.afirmar('I.5 · archivo_generado cuelga sólo de constancia',
 
 SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');
 
+-- Todo el andamiaje evita chocar con datos reales: identificadores fijos y
+-- fuera de rango, conceptos de tarifa propios y ON CONFLICT donde hay unicidad.
 INSERT INTO actor (id, keycloak_sub) VALUES
   ('11111111-1111-1111-1111-111111111111', 'verificacion-ti'),
-  ('22222222-2222-2222-2222-222222222222', 'verificacion-ventanilla');
+  ('22222222-2222-2222-2222-222222222222', 'verificacion-ventanilla')
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO persona (id, tipo, nombre_razon_social) VALUES
-  ('55555555-5555-5555-5555-555555555555', 'FISICA', 'Persona de verificación');
+  ('55555555-5555-5555-5555-555555555555', 'FISICA', 'Persona de verificación')
+ON CONFLICT (id) DO NOTHING;
 
 -- Catálogo vigente, aún sin publicar.
 INSERT INTO version_catalogo (id, version) VALUES
@@ -159,6 +163,12 @@ INSERT INTO opcion_requisito (id, grupo_id, clave, nombre)
   VALUES ('33333333-0000-0000-0000-000000000002','33333333-0000-0000-0000-000000000001','O','Opcion');
 INSERT INTO opcion_documento (id, opcion_id, nombre)
   VALUES ('33333333-0000-0000-0000-000000000003','33333333-0000-0000-0000-000000000002','Documento');
+
+-- uq_version_catalogo_unica_activa admite UNA sola versión activa en toda la
+-- tabla, así que si la base ya opera hay que apartar la suya. Se deshace con el
+-- ROLLBACK final. `activa` no está en la tupla que protege
+-- fn_version_catalogo_inmutable, de modo que esto es legal aun si está publicada.
+UPDATE version_catalogo SET activa = false WHERE activa;
 
 SELECT pg_temp.debe_pasar('A.2 · publicar y activar el catálogo', $q$
   UPDATE version_catalogo SET publicada = true, activa = true, vigente_desde = now()
@@ -177,11 +187,14 @@ INSERT INTO opcion_documento (id, opcion_id, nombre)
   VALUES ('33333333-0000-0000-0000-000000000013','33333333-0000-0000-0000-000000000012','Documento ajeno');
 
 INSERT INTO tarifa (id, tipo_constancia, concepto, monto, version, publicada, activa, vigente_desde) VALUES
-  ('44444444-4444-4444-4444-444444444441','NO_REGISTRO','Constancia de no registro', 350.00, 900, true, true, now()),
-  ('44444444-4444-4444-4444-444444444442','NO_ADEUDO','Constancia de no adeudo',    420.00, 900, true, true, now());
+  ('44444444-4444-4444-4444-444444444441','NO_REGISTRO','VERIFICACION Constancia de no registro', 350.00, 900, true, true, now()),
+  ('44444444-4444-4444-4444-444444444442','NO_ADEUDO','VERIFICACION Constancia de no adeudo',    420.00, 900, true, true, now());
 
+-- Singleton: si la base ya opera, la fila existe. Se ajusta y el ROLLBACK la restaura.
 INSERT INTO configuracion_plazos (id, plazo_pago_dias, activa, actualizado_por_id, updated_at)
-  VALUES ('PLAZOS_OPERATIVOS', 5, true, '11111111-1111-1111-1111-111111111111', now());
+  VALUES ('PLAZOS_OPERATIVOS', 5, true, '11111111-1111-1111-1111-111111111111', now())
+ON CONFLICT (id) DO UPDATE SET plazo_pago_dias = 5, activa = true,
+  actualizado_por_id = '11111111-1111-1111-1111-111111111111', updated_at = now();
 
 -- Guardias de catálogo publicado.
 SELECT pg_temp.debe_fallar('A.3 · no se agrega estructura a catálogo publicado', $q$
@@ -204,7 +217,7 @@ SELECT pg_temp.debe_fallar('A.6 · la tarifa publicada es inmutable', $q$
 
 SELECT pg_temp.debe_fallar('A.7 · una sola tarifa activa por tipo y concepto', $q$
   INSERT INTO tarifa (id, tipo_constancia, concepto, monto, version, publicada, activa)
-    VALUES ('44444444-4444-4444-4444-4444444444ff','NO_REGISTRO','Constancia de no registro', 400.00, 901, true, true);
+    VALUES ('44444444-4444-4444-4444-4444444444ff','NO_REGISTRO','VERIFICACION Constancia de no registro', 400.00, 901, true, true);
   $q$);
 
 SELECT pg_temp.debe_fallar('A.8 · una sola versión de catálogo activa', $q$

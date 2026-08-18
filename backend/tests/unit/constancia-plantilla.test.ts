@@ -4,13 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { generarPdfConstancia } from '../../src/modules/constancias/plantillas/generar.js';
-import { formatearDomicilio, formatearFechaLarga, formatearNumeroOficio } from '../../src/modules/constancias/plantillas/formato.js';
-import { parrafosNoAdeudo, renderNoAdeudo, TITULO_NO_ADEUDO } from '../../src/modules/constancias/plantillas/no-adeudo.js';
-import { parrafosNoRegistro, renderNoRegistro, TITULO_NO_REGISTRO } from '../../src/modules/constancias/plantillas/no-registro.js';
-import { PLANTILLAS } from '../../src/modules/constancias/plantillas/tipos.js';
-import type { DatosSinQr } from '../../src/modules/constancias/plantillas/generar.js';
-import type { DatosPlantillaConstancia, Parrafo } from '../../src/modules/constancias/plantillas/tipos.js';
+import { generarPdfConstancia } from '../../src/modules/constancias/constancias/plantillas/generar.js';
+import { formatearDomicilio, formatearFechaLarga, formatearNumeroOficio } from '../../src/modules/constancias/constancias/plantillas/formato.js';
+import { parrafosNoAdeudo, renderNoAdeudo, TITULO_NO_ADEUDO } from '../../src/modules/constancias/constancias/plantillas/no-adeudo.js';
+import { parrafosNoRegistro, renderNoRegistro, TITULO_NO_REGISTRO } from '../../src/modules/constancias/constancias/plantillas/no-registro.js';
+import { PLANTILLAS } from '../../src/modules/constancias/constancias/plantillas/tipos.js';
+import type { DatosSinQr } from '../../src/modules/constancias/constancias/plantillas/generar.js';
+import type { DatosPlantillaConstancia, Parrafo } from '../../src/modules/constancias/constancias/plantillas/tipos.js';
 
 const textoAutoritativo = (nombre: string): string =>
   fileURLToPath(new URL(`../../../documentacion/${nombre}`, import.meta.url));

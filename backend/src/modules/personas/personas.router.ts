@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from 'express';
-import { buscarPersonasSchema, crearPersonaSchema } from '@sicef/contracts';
+import { buscarPersonasSchema, crearPersonaSchema } from '@gsts/contracts';
 import { prisma, withBusinessTransaction } from '../../infrastructure/database/prisma.js';
 import { auditarUsuario } from '../auditoria/service.js';
 import { requireRoles } from '../auth/middleware.js';

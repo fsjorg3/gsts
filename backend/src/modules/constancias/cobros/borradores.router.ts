@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { guardarBorradorCobroSchema } from '@sicef/contracts';
-import { prisma, withBusinessTransaction } from '../../infrastructure/database/prisma.js';
-import { NfsStorage } from '../../infrastructure/storage/nfs-storage.js';
-import { auditarUsuario } from '../auditoria/service.js';
-import { requestContext } from '../../shared/request-context.js';
-import { AppError } from '../../shared/errors.js';
-import { routeParam } from '../../api/shared/params.js';
+import { guardarBorradorCobroSchema } from '@gsts/contracts';
+import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
+import { NfsStorage } from '../../../infrastructure/storage/nfs-storage.js';
+import { auditarUsuario } from '../../auditoria/service.js';
+import { requestContext } from '../../../shared/request-context.js';
+import { AppError } from '../../../shared/errors.js';
+import { routeParam } from '../../../api/shared/params.js';
 import { resolverMotivoReduccion } from './motivo-reduccion.js';
 
 function tramiteIdDe(request: { params: unknown }): string {

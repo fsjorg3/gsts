@@ -103,6 +103,95 @@ export function useAgregarDocumento(catalogoId: string) {
   });
 }
 
+// --- Edición y borrado del borrador ---
+// El id del path es el de la entidad hija (grupo/opción/documento); el
+// `catalogoId` va aparte sólo para invalidar la vista previa del árbol.
+// En ActualizarGrupo los `aplica*` aceptan null (limpiar el filtro), a
+// diferencia del alta, donde se omiten.
+
+type ActualizarGrupo = components['schemas']['ActualizarGrupo'];
+type ActualizarOpcion = components['schemas']['ActualizarOpcion'];
+type ActualizarDocumento = components['schemas']['ActualizarDocumento'];
+
+export function useEditarGrupo(catalogoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: ActualizarGrupo & { id: string }) => {
+      const { data } = await api.PATCH('/catalogos/grupos/{id}', { params: { path: { id } }, body });
+      return data!.data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['catalogos', 'vista-previa', catalogoId] }),
+  });
+}
+
+export function useEditarOpcion(catalogoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: ActualizarOpcion & { id: string }) => {
+      const { data } = await api.PATCH('/catalogos/opciones/{id}', { params: { path: { id } }, body });
+      return data!.data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['catalogos', 'vista-previa', catalogoId] }),
+  });
+}
+
+export function useEditarDocumento(catalogoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: ActualizarDocumento & { id: string }) => {
+      const { data } = await api.PATCH('/catalogos/documentos/{id}', { params: { path: { id } }, body });
+      return data!.data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['catalogos', 'vista-previa', catalogoId] }),
+  });
+}
+
+export function useEliminarGrupo(catalogoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.DELETE('/catalogos/grupos/{id}', { params: { path: { id } } });
+      return data!.data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['catalogos', 'vista-previa', catalogoId] }),
+  });
+}
+
+export function useEliminarOpcion(catalogoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.DELETE('/catalogos/opciones/{id}', { params: { path: { id } } });
+      return data!.data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['catalogos', 'vista-previa', catalogoId] }),
+  });
+}
+
+export function useEliminarDocumento(catalogoId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.DELETE('/catalogos/documentos/{id}', { params: { path: { id } } });
+      return data!.data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['catalogos', 'vista-previa', catalogoId] }),
+  });
+}
+
+// Descarta el borrador completo (con sus grupos/opciones/documentos). Ya no
+// existe su vista previa: se invalida la lista de versiones.
+export function useDescartarBorrador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (catalogoId: string) => {
+      const { data } = await api.DELETE('/catalogos/requisitos/{id}', { params: { path: { id: catalogoId } } });
+      return data!.data;
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['catalogos', 'lista'] }),
+  });
+}
+
 export function useValidarCatalogo() {
   return useMutation({
     mutationFn: async (catalogoId: string) => {

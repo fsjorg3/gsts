@@ -12,7 +12,7 @@ import type { TramiteDetalle } from '../api';
 
 // Paso 4 · Entrega: la constancia emitida, único documento que ventanilla
 // entrega. Si el ciudadano dijo querer factura, aquí sólo se le recuerda que la
-// solicite en el portal del sistema Finanzas con su folio: SICEF no emite CFDI
+// solicite en el portal del sistema Finanzas con su folio: GSTS no emite CFDI
 // y finalizar el trámite ya no depende de que exista.
 export function PasoEntrega({ tramite }: { tramite: TramiteDetalle }) {
   const constancia = tramite.constancia;

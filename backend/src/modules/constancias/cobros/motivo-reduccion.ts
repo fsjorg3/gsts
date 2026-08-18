@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { AppError } from '../../shared/errors.js';
+import { AppError } from '../../../shared/errors.js';
 
 // Único punto que traduce motivoReduccionId → porcentaje: el backend nunca
 // confía en un porcentaje enviado por el cliente, siempre lo deriva y

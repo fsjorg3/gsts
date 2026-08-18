@@ -52,6 +52,7 @@ describe('controles HTTP', () => {
       request(app).get('/api/v1/tramites'),
       request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/evidencias'),
       request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/validaciones/no-adeudo'),
+      request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/validaciones/no-registro'),
       request(app).get('/api/v1/tramites/00000000-0000-0000-0000-000000000000/borradores-cobro'),
       request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/borradores-cobro'),
       request(app).patch('/api/v1/tramites/00000000-0000-0000-0000-000000000000/borradores-cobro/00000000-0000-0000-0000-000000000000'),

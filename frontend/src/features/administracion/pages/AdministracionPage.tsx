@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -11,8 +16,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { useNotificar } from '@/store/useNotificar';
 import { formatFecha, formatMxn } from '@/api/serializers';
-import { EstadoBadge, MsIcon } from '@/shared/components';
-import { catalogoActivoOptions, catalogosListaOptions, catalogoVistaPreviaOptions } from '@/features/catalogos/api';
+import { ConfirmDialog, EstadoBadge, MsIcon } from '@/shared/components';
+import { catalogoActivoOptions, catalogosListaOptions, catalogoVistaPreviaOptions, type GrupoConArbol } from '@/features/catalogos/api';
 import { tarifasActivasOptions } from '@/features/cobros/api';
 import { motivosReduccionOptions, useActualizarMotivoReduccion, useCrearMotivoReduccion } from '@/features/motivos-reduccion/api';
 import {
@@ -23,6 +28,13 @@ import {
   useAgregarOpcion,
   useCrearCatalogo,
   useCrearTarifa,
+  useDescartarBorrador,
+  useEditarDocumento,
+  useEditarGrupo,
+  useEditarOpcion,
+  useEliminarDocumento,
+  useEliminarGrupo,
+  useEliminarOpcion,
   useGuardarConfiguracionConstancia,
   useGuardarPlazos,
   usePublicarCatalogo,
@@ -245,6 +257,127 @@ function PanelTarifas() {
 }
 
 // ---------- Catálogo de requisitos ----------
+type OpcionNodo = GrupoConArbol['opciones'][number];
+type DocumentoNodo = OpcionNodo['documentos'][number];
+
+// El select vacío ('') representa "Todos/Todas". En edición se traduce a null
+// para *limpiar* el filtro (a diferencia del alta, donde se omite el campo).
+type FiltroGrupo = '' | 'NO_ADEUDO' | 'NO_REGISTRO';
+type FiltroPersonalidad = '' | 'FISICA' | 'MORAL';
+type FiltroRepresentacion = '' | 'TITULAR' | 'REPRESENTANTE' | 'APODERADO';
+
+function EditarGrupoDialog({ grupo, onGuardar, onClose, pendiente }: {
+  grupo: GrupoConArbol;
+  onGuardar: (payload: {
+    clave: string; nombre: string;
+    aplicaTipo: 'NO_ADEUDO' | 'NO_REGISTRO' | null;
+    aplicaPersonalidad: 'FISICA' | 'MORAL' | null;
+    aplicaRepresentacion: 'TITULAR' | 'REPRESENTANTE' | 'APODERADO' | null;
+  }) => void;
+  onClose: () => void;
+  pendiente: boolean;
+}) {
+  const [clave, setClave] = useState(grupo.clave);
+  const [nombre, setNombre] = useState(grupo.nombre);
+  const [aplicaTipo, setAplicaTipo] = useState<FiltroGrupo>(grupo.aplicaTipo ?? '');
+  const [aplicaPersonalidad, setAplicaPersonalidad] = useState<FiltroPersonalidad>(grupo.aplicaPersonalidad ?? '');
+  const [aplicaRepresentacion, setAplicaRepresentacion] = useState<FiltroRepresentacion>(grupo.aplicaRepresentacion ?? '');
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 700 }}>Editar grupo</DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.75, pt: 1 }}>
+        <TextField label="Clave" value={clave} onChange={(e) => setClave(e.target.value.toUpperCase())} />
+        <TextField label="Nombre del grupo" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <TextField select label="Tipo" value={aplicaTipo} onChange={(e) => setAplicaTipo(e.target.value as FiltroGrupo)}>
+          <MenuItem value="">Todos</MenuItem>
+          <MenuItem value="NO_ADEUDO">No adeudo</MenuItem>
+          <MenuItem value="NO_REGISTRO">No registro</MenuItem>
+        </TextField>
+        <TextField select label="Personalidad" value={aplicaPersonalidad} onChange={(e) => setAplicaPersonalidad(e.target.value as FiltroPersonalidad)}>
+          <MenuItem value="">Todas</MenuItem>
+          <MenuItem value="FISICA">Física</MenuItem>
+          <MenuItem value="MORAL">Moral</MenuItem>
+        </TextField>
+        <TextField select label="Representación" value={aplicaRepresentacion} onChange={(e) => setAplicaRepresentacion(e.target.value as FiltroRepresentacion)}>
+          <MenuItem value="">Todas</MenuItem>
+          <MenuItem value="TITULAR">Titular</MenuItem>
+          <MenuItem value="REPRESENTANTE">Representante</MenuItem>
+          <MenuItem value="APODERADO">Apoderado</MenuItem>
+        </TextField>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button variant="text" onClick={onClose} disabled={pendiente}>Cancelar</Button>
+        <Button
+          variant="contained"
+          disabled={!clave || !nombre || pendiente}
+          onClick={() => onGuardar({
+            clave, nombre,
+            aplicaTipo: aplicaTipo === '' ? null : aplicaTipo,
+            aplicaPersonalidad: aplicaPersonalidad === '' ? null : aplicaPersonalidad,
+            aplicaRepresentacion: aplicaRepresentacion === '' ? null : aplicaRepresentacion,
+          })}
+        >
+          Guardar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function EditarOpcionDialog({ opcion, onGuardar, onClose, pendiente }: {
+  opcion: OpcionNodo;
+  onGuardar: (payload: { clave: string; nombre: string }) => void;
+  onClose: () => void;
+  pendiente: boolean;
+}) {
+  const [clave, setClave] = useState(opcion.clave);
+  const [nombre, setNombre] = useState(opcion.nombre);
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 700 }}>Editar opción</DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.75, pt: 1 }}>
+        <TextField label="Clave" value={clave} onChange={(e) => setClave(e.target.value.toUpperCase())} />
+        <TextField label="Nombre de la opción" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button variant="text" onClick={onClose} disabled={pendiente}>Cancelar</Button>
+        <Button variant="contained" disabled={!clave || !nombre || pendiente} onClick={() => onGuardar({ clave, nombre })}>Guardar</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function EditarDocumentoDialog({ documento, onGuardar, onClose, pendiente }: {
+  documento: DocumentoNodo;
+  onGuardar: (payload: { nombre: string }) => void;
+  onClose: () => void;
+  pendiente: boolean;
+}) {
+  const [nombre, setNombre] = useState(documento.nombre);
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 700 }}>Editar documento</DialogTitle>
+      <DialogContent sx={{ pt: 1 }}>
+        <TextField label="Nombre del documento" value={nombre} onChange={(e) => setNombre(e.target.value)} fullWidth />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button variant="text" onClick={onClose} disabled={pendiente}>Cancelar</Button>
+        <Button variant="contained" disabled={!nombre || pendiente} onClick={() => onGuardar({ nombre })}>Guardar</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/** Botón-ícono compacto de editar/eliminar para un nodo del árbol. */
+function AccionesNodo({ onEditar, onEliminar }: { onEditar: () => void; onEliminar: () => void }) {
+  return (
+    <Box component="span" sx={{ display: 'inline-flex', gap: 0.25, ml: 'auto' }}>
+      <IconButton size="small" onClick={onEditar} aria-label="Editar"><MsIcon name="edit" size={16} /></IconButton>
+      <IconButton size="small" color="error" onClick={onEliminar} aria-label="Eliminar"><MsIcon name="delete" size={16} /></IconButton>
+    </Box>
+  );
+}
+
 function PanelCatalogo() {
   const notificar = useNotificar();
   const queryClient = useQueryClient();
@@ -266,6 +399,46 @@ function PanelCatalogo() {
   const agregarGrupo = useAgregarGrupo(borrador?.id ?? '');
   const agregarOpcion = useAgregarOpcion(borrador?.id ?? '');
   const agregarDocumento = useAgregarDocumento(borrador?.id ?? '');
+  const editarGrupo = useEditarGrupo(borrador?.id ?? '');
+  const editarOpcion = useEditarOpcion(borrador?.id ?? '');
+  const editarDocumento = useEditarDocumento(borrador?.id ?? '');
+  const eliminarGrupo = useEliminarGrupo(borrador?.id ?? '');
+  const eliminarOpcion = useEliminarOpcion(borrador?.id ?? '');
+  const eliminarDocumento = useEliminarDocumento(borrador?.id ?? '');
+  const descartarBorrador = useDescartarBorrador();
+
+  // Qué nodo se edita (modal) y qué se elimina (confirmación). El borrado del
+  // borrador completo se marca con nivel 'borrador'.
+  const [editando, setEditando] = useState<
+    | { nivel: 'grupo'; nodo: GrupoConArbol }
+    | { nivel: 'opcion'; nodo: OpcionNodo }
+    | { nivel: 'documento'; nodo: DocumentoNodo }
+    | null
+  >(null);
+  const [eliminando, setEliminando] = useState<
+    { nivel: 'grupo' | 'opcion' | 'documento' | 'borrador'; id: string; titulo: string; mensaje: string } | null
+  >(null);
+
+  const eliminando_pendiente =
+    eliminarGrupo.isPending || eliminarOpcion.isPending || eliminarDocumento.isPending || descartarBorrador.isPending;
+
+  // Tras cambiar la estructura, la validación previa queda obsoleta.
+  const trasCambioEstructura = () => { setErrores(null); setEditando(null); };
+
+  const confirmarEliminacion = () => {
+    if (!eliminando) return;
+    const opciones = { onSuccess: () => { setEliminando(null); setErrores(null); }, onError: (error: unknown) => notificar.error(error) };
+    switch (eliminando.nivel) {
+      case 'grupo': return eliminarGrupo.mutate(eliminando.id, opciones);
+      case 'opcion': return eliminarOpcion.mutate(eliminando.id, opciones);
+      case 'documento': return eliminarDocumento.mutate(eliminando.id, opciones);
+      case 'borrador':
+        return descartarBorrador.mutate(eliminando.id, {
+          onSuccess: () => { setEliminando(null); setBorrador(null); setErrores(null); refrescarLista(); notificar.exito('Borrador descartado.'); },
+          onError: (error) => notificar.error(error),
+        });
+    }
+  };
 
   // Formularios compactos de alta.
   const [grupo, setGrupo] = useState({ clave: '', nombre: '', aplicaTipo: '', aplicaPersonalidad: '', aplicaRepresentacion: '' });
@@ -356,23 +529,44 @@ function PanelCatalogo() {
           <Card titulo={`Borrador v${borrador.version} — estructura`}>
             {arbol && arbol.grupos.length > 0 ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-                {arbol.grupos.map((g) => (
+                {arbol.grupos.map((g) => {
+                  const totalDocs = g.opciones.reduce((n, o) => n + o.documentos.length, 0);
+                  return (
                   <Box key={g.id} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 0.75, p: 1.5 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
-                      {g.nombre} <Box component="span" sx={{ color: 'text.disabled', fontWeight: 500 }}>({g.clave}
-                      {g.aplicaTipo ? ` · ${g.aplicaTipo}` : ''}{g.aplicaPersonalidad ? ` · ${g.aplicaPersonalidad}` : ''}
-                      {g.aplicaRepresentacion ? ` · ${g.aplicaRepresentacion}` : ''})</Box>
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
+                        {g.nombre} <Box component="span" sx={{ color: 'text.disabled', fontWeight: 500 }}>({g.clave}
+                        {g.aplicaTipo ? ` · ${g.aplicaTipo}` : ''}{g.aplicaPersonalidad ? ` · ${g.aplicaPersonalidad}` : ''}
+                        {g.aplicaRepresentacion ? ` · ${g.aplicaRepresentacion}` : ''})</Box>
+                      </Typography>
+                      <AccionesNodo
+                        onEditar={() => setEditando({ nivel: 'grupo', nodo: g })}
+                        onEliminar={() => setEliminando({ nivel: 'grupo', id: g.id, titulo: 'Quitar grupo', mensaje: `Se eliminará «${g.clave}» con sus ${g.opciones.length} opción(es) y ${totalDocs} documento(s). Esta acción no se puede deshacer.` })}
+                      />
+                    </Box>
                     {g.opciones.map((o) => (
                       <Box key={o.id} sx={{ pl: 2, mt: 0.75 }}>
-                        <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>◦ {o.nombre} ({o.clave})</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>◦ {o.nombre} ({o.clave})</Typography>
+                          <AccionesNodo
+                            onEditar={() => setEditando({ nivel: 'opcion', nodo: o })}
+                            onEliminar={() => setEliminando({ nivel: 'opcion', id: o.id, titulo: 'Quitar opción', mensaje: `Se eliminará «${o.clave}» con sus ${o.documentos.length} documento(s). Esta acción no se puede deshacer.` })}
+                          />
+                        </Box>
                         {o.documentos.map((d) => (
-                          <Typography key={d.id} sx={{ fontSize: 12, color: 'text.secondary', pl: 2 }}>· {d.nombre}</Typography>
+                          <Box key={d.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, pl: 2 }}>
+                            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>· {d.nombre}</Typography>
+                            <AccionesNodo
+                              onEditar={() => setEditando({ nivel: 'documento', nodo: d })}
+                              onEliminar={() => setEliminando({ nivel: 'documento', id: d.id, titulo: 'Quitar documento', mensaje: `Se eliminará «${d.nombre}». Esta acción no se puede deshacer.` })}
+                            />
+                          </Box>
                         ))}
                       </Box>
                     ))}
                   </Box>
-                ))}
+                  );
+                })}
               </Box>
             ) : (
               <Typography variant="body2" sx={{ color: 'text.disabled', mb: 2 }}>Sin grupos todavía.</Typography>
@@ -508,8 +702,60 @@ function PanelCatalogo() {
                 Publicar y activar
               </Button>
               <Button variant="text" onClick={() => { setBorrador(null); setErrores(null); }}>Descartar sesión</Button>
+              <Button
+                variant="text"
+                color="error"
+                sx={{ ml: 'auto' }}
+                onClick={() => setEliminando({ nivel: 'borrador', id: borrador.id, titulo: 'Descartar borrador', mensaje: `Se eliminará el borrador v${borrador.version} con toda su estructura. Esta acción no se puede deshacer.` })}
+              >
+                Descartar borrador
+              </Button>
             </Box>
           </Card>
+
+          {editando?.nivel === 'grupo' ? (
+            <EditarGrupoDialog
+              grupo={editando.nodo}
+              pendiente={editarGrupo.isPending}
+              onClose={() => setEditando(null)}
+              onGuardar={(payload) => editarGrupo.mutate(
+                { id: editando.nodo.id, ...payload },
+                { onSuccess: trasCambioEstructura, onError: (error) => notificar.error(error) },
+              )}
+            />
+          ) : null}
+          {editando?.nivel === 'opcion' ? (
+            <EditarOpcionDialog
+              opcion={editando.nodo}
+              pendiente={editarOpcion.isPending}
+              onClose={() => setEditando(null)}
+              onGuardar={(payload) => editarOpcion.mutate(
+                { id: editando.nodo.id, ...payload },
+                { onSuccess: trasCambioEstructura, onError: (error) => notificar.error(error) },
+              )}
+            />
+          ) : null}
+          {editando?.nivel === 'documento' ? (
+            <EditarDocumentoDialog
+              documento={editando.nodo}
+              pendiente={editarDocumento.isPending}
+              onClose={() => setEditando(null)}
+              onGuardar={(payload) => editarDocumento.mutate(
+                { id: editando.nodo.id, ...payload },
+                { onSuccess: trasCambioEstructura, onError: (error) => notificar.error(error) },
+              )}
+            />
+          ) : null}
+
+          <ConfirmDialog
+            open={Boolean(eliminando)}
+            titulo={eliminando?.titulo ?? ''}
+            mensaje={eliminando?.mensaje ?? ''}
+            textoConfirmar={eliminando?.nivel === 'borrador' ? 'Descartar borrador' : 'Eliminar'}
+            pendiente={eliminando_pendiente}
+            onClose={() => setEliminando(null)}
+            onConfirm={confirmarEliminacion}
+          />
         </>
       )}
     </Box>

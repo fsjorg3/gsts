@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { actualizarEvidenciaSchema } from '@sicef/contracts';
-import { NfsStorage } from '../../infrastructure/storage/nfs-storage.js';
-import { withBusinessTransaction } from '../../infrastructure/database/prisma.js';
-import { auditarUsuario } from '../auditoria/service.js';
-import { requestContext } from '../../shared/request-context.js';
-import { AppError } from '../../shared/errors.js';
-import { routeParam } from '../../api/shared/params.js';
+import { actualizarEvidenciaSchema } from '@gsts/contracts';
+import { NfsStorage } from '../../../infrastructure/storage/nfs-storage.js';
+import { withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
+import { auditarUsuario } from '../../auditoria/service.js';
+import { requestContext } from '../../../shared/request-context.js';
+import { AppError } from '../../../shared/errors.js';
+import { routeParam } from '../../../api/shared/params.js';
 
 const evidenciaSchema = z.object({ opcionDocumentoId: z.string().uuid(), nombreOriginal: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(100), contenidoBase64: z.string().min(1).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'El archivo debe estar codificado en Base64') });
 

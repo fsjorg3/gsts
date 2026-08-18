@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { guardarConfiguracionConstanciaSchema } from '@sicef/contracts';
-import { sumarDias } from '../../src/modules/constancias/constancias.router.js';
+import { guardarConfiguracionConstanciaSchema } from '@gsts/contracts';
+import { sumarDias } from '../../src/modules/constancias/constancias/constancias.router.js';
 
 describe('guardarConfiguracionConstanciaSchema', () => {
   it('acepta una configuración completa', () => {

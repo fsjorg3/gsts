@@ -10,6 +10,7 @@ import { useNotificar } from '@/store/useNotificar';
 import { EstadoDeBadge, ESTADO_TRAMITE, MsIcon } from '@/shared/components';
 import { catalogoVistaPreviaOptions, gruposAplicables } from '@/features/catalogos/api';
 import { ChecklistRequisitos, checklistSatisfecho } from '@/features/evidencias/ChecklistRequisitos';
+import { tieneValidacionInicial } from '@/features/validaciones/api';
 import { folioTramite, tramiteOptions, useTransicionarTramite, type TramiteDetalle } from '../api';
 import { PasoAprobacion } from '../components/PasoAprobacion';
 import { PasoCobro } from '../components/PasoCobro';
@@ -106,9 +107,7 @@ export function TramiteWizard() {
 
   // Acción primaria contextual del pie. Las guardas duras las impone la BD;
   // aquí sólo se anticipan para una UX clara (un 409 igualmente se traduce).
-  const validacionInicialOk =
-    tramite.tipoConstancia !== 'NO_ADEUDO' ||
-    tramite.validaciones.some((v) => v.momento === 'VALIDACION_INICIAL' && v.resultado === 'SIN_ADEUDO');
+  const validacionInicialOk = tieneValidacionInicial(tramite);
   const plazoVencido = tramite.plazoPagoHasta ? new Date(tramite.plazoPagoHasta).getTime() < Date.now() : false;
 
   let primario: { label: string; icon: string; disabled: boolean; onClick: () => void } | null = null;
@@ -221,7 +220,9 @@ export function TramiteWizard() {
         ) : null}
         {paso === 1 && !terminadoMal && !validacionInicialOk ? (
           <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'text.disabled' }}>
-            Registra el resultado del cruce OUC para poder aprobar.
+            {tramite.tipoConstancia === 'NO_ADEUDO'
+              ? 'Registra el resultado del cruce OUC para poder aprobar.'
+              : 'Registra la búsqueda en el padrón para poder aprobar.'}
           </Typography>
         ) : null}
         {!terminadoMal && paso >= 1 && paso <= 3 && (tramite.estado === 'EN_VALIDACION' || tramite.estado === 'APROBADO') ? (

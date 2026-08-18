@@ -1,4 +1,4 @@
-import type { VerificacionConstanciaPublica } from '@sicef/contracts';
+import type { VerificacionConstanciaPublica } from '@gsts/contracts';
 
 // Decisión de la verificación pública, aislada del router para poder probarla
 // sin base de datos ni HTTP. El router sólo consulta, delega aquí y responde.

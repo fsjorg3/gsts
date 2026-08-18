@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { armarSerieMensual, calcularKpis, porcentaje, type ConteosMetricas } from '../../src/modules/direccion/metricas.js';
+import { armarSerieMensual, calcularKpis, porcentaje, type ConteosMetricas } from '../../src/modules/constancias/direccion/metricas.js';
 
 const CONTEOS_BASE: ConteosMetricas = {
   constanciasEmitidas: 0,

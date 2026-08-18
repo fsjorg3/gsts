@@ -4,15 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-SICEF: sistema para emitir constancias de no adeudo / no registro (SOAPAP). Monorepo npm workspaces:
+GSTS: la plataforma de la Gerencia de Supervisión Técnica de los Servicios (SOAPAP). Constancias
+de no adeudo / no registro es su primer dominio — Atención Ciudadana (quejas) es la siguiente idea,
+todavía no construida. Monorepo npm workspaces:
 
 - `backend/` — Express 5 + Prisma 7 + PostgreSQL.
-- `packages/contracts/` — `@sicef/contracts`, esquemas Zod / DTOs compartidos.
+- `packages/contracts/` — `@gsts/contracts`, esquemas Zod / DTOs compartidos.
 - `frontend/` — Vite 8 + React 19 + MUI 9 + react-router 8 + TanStack Query + Redux Toolkit. Tres módulos, todos contra la API real: Ventanilla, Administración y Bitácora.
 
-**La facturación no vive aquí.** Se extrajo a un sistema independiente («Finanzas»), con su propio repositorio, backend, frontend y base de datos, desplegado en otra VM/LXC — porque SOAPAP debe facturar también permisos de descarga y penalizaciones, que no cuelgan de un trámite de constancia. SICEF conserva el cobro (es lo que habilita la entrega de la constancia en ventanilla) pero no emite CFDI. El diseño de ambos sistemas está en `documentacion2/`.
+**La facturación no vive aquí.** Se extrajo a un sistema independiente («Finanzas»), con su propio repositorio, backend, frontend y base de datos, desplegado en otra VM/LXC — porque SOAPAP debe facturar también permisos de descarga y penalizaciones, que no cuelgan de un trámite de constancia. GSTS conserva el cobro (es lo que habilita la entrega de la constancia en ventanilla) pero no emite CFDI. El diseño de ambos sistemas está en `documentacion2/`.
 
-SICEF expone a Finanzas **tres rutas de sólo lectura** y no consume nada de él: `GET /constancias/{folio}/cobro`, `GET /constancias/{folio}/cobro/comprobante` y `GET /direccion/metricas`. Se llavean por el folio de la constancia —único e impreso en el documento—, nunca por `cobro.referenciaPago`, que es texto libre, opcional y sin unicidad.
+GSTS expone a Finanzas **tres rutas de sólo lectura** y no consume nada de él: `GET /constancias/{folio}/cobro`, `GET /constancias/{folio}/cobro/comprobante` y `GET /direccion/metricas`. Se llavean por el folio de la constancia —único e impreso en el documento—, nunca por `cobro.referenciaPago`, que es texto libre, opcional y sin unicidad.
 
 Fuera de alcance: la integración OUC (sólo se define su puerto en `backend/src/infrastructure/ouc`) y el Servicio de Firma (retirado del flujo: su cliente HTTP se conserva sin uso).
 
@@ -45,11 +47,11 @@ Both apps refuse to run without their env: backend valida todo en [env.ts](backe
 
 ## Backend architecture
 
-Monolito modular. Each domain module in `backend/src/modules/` owns its router/validators; modules never call each other over HTTP. Everything mounts under `/api/v1` in [router.ts](backend/src/api/router.ts) — note the mounting order: specialized `/tramites/:tramiteId/...` sub-routers (evidencias, validaciones, borradores-cobro, cobros, constancias) are mounted **before** the generic `/tramites` router, each with its own auth + role middleware chain.
+Monolito modular. `backend/src/modules/` se divide en transversales de primer nivel (`auth/`, `auditoria/`, `actores/`, `sistema/`, `personas/`, `bitacora/` — lo que un dominio futuro como `quejas/` necesitará igual) y de dominio bajo `modules/constancias/` (`administracion/`, `catalogos/`, `cobros/`, `constancias/`, `direccion/`, `evidencias/`, `motivos-reduccion/`, `publico/`, `tramites/`, `validaciones/`). Each domain module owns its router/validators; modules never call each other over HTTP. Everything mounts under `/api/v1` in [router.ts](backend/src/api/router.ts) — note the mounting order: specialized `/tramites/:tramiteId/...` sub-routers (evidencias, validaciones, borradores-cobro, cobros, constancias) are mounted **before** the generic `/tramites` router, each with its own auth + role middleware chain.
 
 ### Request flow for internal routes
 
-1. `createAuthenticate(env)` ([auth/middleware.ts](backend/src/modules/auth/middleware.ts)) verifies the Keycloak JWT (realm `SOAPAP`, client/audience `sicef`) via JWKS. Roles come straight from claims — `ventanilla` y los de service account `consulta-cobros`/`consulta-metricas` from `resource_access.sicef.roles`, `ti`/`direccion` from `realm_access.roles` — and are never persisted or mapped to local roles. El rol `finanzas` **ya no existe en SICEF**: pertenece al otro sistema, y un token que sólo lo traiga recibe `403 MISSING_ROLE`.
+1. `createAuthenticate(env)` ([auth/middleware.ts](backend/src/modules/auth/middleware.ts)) verifies the Keycloak JWT (realm `SOAPAP`, client/audience `gsts`) via JWKS. Roles come straight from claims — `ventanilla` y los de service account `consulta-cobros`/`consulta-metricas` from `resource_access.gsts.roles`, `ti`/`direccion` from `realm_access.roles` — and are never persisted or mapped to local roles. El rol `finanzas` **ya no existe en GSTS**: pertenece al otro sistema, y un token que sólo lo traiga recibe `403 MISSING_ROLE`.
 2. `bindActor` upserts a pseudonymous `actor` row keyed only by `sub` (`resolveActor`). No name/email/roles are ever stored.
 3. `requireRoles(...)` gates by claim.
 4. Handlers build a `DatabaseContext` via `requestContext(request)` and run mutations inside `withBusinessTransaction` ([prisma.ts](backend/src/infrastructure/database/prisma.ts)), which sets `app.actor_id`, `app.roles`, `app.request_id` with `set_config(..., true)` so SQL triggers can enforce/audit.
@@ -67,15 +69,15 @@ The database installs in **two steps**: `backend/prisma/migrations/` holds only 
 
 `backend/src/infrastructure/`: `storage/` (NFS paths + hashes para evidencias/constancias/comprobantes — evidencias y comprobantes llegan Base64 dentro del JSON, de ahí el límite de body de 42mb; `leerPorUuid` sirve a los comprobantes, que se guardan por UUID sin columna `ruta`), `signing/` (cliente del Servicio de Firma — **sin uso**: el servicio quedó fuera del proyecto tentativamente, así que la emisión no firma y `firmaDigital`/`certificadoId` quedan en `null`; se conserva por si vuelve), `ouc/` (port only).
 
-El comprobante de pago es **el ticket de la terminal bancaria** (única forma de pago en SOAPAP) o el comprobante de la transferencia: el ciudadano lo trae, ventanilla lo adjunta al cobrar. SICEF no emite ningún ticket ni acuse; el único documento que produce es el PDF de la constancia.
+El comprobante de pago es **el ticket de la terminal bancaria** (única forma de pago en SOAPAP) o el comprobante de la transferencia: el ciudadano lo trae, ventanilla lo adjunta al cobrar. GSTS no emite ningún ticket ni acuse; el único documento que produce es el PDF de la constancia.
 
-**La constancia es la excepción: el backend la genera, no la recibe.** `backend/src/modules/constancias/plantillas/` renderiza el PDF con PDFKit y estampa el QR de verificación. `documento.ts` tiene la maquetación común (membrete, identificación, firma, `C.c.p.`) y cada tipo aporta sólo su título y sus párrafos. Esos párrafos son **transcripción literal** de `documentacion/constancia_no-registro.txt` y `constancia_no-adeudo.txt`, a su vez transcritos del documento que SOAPAP emite hoy: no se parafrasean ni se «corrigen», y una prueba los compara palabra por palabra. El registro `PLANTILLAS` sigue siendo parcial a propósito, para que un tipo nuevo sin texto aprobado responda `409 TEMPLATE_NOT_CONFIGURED` en vez de inventar contenido. Los logotipos institucionales están en `backend/recursos/logotipos/`, fuera de `src/`, y se resuelven relativo al módulo: `dist/` espeja `src/`, así que la misma ruta sirve en dev y en producción sin pasos de build. La vigencia y el firmante impresos salen de `ConfiguracionConstancia` (una fila por tipo, sin valores por defecto).
+**La constancia es la excepción: el backend la genera, no la recibe.** `backend/src/modules/constancias/constancias/plantillas/` renderiza el PDF con PDFKit y estampa el QR de verificación. `documento.ts` tiene la maquetación común (membrete, identificación, firma, `C.c.p.`) y cada tipo aporta sólo su título y sus párrafos. Esos párrafos son **transcripción literal** de `documentacion/constancia_no-registro.txt` y `constancia_no-adeudo.txt`, a su vez transcritos del documento que SOAPAP emite hoy: no se parafrasean ni se «corrigen», y una prueba los compara palabra por palabra. El registro `PLANTILLAS` sigue siendo parcial a propósito, para que un tipo nuevo sin texto aprobado responda `409 TEMPLATE_NOT_CONFIGURED` en vez de inventar contenido. Los logotipos institucionales están en `backend/recursos/logotipos/`, fuera de `src/`, y se resuelven relativo al módulo: `dist/` espeja `src/`, así que la misma ruta sirve en dev y en producción sin pasos de build. La vigencia y el firmante impresos salen de `ConfiguracionConstancia` (una fila por tipo, sin valores por defecto).
 
 ## The API contract is the seam
 
 Two artifacts define the backend⇄frontend boundary and must stay in sync:
 
-- `@sicef/contracts` (`packages/contracts/src/index.ts`) — Zod schemas / DTOs used for API validation. Add request/response schemas there, not inline in routers.
+- `@gsts/contracts` (`packages/contracts/src/index.ts`) — Zod schemas / DTOs used for API validation. Add request/response schemas there, not inline in routers.
 - [openapi.ts](backend/src/api/openapi.ts) — documento OpenAPI escrito a mano que registra cada schema (vía `zodToJsonSchema`) y cada path; se sirve en `GET /api/v1/openapi.json`. Los pocos requests que un router valida con un schema local tienen aquí un *mirror* explícito.
 
 `backend/tests/contract/openapi.test.ts` mantiene un inventario literal `[método, ruta]`: **agregar o renombrar una ruta rompe esa prueba hasta que se actualice `openapi.ts`**. El frontend consume ese documento con `npm run gen:api` → `frontend/src/api/schema.d.ts`, y todos sus tipos salen de ahí (`components['schemas']['Tramite']`), nunca se redeclaran a mano.
@@ -104,14 +106,14 @@ Convenciones de alambre: éxito `{ data, requestId? }`, listas `{ data, meta.nex
 
 En `documentacion2/` (estado destino tras la separación; **prevalecen** sobre `documentacion/` donde discrepen):
 
-- `SISTEMA_SICEF.md` — qué queda de SICEF, con su ERD, máquinas de estado y plan de recorte.
+- `SISTEMA_GSTS.md` — qué queda de GSTS, con su ERD, máquinas de estado y plan de recorte.
 - `SISTEMA_FINANZAS.md` — diseño del sistema de facturación independiente, aún no construido.
-- `sicef_erd.html` / `finanzas_erd.html` — ERD interactivos con atributos, sin conexión.
+- `gsts_erd.html` / `finanzas_erd.html` — ERD interactivos con atributos, sin conexión.
 
 En `documentacion/` (autoritativos para lo que no tocó el recorte):
 
-- `CONTRATO_API_SICEF.md` — contrato de la API, máquinas de estado y catálogo de códigos de error.
+- `CONTRATO_API_GSTS.md` — contrato de la API, máquinas de estado y catálogo de códigos de error.
 - `PENDIENTES_BACKEND_FRONTEND.md` — backlog vivo de endpoints que el frontend necesita y el backend aún no expone.
 - `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` — modelo de datos y reglas de versionado de catálogos.
-- `STACK_BACKEND_SICEF.md` / `STACK_FRONTEND_SICEF.md` — decisiones de stack, variables de entorno, criterios de aceptación.
+- `STACK_BACKEND_GSTS.md` / `STACK_FRONTEND_GSTS.md` — decisiones de stack, variables de entorno, criterios de aceptación.
 - `GUIA_DESPLIEGUE_BASE_DATOS.md` e `init_postgres_soapap3.sql` — roles, aislamiento y permisos de PostgreSQL.

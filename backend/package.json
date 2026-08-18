@@ -1,5 +1,5 @@
 {
-  "name": "@sicef/backend",
+  "name": "@gsts/backend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -16,7 +16,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
-    "@sicef/contracts": "file:../packages/contracts",
+    "@gsts/contracts": "file:../packages/contracts",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",

@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Inicialización del PostgreSQL centralizado — SOAPAP
 -- Servidor: postgres-central (VM 110) · 172.16.1.45 · PostgreSQL 18
--- Alcance de esta versión: solo SICEF
+-- Alcance de esta versión: solo GSTS
 -- =============================================================================
 --
 -- EJECUCIÓN EN UN SERVIDOR NUEVO (roles y base aún no existen):
@@ -21,7 +21,7 @@
 --      DATABASE_URL de sicef_owner. La migración inicial ya incluye las
 --      reglas SQL complementarias.
 --   2. Asigna el claim de realm `ti` al primer administrador en Keycloak y
---      configura configuracion_plazos con valores positivos desde SICEF.
+--      configura configuracion_plazos con valores positivos desde GSTS.
 --   3. Para la aplicación en runtime, usa DATABASE_URL de sicef_app.
 --
 -- PRE-REQUISITO (obligatorio):
@@ -173,7 +173,7 @@ ORDER BY datname;
 --   GRANT  CONNECT ON DATABASE correspondencia_db TO correspondencia_owner;
 --
 -- TURNERO / SGD
---   Aplicar el mismo patrón owner/app/ro de SICEF cuando se desarrollen.
+--   Aplicar el mismo patrón owner/app/ro de GSTS cuando se desarrollen.
 --
 -- KEYCLOAK
 --   Decisión tomada: NO se muda. Conserva su BD en el LXC 203.

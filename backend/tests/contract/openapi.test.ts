@@ -44,7 +44,7 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   ['get', '/bitacora'],
   ['get', '/tramites'], ['post', '/tramites'], ['get', '/tramites/{id}'], ['post', '/tramites/{id}/{accion}'],
   ['post', '/tramites/{id}/evidencias'], ['patch', '/tramites/{id}/evidencias/{evidenciaId}'],
-  ['post', '/tramites/{id}/validaciones/no-adeudo'],
+  ['post', '/tramites/{id}/validaciones/no-adeudo'], ['post', '/tramites/{id}/validaciones/no-registro'],
   ['get', '/tramites/{id}/borradores-cobro'], ['post', '/tramites/{id}/borradores-cobro'],
   ['patch', '/tramites/{id}/borradores-cobro/{borradorId}'], ['post', '/tramites/{id}/borradores-cobro/{borradorId}/aplicar'],
   ['post', '/tramites/{id}/cobros'], ['post', '/tramites/{id}/constancias'],
@@ -63,7 +63,7 @@ const RUTAS_CON_REQUEST_BODY = new Set([
   'post /personas', 'post /motivos-reduccion', 'patch /motivos-reduccion/{id}',
   'put /administracion/constancias/{tipo}',
   'post /tramites', 'post /tramites/{id}/evidencias', 'patch /tramites/{id}/evidencias/{evidenciaId}',
-  'post /tramites/{id}/validaciones/no-adeudo',
+  'post /tramites/{id}/validaciones/no-adeudo', 'post /tramites/{id}/validaciones/no-registro',
   'post /tramites/{id}/borradores-cobro', 'patch /tramites/{id}/borradores-cobro/{borradorId}',
   'post /tramites/{id}/cobros',
 ]);

@@ -1,8 +1,8 @@
-# Guía de despliegue de la base de datos SICEF
+# Guía de despliegue de la base de datos GSTS
 
 ## 1. Propósito
 
-Este documento describe, paso a paso, cómo dejar operativa la base `sicef_db` desde cero: desde `init_postgres_soapap3.sql` (roles, base, aislamiento y permisos) hasta `backend/prisma/migration_complementaria.sql` (reglas de integridad que Prisma no expresa). Complementa a `STACK_BACKEND_SICEF.md` y `GUIA_MODELO_SICNAF_Y_CATALOGOS.md`: aquellos explican el *qué* y el *por qué*; este explica el *cómo*, en orden, incluyendo los errores operativos ya detectados y su corrección.
+Este documento describe, paso a paso, cómo dejar operativa la base `sicef_db` desde cero: desde `init_postgres_soapap3.sql` (roles, base, aislamiento y permisos) hasta `backend/prisma/migration_complementaria.sql` (reglas de integridad que Prisma no expresa). Complementa a `STACK_BACKEND_GSTS.md` y `GUIA_MODELO_SICNAF_Y_CATALOGOS.md`: aquellos explican el *qué* y el *por qué*; este explica el *cómo*, en orden, incluyendo los errores operativos ya detectados y su corrección.
 
 Tres archivos intervienen, en este orden estricto:
 
@@ -193,7 +193,7 @@ locale es_MX.UTF-8 verificado
   → verificar triggers/funciones/índices/permisos
   → API con DATABASE_URL de sicef_app: /health y /ready en verde
   → asignar claim de realm `ti` al primer administrador en Keycloak
-  → configurar configuracion_plazos con valores positivos desde SICEF
+  → configurar configuracion_plazos con valores positivos desde GSTS
 ```
 
 ## 9. Notas de seguridad

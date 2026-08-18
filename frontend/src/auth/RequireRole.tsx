@@ -2,11 +2,11 @@ import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { MsIcon } from '@/shared/components';
-import { useAuth, type RolSicef } from './useAuth';
+import { useAuth, type RolGsts } from './useAuth';
 
 // Guard de ruta por rol. Los roles vienen de GET /auth/me; un rol en la fuente
 // equivocada del token simplemente no llega aquí.
-export function RequireRole({ roles, children }: { roles: RolSicef[]; children: ReactNode }) {
+export function RequireRole({ roles, children }: { roles: RolGsts[]; children: ReactNode }) {
   const { cargando, tieneRol } = useAuth();
 
   if (cargando) return null;

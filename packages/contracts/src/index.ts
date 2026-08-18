@@ -163,6 +163,9 @@ export const estadoEvidenciaSchema = z.enum(['CARGADO', 'VALIDADO', 'RECHAZADO']
 export const metodoValidacionSchema = z.enum(['MANUAL', 'API']);
 export const momentoValidacionSchema = z.enum(['VALIDACION_INICIAL', 'REVALIDACION_COBRO']);
 export const resultadoValidacionSchema = z.enum(['SIN_ADEUDO', 'CON_ADEUDO']);
+// Enum aparte del de no adeudo, no un alias: así SIN_ADEUDO es inexpresable en
+// una validación de no registro y viceversa, sin reglas cruzadas que lo cuiden.
+export const resultadoValidacionRegistroSchema = z.enum(['SIN_REGISTRO', 'CON_REGISTRO']);
 export const tipoConfirmacionSchema = z.enum(['SIN_ADEUDO_OUC', 'FIRMAS_LEGIBLES', 'FACULTADES_PODER']);
 export const metodoPagoSchema = z.enum(['PUE', 'PPD']);
 export const perteneceASchema = z.enum(['JUNTA_AUXILIAR', 'MUNICIPIO']);
@@ -372,6 +375,27 @@ export const evidenciaDto = z.object({
   createdAt: z.string(),
 });
 
+// --- Validaciones sustantivas: el hecho verificado que sostiene cada tipo ---
+// La aprobación y el cobro de un trámite exigen una de estas filas con el
+// resultado favorable; la regla dura vive en fn_tramite_transicion_valida.
+// `metodo` es siempre MANUAL por ahora: el puerto OUC no tiene implementación.
+
+export const validacionRequestSchema = z.object({
+  metodo: metodoValidacionSchema,
+  momento: momentoValidacionSchema,
+  resultado: resultadoValidacionSchema,
+  adeudoMonto: z.coerce.number().nonnegative().optional(),
+  referenciaOuc: z.string().trim().min(1).max(255).optional(),
+});
+
+// Sin adeudoMonto: no hay monto que registrar cuando el predio no tiene cuenta.
+export const validacionNoRegistroRequestSchema = z.object({
+  metodo: metodoValidacionSchema,
+  momento: momentoValidacionSchema,
+  resultado: resultadoValidacionRegistroSchema,
+  referenciaOuc: z.string().trim().min(1).max(255).optional(),
+});
+
 export const validacionNoAdeudoDto = z.object({
   id: z.string().uuid(),
   tramiteId: z.string().uuid(),
@@ -379,6 +403,17 @@ export const validacionNoAdeudoDto = z.object({
   momento: momentoValidacionSchema,
   resultado: resultadoValidacionSchema,
   adeudoMonto: z.string().nullable(),
+  referenciaOuc: z.string().nullable(),
+  validadoPorId: z.string().uuid().nullable(),
+  validadoAt: z.string(),
+});
+
+export const validacionNoRegistroDto = z.object({
+  id: z.string().uuid(),
+  tramiteId: z.string().uuid(),
+  metodo: metodoValidacionSchema,
+  momento: momentoValidacionSchema,
+  resultado: resultadoValidacionRegistroSchema,
   referenciaOuc: z.string().nullable(),
   validadoPorId: z.string().uuid().nullable(),
   validadoAt: z.string(),
@@ -490,7 +525,11 @@ export const tramiteConPersonasDto = tramiteDto.extend({ personas: z.array(trami
 export const tramiteDetalleDto = tramiteDto.extend({
   personas: z.array(tramitePersonaConPersonaDto),
   evidencias: z.array(evidenciaDto),
-  validaciones: z.array(validacionNoAdeudoDto),
+  // Un trámite sólo puede llenar el arreglo de su propio tipo; el otro llega
+  // vacío. Antes este campo se llamaba `validaciones` a secas y significaba
+  // «las de no adeudo», lo que dejó de leerse solo al aparecer el segundo tipo.
+  validacionesNoAdeudo: z.array(validacionNoAdeudoDto),
+  validacionesNoRegistro: z.array(validacionNoRegistroDto),
   confirmaciones: z.array(confirmacionManualDto),
   cobro: cobroDto.nullable(),
   constancia: constanciaDto.nullable(),

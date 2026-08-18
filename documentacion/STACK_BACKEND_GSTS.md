@@ -1,8 +1,8 @@
-# Stack backend para el monorepo SICEF
+# Stack backend para el monorepo GSTS
 
 ## 1. Propósito y alcance
 
-Esta guía define la base técnica del nuevo monorepo SICEF. El repositorio contendrá `backend` y `frontend`, pero este documento especifica solamente el backend y su relación con la infraestructura institucional.
+Esta guía define la base técnica del nuevo monorepo GSTS. El repositorio contendrá `backend` y `frontend`, pero este documento especifica solamente el backend y su relación con la infraestructura institucional.
 
 El backend será la única puerta para las operaciones de negocio. El frontend consumirá su API y nunca tendrá acceso directo a PostgreSQL, NFS, secretos, administración de Keycloak ni al Servicio de Firma.
 
@@ -20,7 +20,7 @@ Queda fuera de alcance el worker de timbrado. La API conservará los contratos, 
 | Integridad SQL | Migraciones SQL complementarias | Triggers, constraints, bitácora append-only, inmutabilidad y transiciones de estado. |
 | Pool de conexiones | PgBouncer | Limitar y reutilizar conexiones entre la API y PostgreSQL. |
 | Autenticación | Keycloak OIDC/JWKS | Verificación de tokens y SSO institucional. |
-| Autorización | Claims de Keycloak + RBAC en API | Roles literales `ventanilla`, `finanzas`, `ti` y `direccion`; SICEF no persiste roles personales. |
+| Autorización | Claims de Keycloak + RBAC en API | Roles literales `ventanilla`, `finanzas`, `ti` y `direccion`; GSTS no persiste roles personales. |
 | Archivos | NFS | Evidencias, constancias, XML y PDF mediante referencias lógicas en PostgreSQL. |
 | Seguridad HTTP | Helmet, CORS y rate limiting | Cabeceras seguras, orígenes permitidos y protección de rutas públicas. |
 | Observabilidad | Pino | Logs JSON con `request_id` y redacción de secretos o datos sensibles. |
@@ -37,7 +37,7 @@ Las operaciones que modifiquen el negocio deben usar transacciones de Prisma y c
 
 ### Integraciones y límites
 
-- **Keycloak:** realm fijo `SOAPAP`, cliente `sicef`. El backend valida emisor, audiencia, firma, vigencia y `sub`; toma `ventanilla` y `finanzas` de `resource_access.sicef.roles`, y `ti` y `direccion` de `realm_access.roles`. No transforma esos claims ni los convierte a un rol local.
+- **Keycloak:** realm fijo `SOAPAP`, cliente `gsts`. El backend valida emisor, audiencia, firma, vigencia y `sub`; toma `ventanilla` y `finanzas` de `resource_access.gsts.roles`, y `ti` y `direccion` de `realm_access.roles`. No transforma esos claims ni los convierte a un rol local.
 - **Actor mínimo:** tras validar un token autorizado, el backend resuelve o crea idempotentemente `actor` usando sólo `sub`. Ese UUID local permite FKs y auditoría; nunca se almacenan nombre, correo, contraseña, sesiones ni roles.
 - **Contexto SQL:** antes de una operación de negocio, la transacción establece `app.actor_id`, `app.roles` y `app.request_id` con `set_config(..., true)`. Es una defensa de consistencia adicional, no un sustituto de la validación OIDC en la API.
 - **NFS:** un adaptador encapsula rutas, hashes, tamaño y almacenamiento de evidencias y documentos generados.
@@ -48,64 +48,71 @@ Las operaciones que modifiquen el negocio deben usar transacciones de Prisma y c
 ## 4. Árbol de directorios
 
 ```text
-sicef/
+gsts/
 ├─ backend/
 │  ├─ src/
 │  │  ├─ api/                    # Router /api/v1, controladores y OpenAPI
 │  │  ├─ config/                 # Carga y validación de variables de entorno
-│  │  ├─ middlewares/            # Auth, RBAC, request_id, errores, rate limiting
 │  │  ├─ modules/
-│  │  │  ├─ auth/                # Validación OIDC, claims y contexto transaccional
-│  │  │  ├─ actores/             # Proyección pseudónima idempotente del sub de Keycloak
-│  │  │  ├─ catalogos/           # Requisitos, tarifas y asistente administrativo
-│  │  │  ├─ tramites/            # Captura, estados, personas y expediente
-│  │  │  ├─ evidencias/          # Metadatos y carga de archivos
-│  │  │  ├─ validaciones/        # No adeudo y confirmaciones manuales
-│  │  │  ├─ cobros/              # Borrador, validación y cobro definitivo
-│  │  │  ├─ constancias/         # Emisión, hash, firma y folio
-│  │  │  ├─ facturacion/         # Solicitud pública y consulta de CFDI
-│  │  │  ├─ verificacion-publica/# Consulta pública de constancias
-│  │  │  ├─ administracion/      # Plazos y catálogos: acceso con claim ti
-│  │  │  └─ auditoria/           # Escritura transaccional de bitácora
+│  │  │  ├─ auth/                # Validación OIDC, claims y contexto transaccional     ┐
+│  │  │  ├─ auditoria/           # Escritura transaccional de bitácora                  │ transversales
+│  │  │  ├─ actores/             # Proyección pseudónima idempotente del sub de Keycloak │ (útiles para
+│  │  │  ├─ sistema/             # Health checks                                        │ cualquier
+│  │  │  ├─ personas/            # Padrón de personas físicas/morales, compartido        │ dominio futuro)
+│  │  │  ├─ bitacora/            # Visor de auditoría global (rol ti)                    ┘
+│  │  │  └─ constancias/         # dominio: todo lo específico de constancias
+│  │  │     ├─ administracion/   # Plazos y configuración de constancias (rol ti)
+│  │  │     ├─ catalogos/        # Requisitos, tarifas y asistente administrativo
+│  │  │     ├─ cobros/           # Borrador, validación y cobro definitivo
+│  │  │     ├─ constancias/      # Emisión, hash, folio y plantillas PDF
+│  │  │     ├─ direccion/        # Indicadores del dominio
+│  │  │     ├─ evidencias/       # Metadatos y carga de archivos
+│  │  │     ├─ motivos-reduccion/# Catálogo de motivos de reducción de tarifa
+│  │  │     ├─ publico/          # Verificación pública de constancias por QR
+│  │  │     ├─ tramites/         # Captura, estados y expediente
+│  │  │     └─ validaciones/     # No adeudo / no registro y confirmaciones manuales
 │  │  ├─ infrastructure/
 │  │  │  ├─ database/            # Prisma y transacciones
 │  │  │  ├─ storage/             # Adaptador NFS
-│  │  │  ├─ keycloak/            # Cliente OIDC/JWKS
-│  │  │  ├─ signing/             # Puerto y cliente del Servicio de Firma
-│  │  │  ├─ pac/                 # Puerto para el worker futuro
-│  │  │  └─ ouc/                 # Puerto de validación de no adeudo
+│  │  │  ├─ verificacion/        # Hash de contenido y token HMAC de verificación por QR
+│  │  │  ├─ signing/             # Cliente del Servicio de Firma — sin uso, retirado del flujo
+│  │  │  └─ ouc/                 # Puerto de integración OUC (sólo definido, sin consumo)
 │  │  ├─ shared/                 # Errores, utilidades, tipos y constantes
 │  │  ├─ app.ts                  # Configura Express sin abrir el puerto
 │  │  └─ server.ts               # Arranque y apagado controlado
 │  ├─ tests/
 │  │  ├─ unit/
-│  │  ├─ integration/
+│  │  ├─ http/
 │  │  └─ contract/
 │  ├─ prisma/
 │  │  ├─ schema.prisma
-│  │  └─ migrations/
-│  │     └─ 0001_init/
-│  │        └─ migration.sql # Estructura y reglas SQL complementarias
+│  │  ├─ migrations/                    # Sólo estructura generada por Prisma
+│  │  ├─ migration_complementaria.sql   # Triggers, CHECKs, reglas de negocio a mano
+│  │  └─ verificacion_integridad.sql    # Única forma de probar la SQL complementaria
 │  ├─ .env                       # Local; nunca se versiona
 │  └─ .env.example               # Plantilla sin secretos
 ├─ frontend/                     # Consumidor de la API; fuera de este documento
 ├─ packages/
-│  ├─ contracts/                 # DTOs, esquemas Zod y tipos compartidos
-│  ├─ eslint-config/
-│  └─ tsconfig/
-├─ docs/
-│  └─ openapi/
+│  └─ contracts/                 # @gsts/contracts: DTOs, esquemas Zod y tipos compartidos
+├─ documentacion/
+├─ documentacion2/
 └─ package.json
 ```
+
+**Nota (2026):** este árbol refleja la estructura real tras la reestructuración de módulos — ver
+`documentacion2/MIGRACION_GSTS.md §7` para el criterio de partición transversal/dominio. `facturacion/`
+y `verificacion-publica/` de una versión anterior de este documento ya no existen como tales: la
+facturación se extrajo por completo al sistema Finanzas, y la verificación pública de constancias vive
+en `modules/constancias/publico/`.
 
 ## 5. Fuente de datos y migraciones
 
 El nuevo monorepo reutilizará como fuente de datos los siguientes artefactos trabajados en este proyecto:
 
-- `backend/prisma/schema.prisma`;
-- `backend/prisma/migrations/0001_init/migration.sql`, que incluye la estructura y las reglas SQL complementarias.
+- `backend/prisma/schema.prisma` y `backend/prisma/migrations/` — sólo la estructura generada por Prisma;
+- `backend/prisma/migration_complementaria.sql` — reglas de negocio escritas a mano (CHECKs, índices únicos parciales, triggers de inmutabilidad y de transición de estado), instalado en un paso **aparte**, después de las migraciones de Prisma.
 
-La migración inicial incorpora la estructura y las reglas complementarias en un solo artefacto desplegable. En producción se aplica con una cuenta de migración (`sicef_owner`); la API se ejecuta con la cuenta limitada `sicef_app` a través de PgBouncer.
+`prisma migrate deploy` sólo instala la estructura; la SQL complementaria se corre por separado. En producción ambos pasos se aplican con una cuenta de migración (`sicef_owner`); la API se ejecuta con la cuenta limitada `sicef_app` a través de PgBouncer.
 
 No usar `prisma migrate dev` en producción. Usar `prisma migrate deploy` con las migraciones previamente revisadas y probadas en un entorno de staging.
 
@@ -129,15 +136,14 @@ DIRECT_DATABASE_URL=postgresql://sicef_owner:<PASSWORD>@<POSTGRES_HOST>:5432/sic
 # Keycloak
 KEYCLOAK_ISSUER_URL=https://<KEYCLOAK_HOST>/realms/SOAPAP
 KEYCLOAK_JWKS_URL=https://<KEYCLOAK_HOST>/realms/SOAPAP/protocol/openid-connect/certs
-KEYCLOAK_CLIENT_ID=sicef
-KEYCLOAK_AUDIENCE=sicef
+KEYCLOAK_CLIENT_ID=gsts
+KEYCLOAK_AUDIENCE=gsts
 
-# Archivos NFS
-NFS_BASE_PATH=/mnt/sicef
-NFS_EVIDENCIAS_PATH=/mnt/sicef/evidencias
-NFS_CONSTANCIAS_PATH=/mnt/sicef/constancias
-NFS_FACTURAS_PATH=/mnt/sicef/facturas
-NFS_COMPROBANTES_PATH=/mnt/sicef/comprobantes
+# Archivos NFS (namespaceadas por dominio: si "quejas" llega a necesitar NFS, sería /mnt/gsts/quejas/... al lado)
+NFS_BASE_PATH=/mnt/gsts
+NFS_EVIDENCIAS_PATH=/mnt/gsts/constancias/evidencias
+NFS_CONSTANCIAS_PATH=/mnt/gsts/constancias/constancias
+NFS_COMPROBANTES_PATH=/mnt/gsts/constancias/comprobantes
 MAX_EVIDENCIA_TOTAL_BYTES=31457280
 
 # Servicio de Firma

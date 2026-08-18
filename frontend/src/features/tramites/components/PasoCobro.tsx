@@ -13,7 +13,7 @@ import { useNotificar } from '@/store/useNotificar';
 import { esApiError } from '@/api/errors';
 import { formatMxn } from '@/api/serializers';
 import { MsIcon } from '@/shared/components';
-import { useRegistrarValidacion } from '@/features/validaciones/api';
+import { tieneRevalidacion, tieneRevalidacionNegativa, useRegistrarValidacion, useRegistrarValidacionNoRegistro } from '@/features/validaciones/api';
 import { borradoresOptions, tarifasActivasOptions, useAplicarBorrador, useCobroDirecto, useGuardarBorrador } from '@/features/cobros/api';
 import { useEmitirConstancia } from '@/features/constancias/api';
 import { MIME_PERMITIDOS } from '@/features/evidencias/api';
@@ -52,12 +52,33 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
   const notificar = useNotificar();
   const enCobro = tramite.estado === 'COBRO';
 
-  // --- Revalidación (sólo NO_ADEUDO, antes de cobrar) ---
+  // --- Revalidación antes de cobrar (ambos tipos la requieren) ---
+  // Cada tipo revalida contra su propio hecho (adeudo o registro) y su propio
+  // endpoint; los predicados eligen el arreglo y el resultado por tipo.
+  const esNoAdeudo = tramite.tipoConstancia === 'NO_ADEUDO';
   const registrarValidacion = useRegistrarValidacion(tramite.id);
-  const revalidada = tramite.validaciones.some((v) => v.momento === 'REVALIDACION_COBRO' && v.resultado === 'SIN_ADEUDO');
-  const revalidadaConAdeudo = tramite.validaciones.some((v) => v.momento === 'REVALIDACION_COBRO' && v.resultado === 'CON_ADEUDO');
-  const requiereRevalidacion = tramite.tipoConstancia === 'NO_ADEUDO' && !enCobro;
-  const puedeCobrar = enCobro ? false : tramite.tipoConstancia !== 'NO_ADEUDO' || revalidada;
+  const registrarNoRegistro = useRegistrarValidacionNoRegistro(tramite.id);
+  const revalidando = registrarValidacion.isPending || registrarNoRegistro.isPending;
+  const revalidada = tieneRevalidacion(tramite);
+  const revalidadaConHallazgo = tieneRevalidacionNegativa(tramite);
+  const requiereRevalidacion = !enCobro;
+  const puedeCobrar = enCobro ? false : revalidada;
+
+  // Registra la revalidación al cobro en el endpoint correcto según el tipo.
+  const registrarRevalidacion = (positivo: boolean) => {
+    const alTerminar = {
+      onSuccess: () =>
+        positivo
+          ? notificar.exito(esNoAdeudo ? 'Revalidación registrada: sin adeudo.' : 'Revalidación registrada: sin registro.')
+          : notificar.info(esNoAdeudo ? 'Adeudo sobrevenido registrado.' : 'Registro sobrevenido registrado.'),
+      onError: (error: unknown) => notificar.error(error),
+    };
+    if (esNoAdeudo) {
+      registrarValidacion.mutate({ momento: 'REVALIDACION_COBRO', resultado: positivo ? 'SIN_ADEUDO' : 'CON_ADEUDO' }, alTerminar);
+    } else {
+      registrarNoRegistro.mutate({ momento: 'REVALIDACION_COBRO', resultado: positivo ? 'SIN_REGISTRO' : 'CON_REGISTRO' }, alTerminar);
+    }
+  };
 
   // --- Cobro ---
   const tarifas = useQuery(tarifasActivasOptions(tramite.tipoConstancia));
@@ -172,52 +193,50 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
-      {/* Revalidación OUC */}
+      {/* Revalidación antes de cobrar (según el tipo: adeudo o registro) */}
       {requiereRevalidacion ? (
         <Card>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 0.5 }}>
             <MsIcon name="restart_alt" size={20} color="#5B132B" />
-            <Typography sx={{ fontSize: 14, fontWeight: 700, flex: 1 }}>Revalidación de no adeudo</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 700, flex: 1 }}>
+              {esNoAdeudo ? 'Revalidación de no adeudo' : 'Revalidación de no registro'}
+            </Typography>
           </Box>
           <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'text.disabled', mb: 1.75 }}>
-            Se revalida la situación de adeudo antes de cobrar. Si apareció un adeudo desde la aprobación, no procede el cobro.
+            {esNoAdeudo
+              ? 'Se revalida la situación de adeudo antes de cobrar. Si apareció un adeudo desde la aprobación, no procede el cobro.'
+              : 'Se revalida la búsqueda en el padrón antes de cobrar. Si apareció registro desde la aprobación, no procede el cobro.'}
           </Typography>
           {revalidada ? (
             <Alert severity="success" icon={<MsIcon name="check_circle" size={20} />}>
-              Sin adeudo confirmado · revalidación al cobrar — procede el cobro.
+              {esNoAdeudo
+                ? 'Sin adeudo confirmado · revalidación al cobrar — procede el cobro.'
+                : 'Sin registro confirmado · revalidación al cobrar — procede el cobro.'}
             </Alert>
-          ) : revalidadaConAdeudo ? (
+          ) : revalidadaConHallazgo ? (
             <Alert severity="error" icon={<MsIcon name="error" size={20} />}>
-              Adeudo sobrevenido detectado: no procede el cobro. Rechaza el trámite.
+              {esNoAdeudo
+                ? 'Adeudo sobrevenido detectado: no procede el cobro. Rechaza el trámite.'
+                : 'Registro sobrevenido detectado: no procede el cobro. Rechaza el trámite.'}
             </Alert>
           ) : (
             <Box sx={{ display: 'flex', gap: 1.25 }}>
               <Button
                 variant="contained"
-                disabled={registrarValidacion.isPending}
-                onClick={() =>
-                  registrarValidacion.mutate(
-                    { momento: 'REVALIDACION_COBRO', resultado: 'SIN_ADEUDO' },
-                    { onSuccess: () => notificar.exito('Revalidación registrada: sin adeudo.'), onError: (error) => notificar.error(error) },
-                  )
-                }
-                startIcon={<MsIcon name="plumbing" size={17} />}
+                disabled={revalidando}
+                onClick={() => registrarRevalidacion(true)}
+                startIcon={<MsIcon name={esNoAdeudo ? 'plumbing' : 'map'} size={17} />}
               >
-                Confirmar sin adeudo en OUC
+                {esNoAdeudo ? 'Confirmar sin adeudo en OUC' : 'Confirmar sin registro en padrón'}
               </Button>
               <Button
                 variant="outlined"
                 color="error"
-                disabled={registrarValidacion.isPending}
-                onClick={() =>
-                  registrarValidacion.mutate(
-                    { momento: 'REVALIDACION_COBRO', resultado: 'CON_ADEUDO' },
-                    { onSuccess: () => notificar.info('Adeudo sobrevenido registrado.'), onError: (error) => notificar.error(error) },
-                  )
-                }
+                disabled={revalidando}
+                onClick={() => registrarRevalidacion(false)}
                 sx={{ borderColor: '#BA1A1A', color: '#BA1A1A' }}
               >
-                Registrar adeudo sobrevenido
+                {esNoAdeudo ? 'Registrar adeudo sobrevenido' : 'Registrar registro sobrevenido'}
               </Button>
             </Box>
           )}

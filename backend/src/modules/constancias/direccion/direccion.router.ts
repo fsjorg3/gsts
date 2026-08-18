@@ -1,9 +1,9 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import type { EstadoTramite, TipoConstancia } from '@prisma/client';
-import { prisma } from '../../infrastructure/database/prisma.js';
-import { requireRoles } from '../auth/middleware.js';
-import { AppError } from '../../shared/errors.js';
+import { prisma } from '../../../infrastructure/database/prisma.js';
+import { requireRoles } from '../../auth/middleware.js';
+import { AppError } from '../../../shared/errors.js';
 import { armarSerieMensual, calcularKpis, type ConteosMetricas } from './metricas.js';
 
 const rangoSchema = z.object({

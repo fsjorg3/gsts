@@ -1,11 +1,11 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
-import { guardarConfiguracionConstanciaSchema } from '@sicef/contracts';
-import { prisma, withBusinessTransaction } from '../../infrastructure/database/prisma.js';
-import { auditarUsuario } from '../auditoria/service.js';
-import { requireRoles } from '../auth/middleware.js';
-import { requestContext } from '../../shared/request-context.js';
-import { AppError } from '../../shared/errors.js';
+import { guardarConfiguracionConstanciaSchema } from '@gsts/contracts';
+import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
+import { auditarUsuario } from '../../auditoria/service.js';
+import { requireRoles } from '../../auth/middleware.js';
+import { requestContext } from '../../../shared/request-context.js';
+import { AppError } from '../../../shared/errors.js';
 
 const plazosSchema = z.object({ plazoPagoDias: z.number().int().positive(), activa: z.boolean().default(true) });
 

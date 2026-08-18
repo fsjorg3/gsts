@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SICEF — Diagrama Entidad-Relación</title>
+  <title>GSTS — Diagrama Entidad-Relación</title>
 
   <style>
     /* Variables de Diseño (Light / Dark Mode) */
@@ -368,7 +368,7 @@
 
   <header>
     <div class="brand">
-      <div class="logo-container">SICEF</div>
+      <div class="logo-container">GSTS</div>
       <div class="title-container">
         <h1>Diagrama Entidad-Relación</h1>
         <p>Estructura lógica tras separar la facturación (PostgreSQL)</p>
@@ -421,7 +421,7 @@
         <code>plazo_solicitud_factura_dias</code>; <code>cobro.requiere_factura</code> pasa a
         <code>factura_solicitada_en_ventanilla</code> como dato informativo; y se agrega
         <code>configuracion_constancia</code>, que existe en el esquema pero faltaba en el diagrama anterior.
-        Detalle completo en <code>documentacion2/SISTEMA_SICEF.md</code>.
+        Detalle completo en <code>documentacion2/SISTEMA_GSTS.md</code>.
       </div>
     </div>
   </main>
@@ -4019,7 +4019,7 @@ globalThis["mermaid"] = globalThis.__esbuild_esm_mermaid_nm["mermaid"].default;
 
   <script>
     (async () => {
-      const STORAGE_KEY = 'sicef-erd-theme';
+      const STORAGE_KEY = 'gsts-erd-theme';
 
       // Este archivo se abre con file://, donde algunos navegadores lanzan al
       // tocar localStorage. Sin estas guardas una excepción aquí abortaría el

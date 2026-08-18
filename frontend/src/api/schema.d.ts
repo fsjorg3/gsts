@@ -424,6 +424,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/catalogos/requisitos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Descartar un borrador de catálogo completo (rol ti; sólo si no está publicado) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Borrador descartado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RecursoEliminado"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/catalogos/requisitos/{id}/validar": {
         parameters: {
             query?: never;
@@ -860,6 +937,459 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/catalogos/grupos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Quitar un grupo del borrador con sus opciones y documentos (rol ti) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Grupo eliminado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RecursoEliminado"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Editar un grupo del borrador (rol ti; null en aplica* quita el filtro) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ActualizarGrupo"];
+                };
+            };
+            responses: {
+                /** @description Grupo actualizado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["GrupoRequisito"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/catalogos/opciones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Quitar una opción del borrador con sus documentos (rol ti) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Opción eliminada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RecursoEliminado"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Editar una opción del borrador (rol ti) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ActualizarOpcion"];
+                };
+            };
+            responses: {
+                /** @description Opción actualizada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["OpcionRequisito"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/catalogos/documentos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Quitar un documento del borrador (rol ti) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Documento eliminado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RecursoEliminado"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Editar un documento del borrador (rol ti) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ActualizarDocumento"];
+                };
+            };
+            responses: {
+                /** @description Documento actualizado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["OpcionDocumento"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description CATALOG_ALREADY_PUBLISHED: el catálogo publicado es inmutable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/catalogos/tarifas/activas": {
@@ -2142,7 +2672,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Registrar validación de no adeudo (rol ventanilla) */
+        /** Registrar el cruce con el OUC de un trámite de No Adeudo (rol ventanilla). Upsert por momento: repetirlo corrige el resultado. Aprobar exige VALIDACION_INICIAL con SIN_ADEUDO; cobrar exige REVALIDACION_COBRO con SIN_ADEUDO */
         post: {
             parameters: {
                 query?: never;
@@ -2166,6 +2696,78 @@ export interface paths {
                     content: {
                         "application/json": {
                             data: components["schemas"]["ValidacionNoAdeudo"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tramites/{id}/validaciones/no-registro": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Registrar la consulta al padrón de un trámite de No Registro (rol ventanilla). Upsert por momento. Aprobar exige VALIDACION_INICIAL con SIN_REGISTRO; cobrar exige REVALIDACION_COBRO con SIN_REGISTRO. Registrar CON_REGISTRO es válido y deja el trámite bloqueado a propósito */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ValidacionNoRegistroRequest"];
+                };
+            };
+            responses: {
+                /** @description Validación registrada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ValidacionNoRegistro"];
                             requestId?: string;
                         };
                     };
@@ -3019,6 +3621,30 @@ export interface components {
             nombre: string;
             orden: number;
         };
+        ActualizarGrupo: {
+            clave?: string;
+            nombre?: string;
+            orden?: number;
+            /** @enum {string|null} */
+            aplicaTipo?: "NO_ADEUDO" | "NO_REGISTRO" | null;
+            /** @enum {string|null} */
+            aplicaPersonalidad?: "FISICA" | "MORAL" | null;
+            /** @enum {string|null} */
+            aplicaRepresentacion?: "TITULAR" | "REPRESENTANTE" | "APODERADO" | null;
+        };
+        ActualizarOpcion: {
+            clave?: string;
+            nombre?: string;
+            orden?: number;
+        };
+        ActualizarDocumento: {
+            nombre?: string;
+            orden?: number;
+        };
+        RecursoEliminado: {
+            /** Format: uuid */
+            id: string;
+        };
         EvidenciaRequest: {
             /** Format: uuid */
             opcionDocumentoId: string;
@@ -3035,6 +3661,15 @@ export interface components {
             /** @enum {string} */
             resultado: "SIN_ADEUDO" | "CON_ADEUDO";
             adeudoMonto?: number;
+            referenciaOuc?: string;
+        };
+        ValidacionNoRegistroRequest: {
+            /** @enum {string} */
+            metodo: "MANUAL" | "API";
+            /** @enum {string} */
+            momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
+            /** @enum {string} */
+            resultado: "SIN_REGISTRO" | "CON_REGISTRO";
             referenciaOuc?: string;
         };
         CobroRequest: {
@@ -3380,7 +4015,7 @@ export interface components {
                 creadoPorId: string;
                 createdAt: string;
             }[];
-            validaciones: {
+            validacionesNoAdeudo: {
                 /** Format: uuid */
                 id: string;
                 /** Format: uuid */
@@ -3392,6 +4027,22 @@ export interface components {
                 /** @enum {string} */
                 resultado: "SIN_ADEUDO" | "CON_ADEUDO";
                 adeudoMonto: string | null;
+                referenciaOuc: string | null;
+                /** Format: uuid */
+                validadoPorId: string | null;
+                validadoAt: string;
+            }[];
+            validacionesNoRegistro: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                tramiteId: string;
+                /** @enum {string} */
+                metodo: "MANUAL" | "API";
+                /** @enum {string} */
+                momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
+                /** @enum {string} */
+                resultado: "SIN_REGISTRO" | "CON_REGISTRO";
                 referenciaOuc: string | null;
                 /** Format: uuid */
                 validadoPorId: string | null;
@@ -3488,6 +4139,22 @@ export interface components {
             /** @enum {string} */
             resultado: "SIN_ADEUDO" | "CON_ADEUDO";
             adeudoMonto: string | null;
+            referenciaOuc: string | null;
+            /** Format: uuid */
+            validadoPorId: string | null;
+            validadoAt: string;
+        };
+        ValidacionNoRegistro: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tramiteId: string;
+            /** @enum {string} */
+            metodo: "MANUAL" | "API";
+            /** @enum {string} */
+            momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
+            /** @enum {string} */
+            resultado: "SIN_REGISTRO" | "CON_REGISTRO";
             referenciaOuc: string | null;
             /** Format: uuid */
             validadoPorId: string | null;

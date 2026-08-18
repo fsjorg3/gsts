@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import type { SicefClaims } from '../../modules/auth/claims.js';
+import type { GstsClaims } from '../../modules/auth/claims.js';
 
 const connectionString = process.env.DATABASE_URL ?? 'postgresql://sicef_app:CHANGE_ME@localhost:6432/sicef_db';
 const adapter = new PrismaPg({ connectionString });
@@ -8,7 +8,7 @@ export const prisma = new PrismaClient({ adapter });
 
 export interface DatabaseContext {
   actorId: string;
-  roles: SicefClaims['roles'];
+  roles: GstsClaims['roles'];
   requestId: string;
 }
 

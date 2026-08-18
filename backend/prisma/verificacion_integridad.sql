@@ -308,6 +308,12 @@ SELECT pg_temp.debe_pasar('B.9 · CAPTURA → EN_VALIDACION', $q$
   UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666661';
   $q$);
 
+-- NO_REGISTRO también exige un hecho verificado para aprobar. El caso que
+-- comprueba que la guardia dispara está en la sección D2; aquí sólo se cumple.
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+  VALUES ('66666666-7000-0000-0000-000000000001','66666666-6666-6666-6666-666666666661',
+          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+
 SELECT pg_temp.debe_pasar('B.10 · EN_VALIDACION → APROBADO', $q$
   UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666661';
   $q$);
@@ -397,6 +403,11 @@ SELECT pg_temp.debe_fallar('C.9 · cobro con monto_final inconsistente', $q$
 -- B (cont.) · cierre del trámite sin CFDI
 -- =====================================================================
 
+-- Revalidación previa al cobro, igual que en NO_ADEUDO.
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+  VALUES ('66666666-7000-0000-0000-000000000002','66666666-6666-6666-6666-666666666661',
+          'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+
 SELECT pg_temp.debe_pasar('B.12 · APROBADO → COBRO', $q$
   UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666661';
   $q$);
@@ -470,6 +481,81 @@ SELECT pg_temp.debe_pasar('D.4 · con revalidación sí cobra', $q$
 
 
 -- =====================================================================
+-- D2 · Guardias de NO_REGISTRO
+-- =====================================================================
+-- Espejo exacto de la sección D. La constancia de No Registro afirma que el
+-- predio no tiene cuenta asignada; estas reglas son las que obligan a que
+-- alguien lo haya comprobado contra el padrón antes de emitirla.
+
+-- Se comprueba primero que la estructura exista. Sin esto, si faltara la
+-- migración 0009 los casos negativos de abajo seguirían «pasando»: el trigger
+-- fallaría con «relation validacion_no_registro does not exist», que también es
+-- un rechazo. Justo la clase de falso positivo que este archivo existe para
+-- evitar.
+SELECT pg_temp.afirmar('D2.0 · la estructura de validación de No Registro existe',
+  to_regclass('public.validacion_no_registro') IS NOT NULL
+  AND EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ResultadoValidacionRegistro'),
+  'tabla validacion_no_registro y enum ResultadoValidacionRegistro');
+
+INSERT INTO tramite (id, tipo_constancia, personalidad, representacion, version_catalogo_id, creado_por_id, updated_at)
+  VALUES ('66666666-6666-6666-6666-666666666669','NO_REGISTRO','FISICA','TITULAR',
+          '33333333-3333-3333-3333-333333333333','22222222-2222-2222-2222-222222222222', now());
+INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre_original,
+                       hash_sha256, mime_type, tamano_bytes, estado, creado_por_id)
+  VALUES ('66666666-3000-0000-0000-000000000009','66666666-6666-6666-6666-666666666669',
+          '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
+          repeat('9',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
+UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666669';
+
+SELECT pg_temp.debe_fallar('D2.1 · NO_REGISTRO no se aprueba sin validación inicial', $q$
+  UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666669';
+  $q$);
+
+-- El hallazgo de que el predio SÍ está en el padrón se registra y bloquea el
+-- trámite: es el caso que le da sentido a toda la regla.
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+  VALUES ('66666666-7000-0000-0000-000000000009','66666666-6666-6666-6666-666666666669',
+          'MANUAL','VALIDACION_INICIAL','CON_REGISTRO','22222222-2222-2222-2222-222222222222');
+
+SELECT pg_temp.debe_fallar('D2.2 · CON_REGISTRO no habilita la aprobación', $q$
+  UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666669';
+  $q$);
+
+-- Corregir el resultado es un UPDATE, no una fila nueva: el endpoint hace
+-- upsert sobre @@unique([tramiteId, momento]).
+UPDATE validacion_no_registro SET resultado = 'SIN_REGISTRO'
+  WHERE id = '66666666-7000-0000-0000-000000000009';
+
+SELECT pg_temp.debe_pasar('D2.3 · con validación inicial SIN_REGISTRO sí aprueba', $q$
+  UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666669';
+  $q$);
+
+INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
+                   forma_pago, metodo_pago, cobrado_por_id)
+  VALUES ('88888888-8888-8888-8888-888888888889','66666666-6666-6666-6666-666666666669',
+          '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
+          '04','PUE','22222222-2222-2222-2222-222222222222');
+
+SELECT pg_temp.debe_fallar('D2.4 · NO_REGISTRO no se cobra sin revalidación', $q$
+  UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666669';
+  $q$);
+
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+  VALUES ('66666666-7000-0000-0000-00000000000a','66666666-6666-6666-6666-666666666669',
+          'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+
+SELECT pg_temp.debe_pasar('D2.5 · con revalidación sí cobra', $q$
+  UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666669';
+  $q$);
+
+SELECT pg_temp.debe_fallar('D2.6 · un momento no se duplica para el mismo trámite', $q$
+  INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+    VALUES ('66666666-7000-0000-0000-0000000000ff','66666666-6666-6666-6666-666666666669',
+            'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+  $q$);
+
+
+-- =====================================================================
 -- E · Plazo vencido: cobro tardío, expiración y cascadas
 -- =====================================================================
 
@@ -482,6 +568,12 @@ INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre
   VALUES ('66666666-3000-0000-0000-000000000002','66666666-6666-6666-6666-666666666664',
           '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
           repeat('2',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
+-- Las DOS validaciones se registran aquí, aunque este trámite nunca llegue a
+-- cobrar: sin la revalidación, E.1 seguiría «pasando» pero rechazado por falta
+-- de validación en vez de por el plazo vencido, que es lo que dice probar.
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id) VALUES
+  ('66666666-7000-0000-0000-000000000004','66666666-6666-6666-6666-666666666664','MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222'),
+  ('66666666-7000-0000-0000-000000000005','66666666-6666-6666-6666-666666666664','MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
 UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666664';
 UPDATE tramite SET estado = 'APROBADO'      WHERE id = '66666666-6666-6666-6666-666666666664';
 -- El borrador va antes que el cobro: un borrador ABIERTO no puede nacer en un
@@ -529,6 +621,9 @@ INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre
   VALUES ('66666666-3000-0000-0000-000000000003','66666666-6666-6666-6666-666666666665',
           '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
           repeat('3',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+  VALUES ('66666666-7000-0000-0000-000000000006','66666666-6666-6666-6666-666666666665',
+          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
 UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666665';
 UPDATE tramite SET estado = 'APROBADO'      WHERE id = '66666666-6666-6666-6666-666666666665';
 INSERT INTO borrador_cobro (id, tramite_id, creado_por_id, actualizado_por_id, updated_at)
@@ -558,6 +653,11 @@ INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre
   VALUES ('66666666-3000-0000-0000-000000000004','66666666-6666-6666-6666-666666666667',
           '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
           repeat('4',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
+-- La validación se registra ANTES de desactivar los plazos, para que el fallo
+-- de F.1 sea inequívocamente por la configuración ausente y no por validación.
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+  VALUES ('66666666-7000-0000-0000-000000000007','66666666-6666-6666-6666-666666666667',
+          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
 UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666667';
 
 SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');

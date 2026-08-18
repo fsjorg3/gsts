@@ -1,9 +1,9 @@
 import { Router, type RequestHandler } from 'express';
-import { prisma } from '../../infrastructure/database/prisma.js';
-import { NfsStorage } from '../../infrastructure/storage/nfs-storage.js';
-import { requireRoles } from '../auth/middleware.js';
-import { AppError } from '../../shared/errors.js';
-import { routeParam } from '../../api/shared/params.js';
+import { prisma } from '../../../infrastructure/database/prisma.js';
+import { NfsStorage } from '../../../infrastructure/storage/nfs-storage.js';
+import { requireRoles } from '../../auth/middleware.js';
+import { AppError } from '../../../shared/errors.js';
+import { routeParam } from '../../../api/shared/params.js';
 
 /**
  * Única superficie que el sistema Finanzas consume de SICEF.

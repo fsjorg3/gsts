@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listarBitacoraSchema } from '@sicef/contracts';
+import { listarBitacoraSchema } from '@gsts/contracts';
 
 describe('listarBitacoraSchema', () => {
   it('aplica los valores por defecto de paginación sin filtros', () => {

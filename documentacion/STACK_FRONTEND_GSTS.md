@@ -1,8 +1,8 @@
-# Stack frontend para el monorepo SICEF
+# Stack frontend para el monorepo GSTS
 
 ## 1. Propósito y alcance
 
-Este documento describe el frontend implementado en `frontend/`, complemento de `STACK_BACKEND_SICEF.md`. Es una SPA que consume exclusivamente la API del backend (`/api/v1`, contrato OpenAPI) y nunca accede directo a PostgreSQL, NFS, administración de Keycloak ni al Servicio de Firma — coincide con el límite ya declarado en el documento del backend.
+Este documento describe el frontend implementado en `frontend/`, complemento de `STACK_BACKEND_GSTS.md`. Es una SPA que consume exclusivamente la API del backend (`/api/v1`, contrato OpenAPI) y nunca accede directo a PostgreSQL, NFS, administración de Keycloak ni al Servicio de Firma — coincide con el límite ya declarado en el documento del backend.
 
 Recrea el prototipo institucional (`documentacion/SOAPAP constancias system files/`) con MUI 9.2.0 sobre el design system institucional vino/oro. Alcance actual:
 
@@ -24,8 +24,8 @@ Recrea el prototipo institucional (`documentacion/SOAPAP constancias system file
 | Server state | TanStack Query 5.101.4 (API declarativa) | `queryOptions` / `infiniteQueryOptions` por *feature*; nunca `fetch` crudo. |
 | Client state | Redux Toolkit + `react-redux` | Sólo UI efímera: módulo/sidebar activo y cola de notificaciones. |
 | Cliente HTTP | `openapi-fetch` + `openapi-typescript` | `schema.d.ts` generado desde el OpenAPI real del backend (`npm run gen:api`). |
-| Contratos compartidos | `@sicef/contracts` (workspace) | Mismos esquemas Zod que valida el backend, reusados donde aplica en el cliente. |
-| Autenticación | `react-oidc-context` + `oidc-client-ts` | Keycloak realm `SOAPAP`, cliente público `sicef`, Authorization Code + PKCE. |
+| Contratos compartidos | `@gsts/contracts` (workspace) | Mismos esquemas Zod que valida el backend, reusados donde aplica en el cliente. |
+| Autenticación | `react-oidc-context` + `oidc-client-ts` | Keycloak realm `SOAPAP`, cliente público `gsts`, Authorization Code + PKCE. |
 | Tipografía / iconografía | `@fontsource/montserrat`, `material-symbols` | Self-host, sin dependencia de CDN (regla del design system). |
 | Pruebas | Vitest + Testing Library + `jsdom` | Unitarias de lógica de UI (no hay E2E contra Keycloak real). |
 
@@ -40,7 +40,7 @@ SPA de un único layout raíz. `AppShell` monta un sidebar de módulos y un `<Ou
 ### Autenticación y roles
 
 - `AuthGate` exige sesión en toda la app interna: si no hay usuario autenticado, redirige a Keycloak (`signinRedirect`).
-- El frontend **no decodifica el JWT ni interpreta claims por su cuenta** — `useAuth` llama `GET /auth/me` y usa exactamente los roles que el backend ya resolvió (`ventanilla`/`finanzas` desde `resource_access.sicef.roles`, `ti`/`direccion` desde `realm_access.roles`). Evita duplicar en el cliente una lógica de extracción de roles que ya es responsabilidad del backend.
+- El frontend **no decodifica el JWT ni interpreta claims por su cuenta** — `useAuth` llama `GET /auth/me` y usa exactamente los roles que el backend ya resolvió (`ventanilla`/`finanzas` desde `resource_access.gsts.roles`, `ti`/`direccion` desde `realm_access.roles`). Evita duplicar en el cliente una lógica de extracción de roles que ya es responsabilidad del backend.
 - `RequireRole` guarda cada ruta interna (defensa en profundidad); `AppShell` y el redirect de la ruta índice (`IndexRedirect`) filtran/enrutan usando la misma tabla módulo→rol (`app/layout/modulos.ts`) — un usuario nunca ve ni es enviado a un módulo para el que no tiene rol.
 - PKCE exige contexto seguro (HTTPS o `localhost`); acceder por IP de LAN sin HTTPS rompe `crypto.subtle`.
 
@@ -56,7 +56,7 @@ Sólo dos *slices*, ambos de UI efímera:
 
 ### Errores
 
-`ApiError` (`api/errors.ts`) normaliza el envelope `{ error: { code, message, details } }` del contrato y traduce cada código del catálogo (`documentacion/CONTRATO_API_SICEF.md` §7) a un copy es-MX accionable; los códigos no listados caen al `message` del backend.
+`ApiError` (`api/errors.ts`) normaliza el envelope `{ error: { code, message, details } }` del contrato y traduce cada código del catálogo (`documentacion/CONTRATO_API_GSTS.md` §7) a un copy es-MX accionable; los códigos no listados caen al `message` del backend.
 
 ### Diseño
 
@@ -129,7 +129,7 @@ Vite sólo expone variables con prefijo `VITE_`. Crear `frontend/.env` por entor
 ```env
 VITE_API_BASE_URL=/api/v1
 VITE_KEYCLOAK_AUTHORITY=https://<KEYCLOAK_HOST>/realms/SOAPAP
-VITE_KEYCLOAK_CLIENT_ID=sicef
+VITE_KEYCLOAK_CLIENT_ID=gsts
 ```
 
 En desarrollo, `vite.config.ts` sirve `/api/v1` mediante proxy hacia `http://127.0.0.1:3000`, así que el navegador nunca hace la petición cross-origin directamente y `CORS_ORIGINS` del backend no necesita más que el origen de Vite. `host: true` permite abrir la app desde una IP de LAN además de `localhost` — importante recordar que **PKCE exige contexto seguro**, así que el login sólo funciona vía `localhost` o HTTPS, no por IP plana.
@@ -138,7 +138,7 @@ En desarrollo, `vite.config.ts` sirve `/api/v1` mediante proxy hacia `http://127
 
 - **Unitarias**: derivación del paso del *wizard* según el estado del trámite (`derivarPaso.test.ts`), checklist de requisitos (`checklist.test.ts`), serializers de montos/fechas (`serializers.test.ts`), mapeo de códigos de error a copy (`errors.test.ts`).
 - **Tipos**: `tsc --noEmit` estricto — cualquier *drift* entre `schema.d.ts` y el uso real del cliente es un error de compilación, no un bug de runtime.
-- **Contrato**: `npm run gen:api` regenera `schema.d.ts` desde el OpenAPI servido por el backend; se vuelve a correr tras cualquier cambio de contrato en `@sicef/contracts`.
+- **Contrato**: `npm run gen:api` regenera `schema.d.ts` desde el OpenAPI servido por el backend; se vuelve a correr tras cualquier cambio de contrato en `@gsts/contracts`.
 - **No automatizado todavía**: no hay pruebas end-to-end contra un Keycloak real (requiere sesión interactiva); la verificación de flujos completos por rol se hace manualmente.
 
 ## 7. Criterios de aceptación / estado actual

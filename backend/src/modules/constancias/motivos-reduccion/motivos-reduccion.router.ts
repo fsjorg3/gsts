@@ -1,11 +1,11 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
-import { actualizarMotivoReduccionSchema, crearMotivoReduccionSchema } from '@sicef/contracts';
-import { prisma, withBusinessTransaction } from '../../infrastructure/database/prisma.js';
-import { auditarUsuario } from '../auditoria/service.js';
-import { requireRoles } from '../auth/middleware.js';
-import { requestContext } from '../../shared/request-context.js';
-import { routeParam } from '../../api/shared/params.js';
+import { actualizarMotivoReduccionSchema, crearMotivoReduccionSchema } from '@gsts/contracts';
+import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
+import { auditarUsuario } from '../../auditoria/service.js';
+import { requireRoles } from '../../auth/middleware.js';
+import { requestContext } from '../../../shared/request-context.js';
+import { routeParam } from '../../../api/shared/params.js';
 
 // Catálogo simple de motivos de reducción de tarifa (INAPAM, discapacidad,
 // programa social, etc.). Sin versionado ni publicación como catálogos/tarifas:

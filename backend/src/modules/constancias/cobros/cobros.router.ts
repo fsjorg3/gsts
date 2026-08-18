@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { withBusinessTransaction } from '../../infrastructure/database/prisma.js';
-import { NfsStorage } from '../../infrastructure/storage/nfs-storage.js';
-import { auditarUsuario } from '../auditoria/service.js';
-import { requestContext } from '../../shared/request-context.js';
-import { routeParam } from '../../api/shared/params.js';
+import { withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
+import { NfsStorage } from '../../../infrastructure/storage/nfs-storage.js';
+import { auditarUsuario } from '../../auditoria/service.js';
+import { requestContext } from '../../../shared/request-context.js';
+import { routeParam } from '../../../api/shared/params.js';
 import { resolverMotivoReduccion } from './motivo-reduccion.js';
 
 const comprobanteSchema = z.object({ base64: z.string().min(1), nombreOriginal: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(100) });

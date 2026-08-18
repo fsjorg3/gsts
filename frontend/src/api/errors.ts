@@ -1,5 +1,5 @@
 // Normalización de errores de la API al catálogo del contrato
-// (documentacion/CONTRATO_API_SICEF.md §7). El copy sigue el tono del design
+// (documentacion/CONTRATO_API_GSTS.md §7). El copy sigue el tono del design
 // system: claro, accionable, sin jerga técnica.
 
 export interface ApiErrorBody {
@@ -33,13 +33,15 @@ export class ApiError extends Error {
 const COPY_POR_CODIGO: Record<string, string> = {
   UNAUTHENTICATED: 'Tu sesión no es válida. Vuelve a iniciar sesión.',
   INVALID_TOKEN: 'Tu sesión expiró o no es válida. Vuelve a iniciar sesión.',
-  MISSING_ROLE: 'Tu cuenta no tiene un rol asignado en SICEF. Contacta a TI.',
+  MISSING_ROLE: 'Tu cuenta no tiene un rol asignado en GSTS. Contacta a TI.',
   FORBIDDEN: 'No tienes permisos para realizar esta acción.',
   NOT_FOUND: 'No se encontró el registro solicitado.',
   VALIDATION_ERROR: 'Revisa los datos capturados: hay campos inválidos o faltantes.',
   NO_ACTIVE_CATALOG: 'No hay un catálogo de requisitos activo. TI debe publicar uno antes de crear trámites.',
   CATALOG_ALREADY_PUBLISHED: 'Este catálogo ya estaba publicado; no admite cambios.',
   CATALOG_INCOMPLETE: 'El catálogo no está completo. Corrige los errores señalados antes de publicar.',
+  UNIQUE_CONFLICT: 'Ya existe otro elemento con esa clave u orden. Usa un valor distinto.',
+  REFERENCE_CONFLICT: 'La operación choca con una referencia entre registros: el destino no existe o todavía está en uso.',
   TARIFF_INCOMPLETE: 'Faltan tipo de constancia, concepto o monto para crear la tarifa.',
   DRAFT_ALREADY_OPEN: 'Este trámite ya tiene un borrador de cobro abierto. Continúa con el existente.',
   DRAFT_NOT_OPEN: 'El borrador ya no está abierto; no se puede aplicar.',

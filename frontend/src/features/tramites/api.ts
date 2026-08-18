@@ -9,7 +9,7 @@ export type CrearTramite = components['schemas']['CrearTramite'];
 export type AccionTramite = 'iniciar-validacion' | 'aprobar' | 'rechazar' | 'expirar' | 'finalizar';
 
 // Folio de presentación de un trámite (formato del prototipo: NA-2026-02038).
-// No confundir con el folioUnico de la constancia (SICEF-...).
+// No confundir con el folioUnico de la constancia (GSTS-...).
 export function folioTramite(t: Pick<Tramite, 'tipoConstancia' | 'numeroTramite' | 'createdAt'>): string {
   const prefijo = t.tipoConstancia === 'NO_ADEUDO' ? 'NA' : 'NR';
   const anio = new Date(t.createdAt).getFullYear();

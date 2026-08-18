@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { actualizarDocumentoSchema, actualizarGrupoSchema, actualizarOpcionSchema } from '@sicef/contracts';
-import { erroresCatalogo } from '../../src/modules/catalogos/catalogos.router.js';
+import { actualizarDocumentoSchema, actualizarGrupoSchema, actualizarOpcionSchema } from '@gsts/contracts';
+import { erroresCatalogo } from '../../src/modules/constancias/catalogos/catalogos.router.js';
 
 const grupo = (over: Partial<Parameters<typeof erroresCatalogo>[0]['grupos'][number]> = {}) => ({
   clave: 'IDENTIFICACION', orden: 0, aplicaTipo: null, aplicaPersonalidad: null, aplicaRepresentacion: null,

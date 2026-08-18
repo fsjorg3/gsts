@@ -98,6 +98,14 @@ enum ResultadoValidacion {
   CON_ADEUDO
 }
 
+/// Resultado de consultar el padrón de usuarios para un predio. Enum aparte del
+/// de no adeudo a propósito: así SIN_ADEUDO es inexpresable en una validación
+/// de no registro, sin necesidad de un CHECK que cruce tablas.
+enum ResultadoValidacionRegistro {
+  SIN_REGISTRO
+  CON_REGISTRO
+}
+
 enum TipoConfirmacion {
   SIN_ADEUDO_OUC
   FIRMAS_LEGIBLES
@@ -128,17 +136,18 @@ model Actor {
   // Relaciones de autoría/auditoría. Se declaran aquí (en vez de dejar los
   // campos como UUID escalar) para que Prisma administre las FKs y no las
   // trate como "drift" borrándolas en cada `migrate dev`.
-  tramitesCreados                   Tramite[]               @relation("TramiteCreadoPor")
-  evidenciasCreadas                 Evidencia[]             @relation("EvidenciaCreadoPor")
-  validacionesRealizadas            ValidacionNoAdeudo[]    @relation("ValidacionValidadoPor")
-  confirmacionesRealizadas          ConfirmacionManual[]    @relation("ConfirmacionConfirmadoPor")
-  consultasRealizadas               ConsultaConcesionaria[] @relation("ConsultaRealizadaPor")
-  cobrosRealizados                  Cobro[]                 @relation("CobroCobradoPor")
-  borradoresCobroCreados            BorradorCobro[]         @relation("BorradorCobroCreadoPor")
-  borradoresCobroActualizados       BorradorCobro[]         @relation("BorradorCobroActualizadoPor")
-  configuracionesPlazosActualizadas ConfiguracionPlazos[]   @relation("ConfiguracionPlazosActualizadoPor")
+  tramitesCreados                       Tramite[]                 @relation("TramiteCreadoPor")
+  evidenciasCreadas                     Evidencia[]               @relation("EvidenciaCreadoPor")
+  validacionesRealizadas                ValidacionNoAdeudo[]      @relation("ValidacionValidadoPor")
+  validacionesRegistroRealizadas        ValidacionNoRegistro[]    @relation("ValidacionRegistroValidadoPor")
+  confirmacionesRealizadas              ConfirmacionManual[]      @relation("ConfirmacionConfirmadoPor")
+  consultasRealizadas                   ConsultaConcesionaria[]   @relation("ConsultaRealizadaPor")
+  cobrosRealizados                      Cobro[]                   @relation("CobroCobradoPor")
+  borradoresCobroCreados                BorradorCobro[]           @relation("BorradorCobroCreadoPor")
+  borradoresCobroActualizados           BorradorCobro[]           @relation("BorradorCobroActualizadoPor")
+  configuracionesPlazosActualizadas     ConfiguracionPlazos[]     @relation("ConfiguracionPlazosActualizadoPor")
   configuracionesConstanciaActualizadas ConfiguracionConstancia[] @relation("ConfiguracionConstanciaActualizadoPor")
-  entradasBitacora                  Bitacora[]              @relation("BitacoraActor")
+  entradasBitacora                      Bitacora[]                @relation("BitacoraActor")
 
   @@map("actor")
 }
@@ -264,16 +273,17 @@ model Tramite {
   createdAt                 DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                 DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  versionCatalogo VersionCatalogo         @relation(fields: [versionCatalogoId], references: [id])
-  creadoPorActor  Actor                   @relation("TramiteCreadoPor", fields: [creadoPorId], references: [id])
-  personas        TramitePersona[]
-  evidencias      Evidencia[]
-  validaciones    ValidacionNoAdeudo[]
-  confirmaciones  ConfirmacionManual[]
-  consultas       ConsultaConcesionaria[]
-  borradoresCobro BorradorCobro[]
-  constancia      Constancia?
-  cobro           Cobro?
+  versionCatalogo        VersionCatalogo         @relation(fields: [versionCatalogoId], references: [id])
+  creadoPorActor         Actor                   @relation("TramiteCreadoPor", fields: [creadoPorId], references: [id])
+  personas               TramitePersona[]
+  evidencias             Evidencia[]
+  validacionesNoAdeudo   ValidacionNoAdeudo[]
+  validacionesNoRegistro ValidacionNoRegistro[]
+  confirmaciones         ConfirmacionManual[]
+  consultas              ConsultaConcesionaria[]
+  borradoresCobro        BorradorCobro[]
+  constancia             Constancia?
+  cobro                  Cobro?
 
   @@index([estado])
   @@index([creadoPorId])
@@ -322,6 +332,32 @@ model ValidacionNoAdeudo {
 
   @@unique([tramiteId, momento])
   @@map("validacion_no_adeudo")
+}
+
+/// Consulta al padrón de usuarios de SOAPAP para un trámite de No Registro.
+/// Espeja ValidacionNoAdeudo y es lo que sostiene la afirmación impresa en la
+/// constancia: que el predio no tiene cuenta asignada. Como en no adeudo, puede
+/// haber dos por trámite —la inicial (EN_VALIDACION) y la revalidación previa al
+/// cobro—, y la regla dura de fn_tramite_transicion_valida exige SIN_REGISTRO en
+/// ambos momentos.
+///
+/// Sin adeudoMonto: no hay monto que registrar cuando no hay cuenta. Conserva
+/// referenciaOuc para anotar el folio de la consulta.
+model ValidacionNoRegistro {
+  id            String                      @id @default(uuid()) @db.Uuid
+  tramiteId     String                      @map("tramite_id") @db.Uuid
+  metodo        MetodoValidacion
+  momento       MomentoValidacion
+  resultado     ResultadoValidacionRegistro
+  referenciaOuc String?                     @map("referencia_ouc")
+  validadoPorId String?                     @map("validado_por_id") @db.Uuid
+  validadoAt    DateTime                    @default(now()) @map("validado_at") @db.Timestamptz(3)
+
+  tramite          Tramite @relation(fields: [tramiteId], references: [id])
+  validadoPorActor Actor?  @relation("ValidacionRegistroValidadoPor", fields: [validadoPorId], references: [id])
+
+  @@unique([tramiteId, momento])
+  @@map("validacion_no_registro")
 }
 
 /// Confirmación manual atribuible (firmas legibles, facultades del poder, etc.).
@@ -386,12 +422,12 @@ model Tarifa {
 /// El plazo fiscal para solicitar factura ya no vive aquí: lo calcula el
 /// sistema Finanzas desde la fecha de pago.
 model ConfiguracionPlazos {
-  id                        String   @id @default("PLAZOS_OPERATIVOS")
-  plazoPagoDias             Int      @default(0) @map("plazo_pago_dias")
-  activa                    Boolean  @default(false)
-  actualizadoPorId          String   @map("actualizado_por_id") @db.Uuid
-  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String   @id @default("PLAZOS_OPERATIVOS")
+  plazoPagoDias    Int      @default(0) @map("plazo_pago_dias")
+  activa           Boolean  @default(false)
+  actualizadoPorId String   @map("actualizado_por_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   actualizadoPorActor Actor @relation("ConfiguracionPlazosActualizadoPor", fields: [actualizadoPorId], references: [id])
 
@@ -423,32 +459,32 @@ model ConfiguracionConstancia {
 /// Captura provisional de los datos de pago. Permite que cualquier Ventanilla
 /// continúe el cobro sin tratar la captura como un pago confirmado.
 model BorradorCobro {
-  id                        String              @id @default(uuid()) @db.Uuid
-  tramiteId                 String              @map("tramite_id") @db.Uuid
-  tarifaId                  String?             @map("tarifa_id") @db.Uuid
-  montoBase                 Decimal?            @map("monto_base") @db.Decimal(12, 2)
-  motivoReduccionId         String?             @map("motivo_reduccion_id") @db.Uuid
-  porcentajeReduccion       Decimal?            @map("porcentaje_reduccion") @db.Decimal(5, 2)
-  montoFinal                Decimal?            @map("monto_final") @db.Decimal(12, 2)
-  formaPago                 String?             @map("forma_pago")
-  metodoPago                MetodoPago?         @map("metodo_pago")
-  moneda                    String?             @default("MXN")
-  facturaSolicitadaEnVentanilla Boolean?        @map("factura_solicitada_en_ventanilla")
-  referenciaPago            String?             @map("referencia_pago")
-  comprobanteArchivoUuid    String?             @unique @map("comprobante_archivo_uuid") @db.Uuid
-  comprobanteNombreOriginal String?             @map("comprobante_nombre_original")
-  comprobanteHashSha256     String?             @map("comprobante_hash_sha256")
-  comprobanteMimeType       String?             @map("comprobante_mime_type")
-  comprobanteTamanoBytes    Int?                @map("comprobante_tamano_bytes")
-  estado                    EstadoBorradorCobro @default(ABIERTO)
-  creadoPorId               String              @map("creado_por_id") @db.Uuid
-  actualizadoPorId          String              @map("actualizado_por_id") @db.Uuid
-  cobroId                   String?             @unique @map("cobro_id") @db.Uuid
-  createdAt                 DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                 DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
-  aplicadoAt                DateTime?           @map("aplicado_at") @db.Timestamptz(3)
-  vencidoAt                 DateTime?           @map("vencido_at") @db.Timestamptz(3)
-  canceladoAt               DateTime?           @map("cancelado_at") @db.Timestamptz(3)
+  id                            String              @id @default(uuid()) @db.Uuid
+  tramiteId                     String              @map("tramite_id") @db.Uuid
+  tarifaId                      String?             @map("tarifa_id") @db.Uuid
+  montoBase                     Decimal?            @map("monto_base") @db.Decimal(12, 2)
+  motivoReduccionId             String?             @map("motivo_reduccion_id") @db.Uuid
+  porcentajeReduccion           Decimal?            @map("porcentaje_reduccion") @db.Decimal(5, 2)
+  montoFinal                    Decimal?            @map("monto_final") @db.Decimal(12, 2)
+  formaPago                     String?             @map("forma_pago")
+  metodoPago                    MetodoPago?         @map("metodo_pago")
+  moneda                        String?             @default("MXN")
+  facturaSolicitadaEnVentanilla Boolean?            @map("factura_solicitada_en_ventanilla")
+  referenciaPago                String?             @map("referencia_pago")
+  comprobanteArchivoUuid        String?             @unique @map("comprobante_archivo_uuid") @db.Uuid
+  comprobanteNombreOriginal     String?             @map("comprobante_nombre_original")
+  comprobanteHashSha256         String?             @map("comprobante_hash_sha256")
+  comprobanteMimeType           String?             @map("comprobante_mime_type")
+  comprobanteTamanoBytes        Int?                @map("comprobante_tamano_bytes")
+  estado                        EstadoBorradorCobro @default(ABIERTO)
+  creadoPorId                   String              @map("creado_por_id") @db.Uuid
+  actualizadoPorId              String              @map("actualizado_por_id") @db.Uuid
+  cobroId                       String?             @unique @map("cobro_id") @db.Uuid
+  createdAt                     DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  aplicadoAt                    DateTime?           @map("aplicado_at") @db.Timestamptz(3)
+  vencidoAt                     DateTime?           @map("vencido_at") @db.Timestamptz(3)
+  canceladoAt                   DateTime?           @map("cancelado_at") @db.Timestamptz(3)
 
   tramite             Tramite          @relation(fields: [tramiteId], references: [id])
   tarifa              Tarifa?          @relation(fields: [tarifaId], references: [id])
@@ -466,35 +502,35 @@ model BorradorCobro {
 /// Cobro del trámite (siempre aplica). Congela el monto base, la reducción y el
 /// total. La constancia se emite en este punto.
 model Cobro {
-  id                        String     @id @default(uuid()) @db.Uuid
-  tramiteId                 String     @unique @map("tramite_id") @db.Uuid
-  tarifaId                  String     @map("tarifa_id") @db.Uuid
-  montoBase                 Decimal    @map("monto_base") @db.Decimal(12, 2)
-  motivoReduccionId         String?    @map("motivo_reduccion_id") @db.Uuid
-  porcentajeReduccion       Decimal    @default(0) @map("porcentaje_reduccion") @db.Decimal(5, 2)
-  montoFinal                Decimal    @map("monto_final") @db.Decimal(12, 2)
-  formaPago                 String     @map("forma_pago") // código c_FormaPago del SAT
-  metodoPago                MetodoPago @map("metodo_pago")
-  moneda                    String     @default("MXN")
+  id                            String     @id @default(uuid()) @db.Uuid
+  tramiteId                     String     @unique @map("tramite_id") @db.Uuid
+  tarifaId                      String     @map("tarifa_id") @db.Uuid
+  montoBase                     Decimal    @map("monto_base") @db.Decimal(12, 2)
+  motivoReduccionId             String?    @map("motivo_reduccion_id") @db.Uuid
+  porcentajeReduccion           Decimal    @default(0) @map("porcentaje_reduccion") @db.Decimal(5, 2)
+  montoFinal                    Decimal    @map("monto_final") @db.Decimal(12, 2)
+  formaPago                     String     @map("forma_pago") // código c_FormaPago del SAT
+  metodoPago                    MetodoPago @map("metodo_pago")
+  moneda                        String     @default("MXN")
   /// Qué contestó el solicitante en ventanilla el día del cobro. Dato
   /// informativo, no un estado: la verdad sobre si existe factura vive en el
   /// sistema Finanzas, y la solicitud puede llegar semanas después por el
   /// portal. Nadie debe leer esta columna como fuente de verdad fiscal.
-  facturaSolicitadaEnVentanilla Boolean @default(false) @map("factura_solicitada_en_ventanilla")
-  referenciaPago            String?    @map("referencia_pago")
-  comprobanteArchivoUuid    String?    @unique @map("comprobante_archivo_uuid") @db.Uuid
-  comprobanteNombreOriginal String?    @map("comprobante_nombre_original")
-  comprobanteHashSha256     String?    @map("comprobante_hash_sha256")
-  comprobanteMimeType       String?    @map("comprobante_mime_type")
-  comprobanteTamanoBytes    Int?       @map("comprobante_tamano_bytes")
-  cobradoPorId              String     @map("cobrado_por_id") @db.Uuid
-  cobradoAt                 DateTime   @default(now()) @map("cobrado_at") @db.Timestamptz(3)
+  facturaSolicitadaEnVentanilla Boolean    @default(false) @map("factura_solicitada_en_ventanilla")
+  referenciaPago                String?    @map("referencia_pago")
+  comprobanteArchivoUuid        String?    @unique @map("comprobante_archivo_uuid") @db.Uuid
+  comprobanteNombreOriginal     String?    @map("comprobante_nombre_original")
+  comprobanteHashSha256         String?    @map("comprobante_hash_sha256")
+  comprobanteMimeType           String?    @map("comprobante_mime_type")
+  comprobanteTamanoBytes        Int?       @map("comprobante_tamano_bytes")
+  cobradoPorId                  String     @map("cobrado_por_id") @db.Uuid
+  cobradoAt                     DateTime   @default(now()) @map("cobrado_at") @db.Timestamptz(3)
 
-  tramite              Tramite               @relation(fields: [tramiteId], references: [id])
-  tarifa               Tarifa                @relation(fields: [tarifaId], references: [id])
-  motivoReduccion      MotivoReduccion?      @relation(fields: [motivoReduccionId], references: [id])
-  cobradoPorActor      Actor                 @relation("CobroCobradoPor", fields: [cobradoPorId], references: [id])
-  borradorOrigen       BorradorCobro?        @relation("BorradorCobroAplicado")
+  tramite         Tramite          @relation(fields: [tramiteId], references: [id])
+  tarifa          Tarifa           @relation(fields: [tarifaId], references: [id])
+  motivoReduccion MotivoReduccion? @relation(fields: [motivoReduccionId], references: [id])
+  cobradoPorActor Actor            @relation("CobroCobradoPor", fields: [cobradoPorId], references: [id])
+  borradorOrigen  BorradorCobro?   @relation("BorradorCobroAplicado")
 
   @@index([motivoReduccionId])
   @@map("cobro")
@@ -551,16 +587,16 @@ model Constancia {
 /// una factura o de una factura global; con la facturación fuera, la constancia
 /// es su única referencia posible.
 model ArchivoGenerado {
-  id              String                    @id @default(uuid()) @db.Uuid
-  constanciaId    String                    @map("constancia_id") @db.Uuid
-  tipo            String
-  archivoUuid     String                    @unique @map("archivo_uuid") @db.Uuid
-  ruta            String
-  hashSha256      String                    @map("hash_sha256")
-  mimeType        String                    @map("mime_type")
-  tamanoBytes     Int                       @map("tamano_bytes")
-  conservacion    EstadoConservacionArchivo @default(ACTIVO)
-  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  id           String                    @id @default(uuid()) @db.Uuid
+  constanciaId String                    @map("constancia_id") @db.Uuid
+  tipo         String
+  archivoUuid  String                    @unique @map("archivo_uuid") @db.Uuid
+  ruta         String
+  hashSha256   String                    @map("hash_sha256")
+  mimeType     String                    @map("mime_type")
+  tamanoBytes  Int                       @map("tamano_bytes")
+  conservacion EstadoConservacionArchivo @default(ACTIVO)
+  createdAt    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   constancia Constancia @relation(fields: [constanciaId], references: [id])
 

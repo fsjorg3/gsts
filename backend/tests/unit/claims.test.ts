@@ -1,42 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { resolveSicefClaims } from '../../src/modules/auth/claims.js';
+import { resolveGstsClaims } from '../../src/modules/auth/claims.js';
 
-describe('resolveSicefClaims', () => {
+describe('resolveGstsClaims', () => {
   it('conserva únicamente los claims autorizados de cliente y realm', () => {
-    expect(resolveSicefClaims({
+    expect(resolveGstsClaims({
       sub: 'subject-1',
-      resource_access: { sicef: { roles: ['ventanilla', 'otro'] } },
+      resource_access: { gsts: { roles: ['ventanilla', 'otro'] } },
       realm_access: { roles: ['ti'] },
-    })).toEqual({ sub: 'subject-1', roles: ['ventanilla', 'ti'] });
+    }, 'gsts')).toEqual({ sub: 'subject-1', roles: ['ventanilla', 'ti'] });
   });
 
-  it('rechaza tokens sin roles SICEF', () => {
-    expect(() => resolveSicefClaims({ sub: 'subject-1', realm_access: { roles: ['otro'] } })).toThrow('rol autorizado');
+  it('rechaza tokens sin roles GSTS', () => {
+    expect(() => resolveGstsClaims({ sub: 'subject-1', realm_access: { roles: ['otro'] } }, 'gsts')).toThrow('rol autorizado');
   });
 
   it('ignora roles colocados en la fuente equivocada', () => {
     // `ti` sólo es válido desde realm_access; aquí llega por resource_access y debe ignorarse.
     // `ventanilla` sólo es válido desde resource_access; aquí llega por realm_access y debe ignorarse.
-    expect(() => resolveSicefClaims({
+    expect(() => resolveGstsClaims({
       sub: 'subject-2',
-      resource_access: { sicef: { roles: ['ti'] } },
+      resource_access: { gsts: { roles: ['ti'] } },
       realm_access: { roles: ['ventanilla'] },
-    })).toThrow('rol autorizado');
+    }, 'gsts')).toThrow('rol autorizado');
   });
 
   it('separa correctamente roles de cliente y de realm en un token mixto', () => {
-    expect(resolveSicefClaims({
+    expect(resolveGstsClaims({
       sub: 'subject-3',
-      resource_access: { sicef: { roles: ['ventanilla', 'ti', 'consulta-cobros'] } },
+      resource_access: { gsts: { roles: ['ventanilla', 'ti', 'consulta-cobros'] } },
       realm_access: { roles: ['direccion', 'consulta-cobros'] },
-    })).toEqual({ sub: 'subject-3', roles: ['ventanilla', 'consulta-cobros', 'direccion'] });
+    }, 'gsts')).toEqual({ sub: 'subject-3', roles: ['ventanilla', 'consulta-cobros', 'direccion'] });
   });
 
   it('ya no reconoce el rol finanzas: pertenece al sistema de facturación', () => {
-    // Tras el recorte, un token que sólo traiga `finanzas` no autentica en SICEF.
-    expect(() => resolveSicefClaims({
+    // Tras el recorte, un token que sólo traiga `finanzas` no autentica en GSTS.
+    expect(() => resolveGstsClaims({
       sub: 'subject-4',
-      resource_access: { sicef: { roles: ['finanzas'] } },
-    })).toThrow('rol autorizado');
+      resource_access: { gsts: { roles: ['finanzas'] } },
+    }, 'gsts')).toThrow('rol autorizado');
+  });
+
+  it('usa el clienteId configurado, no un nombre fijo: ignora roles bajo otro client_id', () => {
+    // Si el token trae los roles bajo un client_id distinto al configurado
+    // (p. ej. resabios de 'sicef' mientras se termina la migración), no cuentan.
+    expect(() => resolveGstsClaims({
+      sub: 'subject-5',
+      resource_access: { sicef: { roles: ['ventanilla'] } },
+    }, 'gsts')).toThrow('rol autorizado');
   });
 });

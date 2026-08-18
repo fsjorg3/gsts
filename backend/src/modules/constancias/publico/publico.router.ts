@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import type { Env } from '../../config/env.js';
-import { prisma } from '../../infrastructure/database/prisma.js';
-import { crearVerificadorTokens } from '../../infrastructure/verificacion/token.js';
-import { AppError } from '../../shared/errors.js';
-import { routeParam } from '../../api/shared/params.js';
+import type { Env } from '../../../config/env.js';
+import { prisma } from '../../../infrastructure/database/prisma.js';
+import { crearVerificadorTokens } from '../../../infrastructure/verificacion/token.js';
+import { AppError } from '../../../shared/errors.js';
+import { routeParam } from '../../../api/shared/params.js';
 import { resolverVerificacion, type ConstanciaVerificable } from './verificacion.js';
 
 // Intento contra un folio que no existe (o cuyo token no cuadra): no hay

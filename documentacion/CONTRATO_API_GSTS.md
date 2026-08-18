@@ -1,8 +1,8 @@
-# Contrato de la API SICEF
+# Contrato de la API GSTS
 
 ## 1. Propósito y relación con el OpenAPI
 
-`GET /api/v1/openapi.json` (generado por `backend/src/api/openapi.ts` a partir de los esquemas Zod de `@sicef/contracts`) es la **fuente de tipos**: rutas, parámetros, cuerpos de petición y formas exactas de respuesta, incluyendo detalles de serialización (fechas, decimales). Este documento es el complemento **narrativo**: lo que un JSON Schema no puede expresar — máquinas de estado, quién puede hacer qué transición y por qué, y las reglas de negocio que en realidad viven como triggers en `backend/prisma/migration_complementaria.sql`.
+`GET /api/v1/openapi.json` (generado por `backend/src/api/openapi.ts` a partir de los esquemas Zod de `@gsts/contracts`) es la **fuente de tipos**: rutas, parámetros, cuerpos de petición y formas exactas de respuesta, incluyendo detalles de serialización (fechas, decimales). Este documento es el complemento **narrativo**: lo que un JSON Schema no puede expresar — máquinas de estado, quién puede hacer qué transición y por qué, y las reglas de negocio que en realidad viven como triggers en `backend/prisma/migration_complementaria.sql`.
 
 Úsalos juntos: para generar tipos de un cliente/frontend, parte del OpenAPI; para entender por qué una petición fue rechazada con `409` o qué se necesita antes de llamar a un endpoint, consulta este documento.
 
@@ -10,13 +10,13 @@ Base URL: `/api/v1`.
 
 ## 2. Autenticación y roles
 
-Toda ruta interna exige `Authorization: Bearer <JWT>` emitido por Keycloak (realm `SOAPAP`, cliente `sicef`). Los roles se extraen literalmente del token y **cada rol solo es válido desde su fuente**; uno colocado en la fuente equivocada se ignora ([auth/claims.ts](backend/src/modules/auth/claims.ts)):
+Toda ruta interna exige `Authorization: Bearer <JWT>` emitido por Keycloak (realm `SOAPAP`, cliente `gsts`). Los roles se extraen literalmente del token y **cada rol solo es válido desde su fuente**; uno colocado en la fuente equivocada se ignora ([auth/claims.ts](backend/src/modules/auth/claims.ts)):
 
 | Rol | Origen del claim | Habilita |
 |---|---|---|
-| `ventanilla` | `resource_access.sicef.roles` | Crear/transicionar trámites, evidencias, validaciones de no adeudo, borradores de cobro, cobro directo, emisión de constancias |
-| `consulta-cobros` | `resource_access.sicef.roles` | Service account del sistema Finanzas: consulta de cobro y comprobante por folio |
-| `consulta-metricas` | `resource_access.sicef.roles` | Service account del sistema Finanzas: indicadores de Dirección |
+| `ventanilla` | `resource_access.gsts.roles` | Crear/transicionar trámites, evidencias, validaciones de no adeudo, borradores de cobro, cobro directo, emisión de constancias |
+| `consulta-cobros` | `resource_access.gsts.roles` | Service account del sistema Finanzas: consulta de cobro y comprobante por folio |
+| `consulta-metricas` | `resource_access.gsts.roles` | Service account del sistema Finanzas: indicadores de Dirección |
 | `ti` | `realm_access.roles` | Asistente de catálogos/tarifas (crear, clonar, publicar), configurar plazos operativos, gestionar motivos de reducción, consultar bitácora de auditoría global |
 | `direccion` | `realm_access.roles` | Consultar los indicadores de `GET /direccion/metricas` |
 
@@ -58,8 +58,8 @@ Condiciones de guardia por flecha:
 | Transición | Exige |
 |---|---|
 | `CAPTURA → EN_VALIDACION` | El checklist de requisitos aplicable (`fn_checklist_satisfecho`) está satisfecho: cada grupo aplicable tiene al menos una opción con todos sus documentos en evidencia `VALIDADO`. |
-| `EN_VALIDACION → APROBADO` | Para `NO_ADEUDO`: existe `validacion_no_adeudo` con `momento=VALIDACION_INICIAL` y `resultado=SIN_ADEUDO`. Siempre: existe `configuracion_plazos` activa con `plazo_pago_dias > 0` (el trigger estampa `plazo_pago_hasta = now() + plazo_pago_dias`). |
-| `APROBADO → COBRO` | `plazo_pago_hasta` no vencido. Para `NO_ADEUDO`: revalidación `REVALIDACION_COBRO` con `SIN_ADEUDO`. Existe un `cobro` cuya tarifa está `publicada`, `activa` y coincide en `tipo_constancia`. |
+| `EN_VALIDACION → APROBADO` | **Cada tipo exige su hecho verificado.** `NO_ADEUDO`: `validacion_no_adeudo` con `momento=VALIDACION_INICIAL` y `resultado=SIN_ADEUDO`. `NO_REGISTRO`: `validacion_no_registro` con `VALIDACION_INICIAL` y `SIN_REGISTRO`. Siempre: existe `configuracion_plazos` activa con `plazo_pago_dias > 0` (el trigger estampa `plazo_pago_hasta = now() + plazo_pago_dias`). |
+| `APROBADO → COBRO` | `plazo_pago_hasta` no vencido. Revalidación `REVALIDACION_COBRO` del tipo que corresponda: `SIN_ADEUDO` para `NO_ADEUDO`, `SIN_REGISTRO` para `NO_REGISTRO`. Existe un `cobro` cuya tarifa está `publicada`, `activa` y coincide en `tipo_constancia`. |
 | `APROBADO → EXPIRADO` | Sólo después de `plazo_pago_hasta`. Efecto colateral: cualquier `borrador_cobro` `ABIERTO` pasa a `VENCIDO`. |
 | `APROBADO → RECHAZADO` | Sin condición adicional. Efecto colateral: el `borrador_cobro` `ABIERTO`, si existe, pasa a `CANCELADO`. |
 | `COBRO → FINALIZADO` | Existe `constancia` emitida. **Ya no exige CFDI timbrado**: la factura es una obligación independiente del sistema Finanzas, con su propio plazo fiscal, y puede solicitarse semanas después por el portal. |
@@ -84,9 +84,9 @@ stateDiagram-v2
 - `VENCIDO`/`CANCELADO` son transiciones **automáticas** disparadas por el cambio de estado del trámite, nunca por una llamada directa a este endpoint.
 - Al aplicar (`POST /:id/aplicar`), el trigger exige que el `cobro` recién creado coincida **exactamente** (tarifa, montos, forma/método de pago, moneda, referencia) con los datos del borrador — por eso el router construye ambos desde el mismo objeto de valores.
 
-### 4.3 Máquinas que salieron de SICEF
+### 4.3 Máquinas que salieron de GSTS
 
-`EstadoFactura` y `EstadoSolicitudFactura` se trasladaron al sistema Finanzas junto con el CFDI. SICEF conserva dos máquinas: trámite y borrador de cobro. Ver `documentacion2/SISTEMA_FINANZAS.md`.
+`EstadoFactura` y `EstadoSolicitudFactura` se trasladaron al sistema Finanzas junto con el CFDI. GSTS conserva dos máquinas: trámite y borrador de cobro. Ver `documentacion2/SISTEMA_FINANZAS.md`.
 
 ## 5. Reglas de negocio por grupo de endpoints
 
@@ -140,7 +140,7 @@ Los borrados responden `{ "data": { "id" } }`, no `204`, para conservar la envol
 - **La emisión no firma digitalmente.** El Servicio de Firma quedó fuera del proyecto (tentativamente), así que `firmaDigital` y `certificadoId` nacen en `null` — el modelo ya los declaraba opcionales. El backend sí calcula y persiste el hash SHA-256 del PDF (`hashPdf`) como ancla de integridad del archivo. La autenticidad del documento se sostiene en la **firma autógrafa** del papel y en la **verificación pública por QR**.
   - Consecuencia a tener presente: `trg_constancia_inmutable` cubre `firma_digital`, de modo que una constancia emitida sin firma **no puede firmarse después** con un `UPDATE`. Si el Servicio de Firma se reincorpora, las constancias históricas quedarán sin firma.
   - El cliente HTTP del servicio sigue en `backend/src/infrastructure/signing/`, sin uso, para cuando vuelva.
-- `folioUnico` tiene el formato `SICEF-{numeroTramite}-{8 hex}`.
+- `folioUnico` tiene el formato `GSTS-{numeroTramite}-{8 hex}`.
 - El PDF imprime, bajo la fecha, el **número de oficio** (`{oficioPrefijo}/{año de emitidaAt}`, tomado de `ConfiguracionConstancia`) además del folio — ver la sección de configuración de constancias más abajo. El oficio no es único por documento; el folio sí.
 - **Dos hashes distintos, con propósitos distintos**: `hashPdf` es SHA-256 sobre los bytes del archivo (integridad del archivo); `hashContenido` es SHA-256 sobre los datos estructurados (`folioUnico`, `tipoConstancia`, id del titular, `emitidaAt`, `vigenciaInicio`, `vigenciaFin`) y es el ancla de integridad del **registro**, independiente de cómo se renderice el PDF.
 - Por eso `emitidaAt` lo fija el backend antes del `INSERT` en vez de dejarlo al `now()` de PostgreSQL: el hash se calcula sobre el valor exacto que se persiste, y corregirlo después con un `UPDATE` chocaría con `trg_constancia_inmutable`.
@@ -194,7 +194,7 @@ Es un servicio de consulta de SOAPAP sobre su propio registro: confirma que el f
 8. En `APROBADO`: opcionalmente `POST .../borradores-cobro` para guardar avance; si `NO_ADEUDO`, registrar revalidación con `momento=REVALIDACION_COBRO`.
 9. Cobrar: `POST /tramites/{id}/cobros` (directo) o `POST .../borradores-cobro/{id}/aplicar` → trámite pasa a `COBRO`; opcionalmente se adjunta el comprobante de pago (voucher) al cobro directo o al borrador antes de aplicarlo.
 10. Emitir constancia: `POST /tramites/{id}/constancias`, sin cuerpo. El backend genera el PDF con el QR ya estampado, lo firma y lo guarda. La respuesta trae `urlVerificacion` (la misma que codifica el QR impreso); el ciudadano la consulta después con `GET /public/constancias/{folio}/verificar/{token}`.
-11. Si el ciudadano quiere factura, la solicita en el portal del sistema Finanzas con el folio de su constancia. SICEF no participa: `cobro.facturaSolicitadaEnVentanilla` sólo registra qué contestó ese día.
+11. Si el ciudadano quiere factura, la solicita en el portal del sistema Finanzas con el folio de su constancia. GSTS no participa: `cobro.facturaSolicitadaEnVentanilla` sólo registra qué contestó ese día.
 12. El timbrado real (UUID/XML/PDF, paso a `TIMBRADO`) y `POST /tramites/{id}/finalizar` ocurren cuando esos requisitos ya se cumplieron — el timbrado en sí lo hace el worker futuro, fuera de esta API.
 13. Si el plazo de pago vence sin cobrar: `POST /tramites/{id}/expirar`.
 
@@ -206,7 +206,7 @@ Todos siguen el formato `{ "error": { "code", "message", "details"? } }` ([share
 |---|---|---|
 | `UNAUTHENTICATED` | 401 | Falta el header `Authorization` o no hay `actorId`/`auth` resuelto |
 | `INVALID_TOKEN` | 401 | El JWT no es válido (firma, issuer, audiencia, vigencia, o no es JWT) |
-| `MISSING_ROLE` | 403 | El token no contiene ningún rol SICEF válido desde su fuente correcta |
+| `MISSING_ROLE` | 403 | El token no contiene ningún rol GSTS válido desde su fuente correcta |
 | `FORBIDDEN` | 403 | El actor no tiene el rol requerido para la ruta |
 | `NOT_FOUND` | 404 | Recurso inexistente (trámite, borrador que no pertenece al trámite, constancia o cobro por folio) |
 | `VALIDATION_ERROR` | 422 | Falla de `zod.parse` sobre el body/query, o motivo de rechazo faltante |

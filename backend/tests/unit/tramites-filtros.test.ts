@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listarTramitesSchema } from '@sicef/contracts';
+import { listarTramitesSchema } from '@gsts/contracts';
 
 describe('listarTramitesSchema', () => {
   it('aplica los valores por defecto de paginación sin filtros', () => {

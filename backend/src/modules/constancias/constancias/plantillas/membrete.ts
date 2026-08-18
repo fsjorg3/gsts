@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 // Coordenadas, márgenes y logotipos salen literalmente de la plantilla oficial
 // (documentacion/plantilla.docx): se extrajo su XML (pgMar y el offset/extent
 // de cada imagen) en vez de adivinar la composición.
-const recurso = (ruta: string): string => fileURLToPath(new URL(`../../../../recursos/${ruta}`, import.meta.url));
+const recurso = (ruta: string): string => fileURLToPath(new URL(`../../../../../recursos/${ruta}`, import.meta.url));
 
 export const LOGOS = {
   soapap: recurso('logotipos/soapap.png'),

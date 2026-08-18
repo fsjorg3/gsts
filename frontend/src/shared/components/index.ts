@@ -11,3 +11,4 @@ export {
 } from './EstadoBadge';
 export { DataTable, type DataTableColumn } from './DataTable';
 export { StatCard } from './StatCard';
+export { ConfirmDialog } from './ConfirmDialog';

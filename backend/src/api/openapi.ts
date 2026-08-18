@@ -43,6 +43,9 @@ import {
   tramiteDetalleDto,
   evidenciaDto,
   validacionNoAdeudoDto,
+  validacionNoRegistroDto,
+  validacionRequestSchema,
+  validacionNoRegistroRequestSchema,
   borradorCobroDto,
   cobroDto,
   cobroRespuestaDto,
@@ -52,14 +55,14 @@ import {
   metricasDireccionDto,
   verificacionConstanciaPublicaDto,
   errorSchema,
-} from '@sicef/contracts';
+} from '@gsts/contracts';
 
 // ===================== Mirrors de esquemas de request definidos localmente en cada
-// router (no exportados de @sicef/contracts). Existen solo para documentar el
+// router (no exportados de @gsts/contracts). Existen solo para documentar el
 // contrato; los routers siguen validando con su propia copia.
 //
 // Los de catálogo (grupo/opción/documento) dejaron de estar aquí: viven en
-// @sicef/contracts junto con sus variantes de actualización, para no mantener
+// @gsts/contracts junto con sus variantes de actualización, para no mantener
 // seis copias a mano. =====================
 
 const evidenciaRequestSchema = z.object({
@@ -67,13 +70,6 @@ const evidenciaRequestSchema = z.object({
   nombreOriginal: z.string().trim().min(1).max(255),
   mimeType: z.string().trim().min(1).max(100),
   contenidoBase64: z.string().min(1).regex(/^[A-Za-z0-9+/]+={0,2}$/).describe('Contenido del archivo codificado en Base64, en una sola línea: sin saltos de línea ni prefijo data:'),
-});
-const validacionRequestSchema = z.object({
-  metodo: metodoValidacionSchema,
-  momento: momentoValidacionSchema,
-  resultado: resultadoValidacionSchema,
-  adeudoMonto: z.number().nonnegative().optional(),
-  referenciaOuc: z.string().trim().min(1).max(255).optional(),
 });
 const cobroRequestSchema = z.object({
   tarifaId: z.string().uuid(),
@@ -130,6 +126,7 @@ const ActualizarDocumento = def('ActualizarDocumento', actualizarDocumentoSchema
 const RecursoEliminado = def('RecursoEliminado', recursoEliminadoDto);
 const EvidenciaRequest = def('EvidenciaRequest', evidenciaRequestSchema);
 const ValidacionRequest = def('ValidacionRequest', validacionRequestSchema);
+const ValidacionNoRegistroRequest = def('ValidacionNoRegistroRequest', validacionNoRegistroRequestSchema);
 const CobroRequest = def('CobroRequest', cobroRequestSchema);
 const PlazosRequest = def('PlazosRequest', plazosRequestSchema);
 const ConfiguracionConstanciaRequest = def('ConfiguracionConstanciaRequest', guardarConfiguracionConstanciaSchema);
@@ -154,6 +151,7 @@ const TramiteConPersonas = def('TramiteConPersonas', tramiteConPersonasDto);
 const TramiteDetalle = def('TramiteDetalle', tramiteDetalleDto);
 const Evidencia = def('Evidencia', evidenciaDto);
 const ValidacionNoAdeudo = def('ValidacionNoAdeudo', validacionNoAdeudoDto);
+const ValidacionNoRegistro = def('ValidacionNoRegistro', validacionNoRegistroDto);
 const BorradorCobro = def('BorradorCobro', borradorCobroDto);
 const Cobro = def('Cobro', cobroDto);
 const CobroRespuesta = def('CobroRespuesta', cobroRespuestaDto);
@@ -213,7 +211,7 @@ const PARAM_TIPO_CONSTANCIA = { name: 'tipo', in: 'path', required: true, schema
 
 export const openApiDocument = {
   openapi: '3.0.3',
-  info: { title: 'SICEF API', version: 'v1', description: 'API del Sistema Integral de Constancias y Emisión. La facturación (CFDI) vive en el sistema Finanzas, independiente de éste. Ver documentacion/CONTRATO_API_SICEF.md para máquinas de estado y reglas de negocio.' },
+  info: { title: 'GSTS API', version: 'v1', description: 'API de GSTS (Gerencia de Supervisión Técnica de los Servicios) — hoy sólo el dominio de Constancias. La facturación (CFDI) vive en el sistema Finanzas, independiente de éste. Ver documentacion/CONTRATO_API_GSTS.md para máquinas de estado y reglas de negocio.' },
   servers: [{ url: '/api/v1' }],
   components: {
     securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },
@@ -368,7 +366,7 @@ export const openApiDocument = {
     '/tramites/{id}/{accion}': {
       post: {
         tags: ['Trámites'], security: bearer, summary: 'Transicionar el estado del trámite (rol ventanilla)',
-        description: 'Valores válidos de `accion`: iniciar-validacion (→EN_VALIDACION), aprobar (→APROBADO), rechazar (→RECHAZADO), expirar (→EXPIRADO), finalizar (→FINALIZADO). Las condiciones de guardia de cada transición las impone la base de datos — ver CONTRATO_API_SICEF.md.',
+        description: 'Valores válidos de `accion`: iniciar-validacion (→EN_VALIDACION), aprobar (→APROBADO), rechazar (→RECHAZADO), expirar (→EXPIRADO), finalizar (→FINALIZADO). Las condiciones de guardia de cada transición las impone la base de datos — ver CONTRATO_API_GSTS.md.',
         parameters: [
           { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
           { name: 'accion', in: 'path', required: true, schema: { type: 'string', enum: ['iniciar-validacion', 'aprobar', 'rechazar', 'expirar', 'finalizar'] } },
@@ -379,7 +377,8 @@ export const openApiDocument = {
     },
     '/tramites/{id}/evidencias': { post: { tags: ['Trámites'], security: bearer, summary: 'Guardar evidencia en NFS (Base64; rol ventanilla)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(EvidenciaRequest), responses: { '201': envelope(Evidencia, { description: 'Evidencia registrada' }), ...ERRORES_AUTENTICACION, '422': errorResponse('Entrada inválida o evidencia excede el límite acumulado de 30 MiB') } } },
     '/tramites/{id}/evidencias/{evidenciaId}': { patch: { tags: ['Trámites'], security: bearer, summary: 'Validar o rechazar una evidencia cargada (rol ventanilla)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }, { name: 'evidenciaId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ActualizarEvidencia), responses: { '200': envelope(Evidencia, { description: 'Evidencia resuelta' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_VALIDACION } } },
-    '/tramites/{id}/validaciones/no-adeudo': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar validación de no adeudo (rol ventanilla)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionRequest), responses: { '200': envelope(ValidacionNoAdeudo, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
+    '/tramites/{id}/validaciones/no-adeudo': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar el cruce con el OUC de un trámite de No Adeudo (rol ventanilla). Upsert por momento: repetirlo corrige el resultado. Aprobar exige VALIDACION_INICIAL con SIN_ADEUDO; cobrar exige REVALIDACION_COBRO con SIN_ADEUDO', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionRequest), responses: { '200': envelope(ValidacionNoAdeudo, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
+    '/tramites/{id}/validaciones/no-registro': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar la consulta al padrón de un trámite de No Registro (rol ventanilla). Upsert por momento. Aprobar exige VALIDACION_INICIAL con SIN_REGISTRO; cobrar exige REVALIDACION_COBRO con SIN_REGISTRO. Registrar CON_REGISTRO es válido y deja el trámite bloqueado a propósito', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionNoRegistroRequest), responses: { '200': envelope(ValidacionNoRegistro, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
 
     // ---------- Borradores de cobro ----------
     '/tramites/{id}/borradores-cobro': {

@@ -4,14 +4,14 @@ import {
   actualizarDocumentoSchema, actualizarGrupoSchema, actualizarOpcionSchema,
   crearCatalogoSchema, crearTarifaSchema, documentoRequestSchema,
   grupoRequestSchema, opcionRequestSchema, paginationSchema,
-} from '@sicef/contracts';
+} from '@gsts/contracts';
 import type { Prisma } from '@prisma/client';
-import { prisma, withBusinessTransaction } from '../../infrastructure/database/prisma.js';
-import { auditarUsuario } from '../auditoria/service.js';
-import { requireRoles } from '../auth/middleware.js';
-import { requestContext } from '../../shared/request-context.js';
-import { AppError } from '../../shared/errors.js';
-import { routeParam } from '../../api/shared/params.js';
+import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
+import { auditarUsuario } from '../../auditoria/service.js';
+import { requireRoles } from '../../auth/middleware.js';
+import { requestContext } from '../../../shared/request-context.js';
+import { AppError } from '../../../shared/errors.js';
+import { routeParam } from '../../../api/shared/params.js';
 
 type OpcionValidar = { clave: string; orden: number; documentos: Array<{ orden: number }> };
 type GrupoValidar = { clave: string; orden: number; aplicaTipo: string | null; aplicaPersonalidad: string | null; aplicaRepresentacion: string | null; opciones: OpcionValidar[] };

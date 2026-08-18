@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cobroPorFolioDto, rolesCliente, rolesRealm, rolesSicef } from '@sicef/contracts';
+import { cobroPorFolioDto, rolesCliente, rolesRealm, rolesSicef } from '@gsts/contracts';
 
 // Campos que nunca deben viajar hacia el sistema Finanzas. La lista se afirma
 // en negativo a propósito: comprobar sólo los campos esperados dejaría pasar a

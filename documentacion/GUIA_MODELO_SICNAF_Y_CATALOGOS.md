@@ -54,11 +54,11 @@ Por tanto, el comportamiento real es la combinación de ambos archivos. Ejecutar
 - El archivo binario no se guarda en la base: `Evidencia` y `ArchivoGenerado` guardan su UUID lógico, ruta, hash, MIME y tamaño.
 - `@updatedAt` es una comodidad de Prisma; las escrituras realizadas fuera de Prisma deben tener una estrategia equivalente si se necesita actualizar `updated_at`.
 - Keycloak es la única fuente de autenticación y autorización. `actor.keycloak_sub` guarda sólo el `sub` opaco para FKs y trazabilidad; no se almacenan nombre, correo, contraseñas, sesiones ni roles.
-- La configuración fija es realm `SOAPAP` y cliente `sicef`: `ventanilla` y `finanzas` provienen literalmente de `resource_access.sicef.roles`; `ti` y `direccion` de `realm_access.roles`. Sólo un token con al menos uno de esos claims puede resolver un `actor`.
+- La configuración fija es realm `SOAPAP` y cliente `gsts`: `ventanilla` y `finanzas` provienen literalmente de `resource_access.gsts.roles`; `ti` y `direccion` de `realm_access.roles`. Sólo un token con al menos uno de esos claims puede resolver un `actor`.
 
 ### Contexto de identidad y autorización
 
-El backend valida criptográficamente cada JWT antes de tocar la base: emisor, audiencia `sicef`, firma obtenida por JWKS, vigencia y claim `sub`. En cada transacción de negocio fija `app.actor_id`, `app.roles` y `app.request_id` con `set_config(..., true)`. Los triggers comparan ese contexto con el actor atribuido y exigen los claims literales necesarios: `ti` para plazos y catálogos, `ventanilla` para borradores y cobros. El claim `finanzas` ya no se usa aquí: la facturación vive en un sistema aparte.
+El backend valida criptográficamente cada JWT antes de tocar la base: emisor, audiencia `gsts`, firma obtenida por JWKS, vigencia y claim `sub`. En cada transacción de negocio fija `app.actor_id`, `app.roles` y `app.request_id` con `set_config(..., true)`. Los triggers comparan ese contexto con el actor atribuido y exigen los claims literales necesarios: `ti` para plazos y catálogos, `ventanilla` para borradores y cobros. El claim `finanzas` ya no se usa aquí: la facturación vive en un sistema aparte.
 
 Estas variables de sesión son una defensa frente a errores de implementación; no validan JWTs ni sustituyen la autorización principal del backend. La bitácora almacena el UUID local y el arreglo de roles exactamente como fue recibido, no el `sub`, token, nombre, correo o RFC.
 
@@ -171,9 +171,9 @@ El asistente no debe permitir editar contenido publicado. Una corrección poster
 
 ### Primer acceso administrativo
 
-No existe bootstrap ni administración de usuarios en PostgreSQL. La primera persona administradora se habilita asignándole el rol de realm literal `ti` en Keycloak, dentro del realm `SOAPAP`. Al iniciar sesión con un token válido para el cliente `sicef`, el backend crea o resuelve su `actor` de forma idempotente usando exclusivamente el claim `sub`.
+No existe bootstrap ni administración de usuarios en PostgreSQL. La primera persona administradora se habilita asignándole el rol de realm literal `ti` en Keycloak, dentro del realm `SOAPAP`. Al iniciar sesión con un token válido para el cliente `gsts`, el backend crea o resuelve su `actor` de forma idempotente usando exclusivamente el claim `sub`.
 
-La baja, recuperación y cambio de permisos se realizan sólo en Keycloak. SICEF no puede asignar roles ni reactivar identidades. La creación del `actor` no contiene PII y queda trazada mediante bitácora técnica cuando corresponda.
+La baja, recuperación y cambio de permisos se realizan sólo en Keycloak. GSTS no puede asignar roles ni reactivar identidades. La creación del `actor` no contiene PII y queda trazada mediante bitácora técnica cuando corresponda.
 
 ### Evidencias
 
@@ -199,9 +199,9 @@ Las reglas adicionales son:
 
 - un trámite nuevo debe iniciar en `CAPTURA`;
 - `CAPTURA -> EN_VALIDACION` exige que el checklist aplicable esté satisfecho con evidencias `VALIDADO`;
-- `EN_VALIDACION -> APROBADO`, para `NO_ADEUDO`, exige una validación inicial `SIN_ADEUDO`;
+- `EN_VALIDACION -> APROBADO` exige la validación inicial del tipo: `SIN_ADEUDO` en `validacion_no_adeudo` para `NO_ADEUDO`, `SIN_REGISTRO` en `validacion_no_registro` para `NO_REGISTRO`. Son dos tablas paralelas con enums de resultado distintos, de modo que un resultado no puede confundirse con el del otro tipo;
 - `EN_VALIDACION -> APROBADO` calcula el plazo de pago desde la configuración activa;
-- `APROBADO -> COBRO`, para `NO_ADEUDO`, exige revalidación `SIN_ADEUDO`, plazo vigente y un cobro con tarifa publicada, activa y compatible;
+- `APROBADO -> COBRO` exige la revalidación del tipo (`SIN_ADEUDO` / `SIN_REGISTRO`), plazo vigente y un cobro con tarifa publicada, activa y compatible;
 - `APROBADO -> EXPIRADO` sólo se permite después de `plazo_pago_hasta` y vence cualquier borrador abierto;
 - `COBRO -> FINALIZADO` exige constancia emitida;
 

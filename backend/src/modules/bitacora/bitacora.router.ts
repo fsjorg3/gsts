@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from 'express';
-import { listarBitacoraSchema } from '@sicef/contracts';
+import { listarBitacoraSchema } from '@gsts/contracts';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { requireRoles } from '../auth/middleware.js';

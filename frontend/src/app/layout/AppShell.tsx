@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography';
 import { Outlet } from 'react-router';
 import { useAuth } from '@/auth/useAuth';
 import { MsIcon } from '@/shared/components';
-import { MODULOS } from './modulos';
+import { MODULOS, seccionesDe } from './modulos';
 import { NavItem } from './NavItem';
 import { Notifier } from './Notifier';
 
@@ -32,7 +32,7 @@ function iniciales(nombre: string): string {
 // Layout raíz de la app interna: sidebar institucional (264px) + área de módulo.
 export function AppShell() {
   const { nombre, roles, tieneRol, cerrarSesion } = useAuth();
-  const modulosVisibles = MODULOS.filter((m) => tieneRol(...m.roles));
+  const secciones = seccionesDe(MODULOS.filter((m) => tieneRol(...m.roles)));
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Box
@@ -65,18 +65,22 @@ export function AppShell() {
             <MsIcon name="water_drop" size={22} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1 }}>SICEF</Typography>
+            <Typography sx={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1 }}>GSTS</Typography>
             <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'text.disabled', lineHeight: 1.3 }}>
-              Constancias de no adeudo y no registro
+              Gerencia de Supervisión Técnica de los Servicios
             </Typography>
           </Box>
         </Box>
 
         {/* Navegación */}
         <Box sx={{ flex: 1, overflowY: 'auto' }}>
-          <SeccionLabel>Módulos</SeccionLabel>
-          {modulosVisibles.map((m) => (
-            <NavItem key={m.to} to={m.to} icon={m.icon} label={m.label} />
+          {secciones.map((seccion) => (
+            <Box key={seccion.label}>
+              <SeccionLabel>{seccion.label}</SeccionLabel>
+              {seccion.modulos.map((m) => (
+                <NavItem key={m.to} to={m.to} icon={m.icon} label={m.label} />
+              ))}
+            </Box>
           ))}
         </Box>
 
@@ -100,7 +104,7 @@ export function AppShell() {
               {nombre}
             </Typography>
             <Typography noWrap sx={{ fontSize: 11, fontWeight: 500, color: 'text.disabled', lineHeight: 1.3, textTransform: 'capitalize' }}>
-              {roles.join(' · ') || 'Sin rol SICEF'}
+              {roles.join(' · ') || 'Sin rol GSTS'}
             </Typography>
           </Box>
           <Tooltip title="Cerrar sesión">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { actualizarMotivoReduccionSchema, crearMotivoReduccionSchema } from '@sicef/contracts';
+import { actualizarMotivoReduccionSchema, crearMotivoReduccionSchema } from '@gsts/contracts';
 
 describe('crearMotivoReduccionSchema', () => {
   it('acepta un motivo válido y recorta espacios', () => {

@@ -383,9 +383,16 @@ BEGIN
   IF OLD.estado = 'CAPTURA' AND NEW.estado = 'EN_VALIDACION' AND NOT fn_checklist_satisfecho(NEW.id) THEN
     RAISE EXCEPTION 'No se puede iniciar validacion: faltan requisitos aplicables';
   END IF;
+  -- Cada tipo de constancia se aprueba contra un hecho verificado, no sólo
+  -- contra el checklist documental: no adeudo exige el cruce con el OUC, y no
+  -- registro la consulta al padron que sostiene lo que el documento afirma.
   IF OLD.estado = 'EN_VALIDACION' AND NEW.estado = 'APROBADO' AND NEW.tipo_constancia = 'NO_ADEUDO'
      AND NOT EXISTS (SELECT 1 FROM validacion_no_adeudo WHERE tramite_id = NEW.id AND momento = 'VALIDACION_INICIAL' AND resultado = 'SIN_ADEUDO') THEN
     RAISE EXCEPTION 'No se puede aprobar sin validacion inicial SIN_ADEUDO';
+  END IF;
+  IF OLD.estado = 'EN_VALIDACION' AND NEW.estado = 'APROBADO' AND NEW.tipo_constancia = 'NO_REGISTRO'
+     AND NOT EXISTS (SELECT 1 FROM validacion_no_registro WHERE tramite_id = NEW.id AND momento = 'VALIDACION_INICIAL' AND resultado = 'SIN_REGISTRO') THEN
+    RAISE EXCEPTION 'No se puede aprobar sin validacion inicial SIN_REGISTRO';
   END IF;
   IF OLD.estado = 'EN_VALIDACION' AND NEW.estado = 'APROBADO' THEN
     SELECT plazo_pago_dias INTO v_plazo_pago_dias
@@ -399,7 +406,10 @@ BEGIN
     IF NEW.plazo_pago_hasta IS NULL OR now() > NEW.plazo_pago_hasta THEN
       RAISE EXCEPTION 'No se puede cobrar despues del plazo de pago';
     END IF;
+    -- El hecho se vuelve a comprobar antes de cobrar: entre la aprobacion y el
+    -- pago pudo aparecer un adeudo, o darse de alta el predio en el padron.
     IF NEW.tipo_constancia = 'NO_ADEUDO' AND NOT EXISTS (SELECT 1 FROM validacion_no_adeudo WHERE tramite_id = NEW.id AND momento = 'REVALIDACION_COBRO' AND resultado = 'SIN_ADEUDO') THEN RAISE EXCEPTION 'No se puede cobrar sin revalidacion SIN_ADEUDO'; END IF;
+    IF NEW.tipo_constancia = 'NO_REGISTRO' AND NOT EXISTS (SELECT 1 FROM validacion_no_registro WHERE tramite_id = NEW.id AND momento = 'REVALIDACION_COBRO' AND resultado = 'SIN_REGISTRO') THEN RAISE EXCEPTION 'No se puede cobrar sin revalidacion SIN_REGISTRO'; END IF;
     IF NOT EXISTS (SELECT 1 FROM cobro c JOIN tarifa ta ON ta.id = c.tarifa_id WHERE c.tramite_id = NEW.id AND ta.publicada AND ta.activa AND ta.tipo_constancia = NEW.tipo_constancia) THEN RAISE EXCEPTION 'No existe un cobro valido con tarifa activa compatible'; END IF;
   END IF;
   IF OLD.estado = 'APROBADO' AND NEW.estado = 'EXPIRADO' THEN

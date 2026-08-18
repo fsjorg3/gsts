@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buscarPersonasSchema, crearPersonaSchema } from '@sicef/contracts';
+import { buscarPersonasSchema, crearPersonaSchema } from '@gsts/contracts';
 
 describe('crearPersonaSchema', () => {
   it('acepta persona física con RFC de 13 y recorta espacios', () => {

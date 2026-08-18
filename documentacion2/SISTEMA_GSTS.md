@@ -1,6 +1,6 @@
-# SICEF después de la separación de facturación
+# GSTS después de la separación de facturación
 
-> Documento de estado destino. Describe cómo queda SICEF una vez que la facturación
+> Documento de estado destino. Describe cómo queda GSTS una vez que la facturación
 > se traslada a un sistema independiente. Su contraparte es
 > [SISTEMA_FINANZAS.md](SISTEMA_FINANZAS.md).
 >
@@ -17,19 +17,19 @@ Tramite  1—1  Cobro  1—1  Factura
 
 Una factura de un permiso de descarga no tiene trámite del que colgar. La salida no es generalizar `Tramite`, sino sacar la facturación a un sistema propio cuya unidad de trabajo no dependa de qué originó el pago.|
 
-**SICEF deja de emitir CFDI.** Conserva todo lo demás, incluido el cobro.
+**GSTS deja de emitir CFDI.** Conserva todo lo demás, incluido el cobro.
 
 ### Por qué el cobro se queda
 
-Podría parecer que el cobro debería irse con la facturación. No: en SOAPAP el cobro es lo que **habilita la entrega de la constancia**. El solicitante presenta su ticket en ventanilla y hasta entonces recibe el documento. Esa es una regla del trámite, no una regla fiscal. Si el cobro se fuera, SICEF no podría decidir por sí solo si entrega una constancia — que es justamente el acoplamiento que se busca evitar.
+Podría parecer que el cobro debería irse con la facturación. No: en SOAPAP el cobro es lo que **habilita la entrega de la constancia**. El solicitante presenta su ticket en ventanilla y hasta entonces recibe el documento. Esa es una regla del trámite, no una regla fiscal. Si el cobro se fuera, GSTS no podría decidir por sí solo si entrega una constancia — que es justamente el acoplamiento que se busca evitar.
 
 ### Los tres cambios de comportamiento
 
 | Cambio | Antes | Después |
 |---|---|---|
 | Cierre del trámite | `COBRO → FINALIZADO` exige CFDI timbrado si el cobro requería factura | Exige sólo constancia emitida. La factura es una obligación independiente con su propio plazo |
-| Datos fiscales | Se capturan en ventanilla o portal y se guardan en SICEF (`solicitud_factura`) | SICEF nunca los custodia. Ventanilla los captura, pero el navegador los envía directo a Finanzas |
-| Rol `finanzas` | Resuelve solicitudes dentro de SICEF | Desaparece de SICEF. Existe sólo en el sistema de Finanzas |
+| Datos fiscales | Se capturan en ventanilla o portal y se guardan en GSTS (`solicitud_factura`) | GSTS nunca los custodia. Ventanilla los captura, pero el navegador los envía directo a Finanzas |
+| Rol `finanzas` | Resuelve solicitudes dentro de GSTS | Desaparece de GSTS. Existe sólo en el sistema de Finanzas |
 
 ## 2. Alcance
 
@@ -50,12 +50,12 @@ Podría parecer que el cobro debería irse con la facturación. No: en SOAPAP el
 
 - CFDI individual y global.
 - Solicitudes de factura, tanto la ruta pública como su resolución interna.
-- El rol `finanzas` y el módulo `backend/src/modules/facturacion/`.
+- El rol `finanzas` y todo lo relativo a facturación (se extrajo por completo al sistema Finanzas; no quedó ningún módulo `facturacion/` en `backend/src/modules/`).
 - La ruta pública de consulta de CFDI.
 
 ## 3. ERD
 
-> **Vista completa con atributos:** [sicef_erd.html](sicef_erd.html) — las 21 entidades con
+> **Vista completa con atributos:** [gsts_erd.html](gsts_erd.html) — las 21 entidades con
 > sus columnas y llaves PK/FK/UK, con zoom, arrastre y modo claro/oscuro. Ábrelo en el
 > navegador; funciona sin conexión. Los diagramas de abajo son la versión resumida, sólo
 > de relaciones, para leer sin salir del editor.
@@ -147,7 +147,7 @@ De los 25 modelos actuales quedan **21**. El detalle campo por campo de lo que s
 
 Hoy `cobro.requiere_factura` es un campo **de estado**: tres reglas de base de datos dependen de él ([migration_complementaria.sql:536-544](../backend/prisma/migration_complementaria.sql)) y decide si el trámite puede finalizar.
 
-Después del recorte no puede seguir siéndolo. La verdad sobre si existe una factura vive en Finanzas, y la solicitud puede llegar tres semanas más tarde por el portal — SICEF no tiene forma de saberlo ni de mantenerlo actualizado.
+Después del recorte no puede seguir siéndolo. La verdad sobre si existe una factura vive en Finanzas, y la solicitud puede llegar tres semanas más tarde por el portal — GSTS no tiene forma de saberlo ni de mantenerlo actualizado.
 
 Se conserva como **dato informativo de la ventanilla**: qué contestó el solicitante ese día, para imprimirlo en el ticket y para indicadores. El renombre no es cosmético: evita que dentro de seis meses alguien lo lea como fuente de verdad. Las tres reglas de base de datos que lo custodiaban se eliminan.
 
@@ -180,13 +180,13 @@ La topología no cambia. Cambia **una** guardia:
 | Transición | Exige | Cambio |
 |---|---|---|
 | `CAPTURA → EN_VALIDACION` | Checklist aplicable satisfecho (`fn_checklist_satisfecho`) | — |
-| `EN_VALIDACION → APROBADO` | Para `NO_ADEUDO`: `validacion_no_adeudo` inicial `SIN_ADEUDO`. Siempre: `configuracion_plazos` activa con `plazo_pago_dias > 0`; el trigger estampa `plazo_pago_hasta` | — |
-| `APROBADO → COBRO` | `plazo_pago_hasta` vigente. Para `NO_ADEUDO`: revalidación `SIN_ADEUDO`. Existe cobro con tarifa publicada, activa y del mismo `tipo_constancia` | — |
+| `EN_VALIDACION → APROBADO` | Validación inicial del tipo: `SIN_ADEUDO` en `validacion_no_adeudo`, o `SIN_REGISTRO` en `validacion_no_registro`. Siempre: `configuracion_plazos` activa con `plazo_pago_dias > 0`; el trigger estampa `plazo_pago_hasta` | — |
+| `APROBADO → COBRO` | `plazo_pago_hasta` vigente. Revalidación del tipo (`SIN_ADEUDO` / `SIN_REGISTRO`). Existe cobro con tarifa publicada, activa y del mismo `tipo_constancia` | — |
 | `APROBADO → EXPIRADO` | Sólo después del vencimiento. Efecto: el borrador `ABIERTO` pasa a `VENCIDO` | — |
 | `APROBADO → RECHAZADO` | Sin condición. Efecto: el borrador `ABIERTO` pasa a `CANCELADO` | — |
 | `COBRO → FINALIZADO` | Existe constancia emitida | **Se elimina** la exigencia de CFDI timbrado |
 
-Ese último renglón es el único punto donde SICEF leía datos de facturación. Al quitarlo, la dependencia queda en cero: **SICEF no consulta a Finanzas para nada.**
+Ese último renglón es el único punto donde GSTS leía datos de facturación. Al quitarlo, la dependencia queda en cero: **GSTS no consulta a Finanzas para nada.**
 
 ### 5.2 Borrador de cobro
 
@@ -205,7 +205,7 @@ Sin cambios. Un solo borrador `ABIERTO` por trámite; `VENCIDO`/`CANCELADO` son 
 
 ### 5.3 Máquinas que desaparecen
 
-`EstadoFactura` y `EstadoSolicitudFactura` se van completas a Finanzas. De las cuatro máquinas actuales, SICEF conserva dos.
+`EstadoFactura` y `EstadoSolicitudFactura` se van completas a Finanzas. De las cuatro máquinas actuales, GSTS conserva dos.
 
 ## 6. Reglas duras: qué sale de `migration_complementaria.sql`
 
@@ -239,7 +239,7 @@ Se mantiene la disciplina de dos territorios: [schema.prisma](../backend/prisma/
 - `fn_constancia_inmutable` (616-629).
 - `fn_bitacora_protegida` y el `REVOKE` sobre `sicef_app` (631-671).
 
-El recorte no debilita ninguna garantía de SICEF: elimina reglas cuyas tablas ya no existen.
+El recorte no debilita ninguna garantía de GSTS: elimina reglas cuyas tablas ya no existen.
 
 ## 7. API resultante
 
@@ -290,7 +290,7 @@ Las convenciones de alambre no cambian: éxito `{ data, requestId? }`, listas `{
 
 ## 8. Los puntos de integración
 
-SICEF expone tres rutas de sólo lectura y no consume nada de Finanzas.
+GSTS expone tres rutas de sólo lectura y no consume nada de Finanzas.
 
 ### 8.1 Cobro y comprobante, por folio de constancia
 
@@ -336,23 +336,23 @@ Seis KPIs, serie mensual de constancias por tipo y distribución de trámites po
 
 **Autenticación de las tres:** service account de Keycloak en el realm `SOAPAP`, con roles de cliente dedicados — `consulta-cobros` y `consulta-metricas`, no `ventanilla` ni `direccion`, que son roles de personas. Las llamadas son servidor a servidor: las hace el backend de Finanzas, nunca el navegador. `direccion` también se acepta en las métricas, por si algún día conviene consultarlas de forma directa.
 
-### 8.3 SICEF no imprime acuses
+### 8.3 GSTS no imprime acuses
 
 La constancia es el único documento que ventanilla entrega y lo que finaliza el trámite. No hay acuse de cobro impreso: si el envío de datos fiscales a Finanzas falla, no existe papel donde avisarlo — hay que resolverlo en pantalla, del lado de Finanzas.
 
-**Si esta ruta no responde**, Finanzas cae a validación manual contra los registros bancarios. Esa no es una ruta de contingencia inventada para el caso: es la ruta **normal** para permisos de descarga, penalizaciones y cualquier otro origen. La disponibilidad de SICEF nunca bloquea a Finanzas.
+**Si esta ruta no responde**, Finanzas cae a validación manual contra los registros bancarios. Esa no es una ruta de contingencia inventada para el caso: es la ruta **normal** para permisos de descarga, penalizaciones y cualquier otro origen. La disponibilidad de GSTS nunca bloquea a Finanzas.
 
 **Dirección de la dependencia:**
 
 ```mermaid
 flowchart LR
     P[Portal ciudadano] -->|datos fiscales + ticket| F[Finanzas]
-    V[Ventanilla · navegador] -->|registrar cobro| S[SICEF]
+    V[Ventanilla · navegador] -->|registrar cobro| S[GSTS]
     V -->|datos fiscales + ticket| F
     F -.->|GET por folio, opcional| S
 ```
 
-La flecha punteada es la única que existe, y va en un solo sentido. SICEF no conoce la existencia de Finanzas. No hay push, ni outbox, ni cola, ni transacción distribuida.
+La flecha punteada es la única que existe, y va en un solo sentido. GSTS no conoce la existencia de Finanzas. No hay push, ni outbox, ni cola, ni transacción distribuida.
 
 ## 9. Plan de recorte
 
@@ -363,7 +363,7 @@ Editar `fn_tramite_transicion_valida` (quitar el renglón 506 y la variable `v_r
 *Verifica:* pruebas de transición de trámite en `backend/tests/`; un trámite con `requiereFactura=true` y sin factura debe poder finalizar.
 
 **Paso 2 — Retirar rutas.**
-Borrar `backend/src/modules/facturacion/`, su import y su montaje en [router.ts:14,48](../backend/src/api/router.ts); las dos rutas de factura de [publico.router.ts:34-51](../backend/src/modules/publico/publico.router.ts); las entradas correspondientes de `backend/src/api/openapi.ts`; `solicitudFacturaPublicaSchema` y los DTO de factura de `packages/contracts/src/index.ts`.
+Borrar `backend/src/modules/facturacion/`, su import y su montaje en [router.ts](../backend/src/api/router.ts); las dos rutas de factura de [publico.router.ts](../backend/src/modules/constancias/publico/publico.router.ts); las entradas correspondientes de `backend/src/api/openapi.ts`; `solicitudFacturaPublicaSchema` y los DTO de factura de `packages/contracts/src/index.ts`.
 *Verifica:* `backend/tests/contract/openapi.test.ts` falla hasta que se actualice el inventario literal — ése es el semáforo. Después, `npm run check && npm run test` en la raíz.
 
 **Paso 3 — Recortar el esquema.**
@@ -377,7 +377,7 @@ Aplicar la tabla de la sección 6. Recordar que el archivo se ejecuta **después
 *Verifica:* aplicar sobre una base limpia y correr la suite de integración.
 
 **Paso 5 — Agregar la consulta de integración.**
-Nueva ruta de la sección 8, con su rol de service account, su schema en `@sicef/contracts` y su registro en `openapi.ts`.
+Nueva ruta de la sección 8, con su rol de service account, su schema en `@gsts/contracts` y su registro en `openapi.ts`.
 *Verifica:* inventario de `openapi.test.ts` actualizado; prueba que confirme que la respuesta no incluye campos con PII.
 
 **Paso 6 — Frontend.**
@@ -385,13 +385,13 @@ Retirar el módulo Finanzas de [modulos.ts](../frontend/src/app/layout/modulos.t
 *Verifica:* `npm run check && npm run test` en `frontend/`.
 
 **Paso 7 — Documentación.**
-Actualizar `documentacion/CONTRATO_API_SICEF.md` (§4.3, §4.4, la guardia de §4.1 y el catálogo de errores), `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` y `PENDIENTES_BACKEND_FRONTEND.md`. Al terminar, `documentacion2/` puede fusionarse con `documentacion/`.
+Actualizar `documentacion/CONTRATO_API_GSTS.md` (§4.3, §4.4, la guardia de §4.1 y el catálogo de errores), `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` y `PENDIENTES_BACKEND_FRONTEND.md`. Al terminar, `documentacion2/` puede fusionarse con `documentacion/`.
 
 ## 10. Decisiones cerradas
 
-**Dirección.** Su módulo vive en el frontend del sistema Finanzas y no toca la base de SICEF. El backend de Finanzas consulta `GET /direccion/metricas` con service account y reexpone el resultado ya compuesto con sus propios indicadores fiscales — así SICEF no necesita ser alcanzable desde el navegador.
+**Dirección.** Su módulo vive en el frontend del sistema Finanzas y no toca la base de GSTS. El backend de Finanzas consulta `GET /direccion/metricas` con service account y reexpone el resultado ya compuesto con sus propios indicadores fiscales — así GSTS no necesita ser alcanzable desde el navegador.
 
-**Frontend.** Dos aplicaciones separadas, una por sistema, cada una con su cliente Keycloak en el realm `SOAPAP`. La de SICEF conserva Ventanilla, Administración y Bitácora.
+**Frontend.** Dos aplicaciones separadas, una por sistema, cada una con su cliente Keycloak en el realm `SOAPAP`. La de GSTS conserva Ventanilla, Administración y Bitácora.
 
 **Despliegue.** Finanzas corre en una VM/LXC aparte, con backend y frontend propios.
 

@@ -39,19 +39,24 @@ function onSigninCallback() {
   window.history.replaceState({}, document.title, window.location.pathname);
 }
 
+// AuthProvider queda fuera de StrictMode a propósito: procesa el callback de
+// Keycloak (code/state) en un efecto al montar, y el "state" en sessionStorage
+// se borra al consumirse la primera vez — el remount doble de StrictMode
+// dispara una segunda lectura que ya no lo encuentra ("No matching state
+// found in storage"). El resto del árbol sí se beneficia de StrictMode.
 createRoot(rootElement).render(
-  <StrictMode>
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider userManager={userManager} onSigninCallback={onSigninCallback}>
+  <Provider store={store}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider userManager={userManager} onSigninCallback={onSigninCallback}>
+        <StrictMode>
           <ThemeProvider theme={theme}>
             <CssBaseline />
             <AuthGate>
               <RouterProvider router={router} />
             </AuthGate>
           </ThemeProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </Provider>
-  </StrictMode>,
+        </StrictMode>
+      </AuthProvider>
+    </QueryClientProvider>
+  </Provider>,
 );

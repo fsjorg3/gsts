@@ -3,9 +3,11 @@ import Typography from '@mui/material/Typography';
 import { formatFecha, formatMxn } from '@/api/serializers';
 import { folioTramite, type TramiteDetalle } from '../api';
 
-// Panel lateral del wizard: resumen del expediente. La bitácora completa vive
-// en el backend (append-only) y aún no expone endpoint de consulta.
-export function ResumenPanel({ tramite }: { tramite: TramiteDetalle }) {
+// Contenido puro del resumen del expediente: se reutiliza tal cual dentro del
+// aside fijo (lg+) y dentro del Drawer temporal que lo sustituye en móvil/tablet
+// (ver TramiteWizard.tsx). La bitácora completa vive en el backend (append-only)
+// y aún no expone endpoint de consulta.
+export function ResumenPanelContenido({ tramite }: { tramite: TramiteDetalle }) {
   const titular = tramite.personas[0]?.persona;
   const filas: Array<[string, string]> = [
     ['Folio', folioTramite(tramite)],
@@ -25,20 +27,7 @@ export function ResumenPanel({ tramite }: { tramite: TramiteDetalle }) {
   if (tramite.constancia) filas.push(['Constancia', tramite.constancia.folioUnico]);
 
   return (
-    <Box
-      component="aside"
-      sx={{
-        width: 326,
-        flexShrink: 0,
-        borderLeft: '1px solid',
-        borderLeftColor: 'divider',
-        bgcolor: 'background.paper',
-        display: { xs: 'none', lg: 'flex' },
-        flexDirection: 'column',
-        minHeight: 0,
-        overflowY: 'auto',
-      }}
-    >
+    <>
       <Box sx={{ p: 2.25, borderBottom: '1px solid', borderBottomColor: 'divider' }}>
         <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1.5 }}>Resumen del trámite</Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.125 }}>
@@ -55,6 +44,30 @@ export function ResumenPanel({ tramite }: { tramite: TramiteDetalle }) {
           Cada acción queda sellada en la bitácora de auditoría del sistema (sólo anexado).
         </Typography>
       </Box>
+    </>
+  );
+}
+
+// Panel lateral fijo del wizard, visible sólo en lg+; por debajo de ese
+// breakpoint el mismo contenido se muestra en un Drawer temporal (ver
+// TramiteWizard.tsx) para no perder la información en pantallas angostas.
+export function ResumenPanel({ tramite }: { tramite: TramiteDetalle }) {
+  return (
+    <Box
+      component="aside"
+      sx={{
+        width: 326,
+        flexShrink: 0,
+        borderLeft: '1px solid',
+        borderLeftColor: 'divider',
+        bgcolor: 'background.paper',
+        display: { xs: 'none', lg: 'flex' },
+        flexDirection: 'column',
+        minHeight: 0,
+        overflowY: 'auto',
+      }}
+    >
+      <ResumenPanelContenido tramite={tramite} />
     </Box>
   );
 }

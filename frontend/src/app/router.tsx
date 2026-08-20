@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router';
+import { LogoutFrontChannel } from '@/auth/LogoutFrontChannel';
 import { RequireRole } from '@/auth/RequireRole';
 import { useAuth } from '@/auth/useAuth';
 import { AdministracionPage } from '@/features/administracion/pages/AdministracionPage';
@@ -20,6 +21,9 @@ function IndexRedirect() {
 }
 
 export const router = createBrowserRouter([
+  // Ruta pública headless (sin sidebar/roles): callback de front-channel
+  // logout, cargado por Keycloak en un iframe oculto. Excluida de AuthGate.
+  { path: '/logout-frontchannel', element: <LogoutFrontChannel /> },
   {
     path: '/',
     element: <AppShell />,

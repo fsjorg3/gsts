@@ -4,19 +4,39 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import { useAuth as useOidc } from 'react-oidc-context';
 
-// Toda la app interna exige sesión: si no hay usuario, redirige a Keycloak.
+// Única ruta pública del frontend: callback de front-channel logout (ver
+// LogoutFrontChannel.tsx), que Keycloak carga sin sesión en un iframe oculto.
+const RUTA_LOGOUT_FRONTCHANNEL = '/logout-frontchannel';
+
+// Toda la app interna exige sesión: si no hay usuario, redirige a Keycloak —
+// salvo la ruta pública de arriba.
 export function AuthGate({ children }: { children: ReactNode }) {
   const oidc = useOidc();
+  const esRutaPublica = window.location.pathname === RUTA_LOGOUT_FRONTCHANNEL;
 
   useEffect(() => {
+    if (esRutaPublica) return;
     if (!oidc.isLoading && !oidc.isAuthenticated && !oidc.activeNavigator && !oidc.error) {
       void oidc.signinRedirect();
     }
-  }, [oidc]);
+  }, [oidc, esRutaPublica]);
+
+  if (esRutaPublica) return children;
 
   if (oidc.error) {
     return (
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1.5, px: 4 }}>
+      <Box
+        sx={{
+          height: '100vh',
+          '@supports (height: 100dvh)': { height: '100dvh' },
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1.5,
+          px: 4,
+        }}
+      >
         <Typography sx={{ fontWeight: 700 }}>No se pudo iniciar sesión</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Verifica tu conexión con Keycloak e intenta de nuevo.
@@ -31,7 +51,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!oidc.isAuthenticated) {
     return (
-      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box
+        sx={{ height: '100vh', '@supports (height: 100dvh)': { height: '100dvh' }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
         <CircularProgress size={28} sx={{ color: 'primary.main' }} />
       </Box>
     );

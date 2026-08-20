@@ -5,7 +5,8 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
+import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { formatFecha } from '@/api/serializers';
 import { DataTable, EstadoDeBadge, ESTADO_TRAMITE, MsIcon, StatCard, type DataTableColumn } from '@/shared/components';
@@ -37,6 +38,7 @@ const FILTROS_VACIOS: BorradorFiltros = { estado: '', tipoConstancia: '', nis: '
 
 export function VentanillaLista() {
   const navigate = useNavigate();
+  const { abrirMenu } = useOutletContext<AppShellContext>();
   const [borrador, setBorrador] = useState<BorradorFiltros>(FILTROS_VACIOS);
   const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosTramites>({});
   const consulta = useInfiniteQuery(tramitesInfiniteOptions(filtrosAplicados));
@@ -66,6 +68,7 @@ export function VentanillaLista() {
       <ModuleHeader
         titulo="Ventanilla de atención"
         subtitulo="Trámites de constancias de no adeudo y no registro"
+        onAbrirMenu={abrirMenu}
         acciones={
           <Button variant="contained" onClick={() => void navigate('/ventanilla/tramites/nuevo')} startIcon={<MsIcon name="add" size={19} />}>
             Nuevo trámite
@@ -138,7 +141,7 @@ export function VentanillaLista() {
           </Button>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.75 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1.75 }}>
           <StatCard icon="pending_actions" iconColor="#1565C0" label="En captura / validación" value={String(abiertos)} />
           <StatCard icon="schedule" iconColor="#C58A00" label="Aprobados por cobrar" value={String(porCobrar)} />
           <StatCard icon="payments" iconColor="#5B132B" label="En cobro" value={String(enCobro)} />

@@ -13,6 +13,8 @@ import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOutletContext } from 'react-router';
+import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { useNotificar } from '@/store/useNotificar';
 import { formatFecha, formatMxn } from '@/api/serializers';
@@ -209,7 +211,7 @@ function PanelTarifas() {
       </Card>
 
       <Card titulo="Nueva tarifa (publicar desactiva la anterior del mismo tipo y concepto)">
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr 0.7fr', gap: 2, mb: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr 1fr 0.7fr' }, gap: 2, mb: 2 }}>
           <TextField select label="Tipo" value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)}>
             <MenuItem value="NO_ADEUDO">No adeudo</MenuItem>
             <MenuItem value="NO_REGISTRO">No registro</MenuItem>
@@ -573,7 +575,7 @@ function PanelCatalogo() {
             )}
 
             {/* Alta de grupo */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr auto', gap: 1.5, mb: 1.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr 1fr 1fr 1fr auto' }, gap: 1.5, mb: 1.5 }}>
               <TextField label="Clave" value={grupo.clave} onChange={(e) => setGrupo({ ...grupo, clave: e.target.value.toUpperCase() })} />
               <TextField label="Nombre del grupo" value={grupo.nombre} onChange={(e) => setGrupo({ ...grupo, nombre: e.target.value })} />
               <TextField select label="Tipo" value={grupo.aplicaTipo} onChange={(e) => setGrupo({ ...grupo, aplicaTipo: e.target.value })}>
@@ -614,7 +616,7 @@ function PanelCatalogo() {
             </Box>
 
             {/* Alta de opción */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr auto', gap: 1.5, mb: 1.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr 2fr auto' }, gap: 1.5, mb: 1.5 }}>
               <TextField select label="Grupo destino" value={opcion.grupoId} onChange={(e) => setOpcion({ ...opcion, grupoId: e.target.value })}>
                 {(arbol?.grupos ?? []).map((g) => (
                   <MenuItem key={g.id} value={g.id}>{g.nombre}</MenuItem>
@@ -638,7 +640,7 @@ function PanelCatalogo() {
             </Box>
 
             {/* Alta de documento */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 3fr auto', gap: 1.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 3fr auto' }, gap: 1.5 }}>
               <TextField select label="Opción destino" value={documento.opcionId} onChange={(e) => setDocumento({ ...documento, opcionId: e.target.value })}>
                 {(arbol?.grupos ?? []).flatMap((g) => g.opciones.map((o) => (
                   <MenuItem key={o.id} value={o.id}>{g.nombre} → {o.nombre}</MenuItem>
@@ -808,7 +810,7 @@ function PanelReducciones() {
       </Card>
 
       <Card titulo="Nuevo motivo">
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr auto', gap: 2, alignItems: 'start' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr 1fr auto' }, gap: 2, alignItems: 'start' }}>
           <TextField label="Clave" value={clave} onChange={(e) => setClave(e.target.value.toUpperCase())} placeholder="INAPAM" />
           <TextField label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="INAPAM / discapacidad" />
           <TextField label="Porcentaje" value={porcentaje} onChange={(e) => setPorcentaje(e.target.value.replace(/[^0-9.]/g, ''))} />
@@ -834,10 +836,11 @@ function PanelReducciones() {
 }
 
 export function AdministracionPage() {
+  const { abrirMenu } = useOutletContext<AppShellContext>();
   const [tab, setTab] = useState(0);
   return (
     <>
-      <ModuleHeader titulo="Administración" subtitulo="Catálogos, tarifas y plazos operativos (rol TI)" />
+      <ModuleHeader titulo="Administración" subtitulo="Catálogos, tarifas y plazos operativos (rol TI)" onAbrirMenu={abrirMenu} />
       <Box sx={{ flex: 1, overflowY: 'auto', p: 3.5 }}>
         <Box sx={{ maxWidth: 980, mx: 'auto' }}>
           <Tabs value={tab} onChange={(_e, v: number) => setTab(v)} sx={{ mb: 2.25 }}>

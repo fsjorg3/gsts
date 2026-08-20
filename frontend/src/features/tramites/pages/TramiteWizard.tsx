@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useOutletContext, useParams } from 'react-router';
+import type { AppShellContext } from '@/app/layout/AppShell';
 import { useNotificar } from '@/store/useNotificar';
 import { EstadoDeBadge, ESTADO_TRAMITE, MsIcon } from '@/shared/components';
 import { catalogoVistaPreviaOptions, gruposAplicables } from '@/features/catalogos/api';
@@ -17,7 +19,7 @@ import { PasoCobro } from '../components/PasoCobro';
 import { PasoEntrega } from '../components/PasoEntrega';
 import { PasoValidacion } from '../components/PasoValidacion';
 import { RechazoDialog } from '../components/RechazoDialog';
-import { ResumenPanel } from '../components/ResumenPanel';
+import { ResumenPanel, ResumenPanelContenido } from '../components/ResumenPanel';
 import { StateStepper } from '../components/StateStepper';
 
 // El paso activo se deriva del estado del trámite (server); sólo la sub-vista
@@ -48,9 +50,11 @@ export function derivarPaso(
 export function TramiteWizard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { abrirMenu } = useOutletContext<AppShellContext>();
   const notificar = useNotificar();
   const [subVistaCobro, setSubVistaCobro] = useState(false);
   const [rechazoAbierto, setRechazoAbierto] = useState(false);
+  const [resumenAbierto, setResumenAbierto] = useState(false);
 
   const consulta = useQuery(tramiteOptions(id ?? ''));
   const tramite = consulta.data;
@@ -147,6 +151,13 @@ export function TramiteWizard() {
       {/* Encabezado del wizard */}
       <Box sx={{ flexShrink: 0, bgcolor: 'background.paper', borderBottom: '1px solid', borderBottomColor: 'divider' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', px: 3.5, pt: 1.75, pb: 1.5, gap: 1.75 }}>
+          <IconButton
+            size="small"
+            onClick={abrirMenu}
+            sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'text.secondary' }}
+          >
+            <MsIcon name="menu" size={22} />
+          </IconButton>
           <IconButton size="small" onClick={() => void navigate('/ventanilla')} sx={{ color: 'text.secondary' }}>
             <MsIcon name="arrow_back" size={22} />
           </IconButton>
@@ -159,6 +170,13 @@ export function TramiteWizard() {
               {tramite.nis ? ` · NIS ${tramite.nis}` : ''}
             </Typography>
           </Box>
+          <IconButton
+            size="small"
+            onClick={() => setResumenAbierto(true)}
+            sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'text.secondary' }}
+          >
+            <MsIcon name="summarize" size={22} />
+          </IconButton>
           <EstadoDeBadge estado={tramite.estado} mapa={ESTADO_TRAMITE} />
         </Box>
         <StateStepper pasoActivo={paso} />
@@ -205,6 +223,8 @@ export function TramiteWizard() {
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
+          flexWrap: 'wrap',
+          rowGap: 1,
         }}
       >
         {paso === 3 && tramite.estado === 'APROBADO' ? (
@@ -214,12 +234,12 @@ export function TramiteWizard() {
         ) : null}
         <Box sx={{ flex: 1 }} />
         {paso === 0 && !terminadoMal ? (
-          <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'text.disabled' }}>
+          <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'text.disabled', display: { xs: 'none', sm: 'block' } }}>
             {satisfecho ? 'Checklist completo: puedes continuar.' : 'Adjunta y valida los documentos del checklist para continuar.'}
           </Typography>
         ) : null}
         {paso === 1 && !terminadoMal && !validacionInicialOk ? (
-          <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'text.disabled' }}>
+          <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'text.disabled', display: { xs: 'none', sm: 'block' } }}>
             {tramite.tipoConstancia === 'NO_ADEUDO'
               ? 'Registra el resultado del cruce OUC para poder aprobar.'
               : 'Registra la búsqueda en el padrón para poder aprobar.'}
@@ -241,6 +261,12 @@ export function TramiteWizard() {
         onConfirm={(motivo) => ejecutar('rechazar', motivo)}
         pendiente={transicionar.isPending}
       />
+
+      <Drawer anchor="right" variant="temporary" open={resumenAbierto} onClose={() => setResumenAbierto(false)}>
+        <Box sx={{ width: 326, display: 'flex', flexDirection: 'column' }}>
+          <ResumenPanelContenido tramite={tramite} />
+        </Box>
+      </Drawer>
     </>
   );
 }

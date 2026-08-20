@@ -137,7 +137,7 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                   <Button variant="text" onClick={() => setCapturandoAdeudo(false)}>Cancelar</Button>
                 </Box>
               ) : (
-                <Box sx={{ display: 'flex', gap: 1.25 }}>
+                <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
                   <Button
                     fullWidth
                     variant="outlined"
@@ -199,7 +199,7 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                 onChange={(evento) => setReferencia(evento.target.value)}
                 sx={{ maxWidth: 420 }}
               />
-              <Box sx={{ display: 'flex', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
                 <Button
                   fullWidth
                   variant="outlined"

@@ -18,7 +18,7 @@ export function PasoAprobacion({ tramite }: { tramite: TramiteDetalle }) {
           El expediente está completo y validado. Continúa con el cobro dentro del plazo para emitir la constancia.
         </Typography>
       </Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
         <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderLeft: '6px solid #B8822A', borderRadius: 1, p: 2.25 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <MsIcon name="schedule" size={18} color="#9F7122" />

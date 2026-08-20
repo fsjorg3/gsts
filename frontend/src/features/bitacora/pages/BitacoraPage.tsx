@@ -8,6 +8,8 @@ import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { useOutletContext } from 'react-router';
+import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { formatFechaHora } from '@/api/serializers';
 import { DataTable, MsIcon, type DataTableColumn } from '@/shared/components';
@@ -27,11 +29,12 @@ const COLUMNAS: DataTableColumn<Bitacora>[] = [
   { key: 'entidad', header: 'Entidad', render: (b) => <Typography sx={{ fontSize: 13 }}>{b.entidad}</Typography> },
   { key: 'accion', header: 'Acción', render: (b) => <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{b.accion}</Typography> },
   { key: 'transicion', header: 'Transición', render: (b) => <Typography sx={{ fontSize: 12.5, color: 'text.secondary' }}>{transicion(b)}</Typography> },
-  { key: 'origen', header: 'Origen', width: 100, render: (b) => <Typography sx={{ fontSize: 12.5 }}>{b.origen}</Typography> },
-  { key: 'actor', header: 'Actor', width: 100, render: (b) => <Typography sx={{ fontSize: 12.5, fontFamily: 'monospace' }}>{actorEtiqueta(b.actorId)}</Typography> },
+  { key: 'origen', header: 'Origen', width: 100, ocultarEnMovil: true, render: (b) => <Typography sx={{ fontSize: 12.5 }}>{b.origen}</Typography> },
+  { key: 'actor', header: 'Actor', width: 100, ocultarEnMovil: true, render: (b) => <Typography sx={{ fontSize: 12.5, fontFamily: 'monospace' }}>{actorEtiqueta(b.actorId)}</Typography> },
 ];
 
 export function BitacoraPage() {
+  const { abrirMenu } = useOutletContext<AppShellContext>();
   const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosBitacora>({});
   const [borrador, setBorrador] = useState<FiltrosBitacora>({});
   const [detalle, setDetalle] = useState<Bitacora | null>(null);
@@ -41,7 +44,7 @@ export function BitacoraPage() {
 
   return (
     <>
-      <ModuleHeader titulo="Bitácora" subtitulo="Auditoría de acciones del sistema (rol TI)" />
+      <ModuleHeader titulo="Bitácora" subtitulo="Auditoría de acciones del sistema (rol TI)" onAbrirMenu={abrirMenu} />
       <Box sx={{ flex: 1, overflowY: 'auto', p: 3.5, display: 'flex', flexDirection: 'column', gap: 2.25 }}>
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField size="small" label="Entidad" value={borrador.entidad ?? ''} onChange={(e) => setBorrador({ ...borrador, entidad: e.target.value })} sx={{ width: 160 }} />
@@ -79,7 +82,7 @@ export function BitacoraPage() {
         </DialogTitle>
         {detalle ? (
           <DialogContent>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 1.5, columnGap: 3, mb: 2.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, rowGap: 1.5, columnGap: 3, mb: 2.5 }}>
               {(
                 [
                   ['Entidad', detalle.entidad],

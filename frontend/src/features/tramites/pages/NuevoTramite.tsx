@@ -7,8 +7,9 @@ import RadioGroup from '@mui/material/RadioGroup';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import Alert from '@mui/material/Alert';
+import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { useNotificar } from '@/store/useNotificar';
 import { MsIcon } from '@/shared/components';
@@ -38,6 +39,7 @@ function Card({ titulo, subtitulo, children }: { titulo: string; subtitulo?: str
 // el backend estampa el catálogo activo y el trámite nace en CAPTURA.
 export function NuevoTramite() {
   const navigate = useNavigate();
+  const { abrirMenu } = useOutletContext<AppShellContext>();
   const notificar = useNotificar();
   const catalogo = useQuery(catalogoActivoOptions);
   const crear = useCrearTramite();
@@ -98,7 +100,7 @@ export function NuevoTramite() {
 
   return (
     <>
-      <ModuleHeader titulo="Nuevo trámite" subtitulo="Clasificación y solicitante" />
+      <ModuleHeader titulo="Nuevo trámite" subtitulo="Clasificación y solicitante" onAbrirMenu={abrirMenu} />
       <Box sx={{ flex: 1, overflowY: 'auto', p: 3.5 }}>
         <Box sx={{ maxWidth: 760, mx: 'auto', display: 'flex', flexDirection: 'column', gap: 2.25 }}>
           {catalogo.data === null ? (
@@ -116,7 +118,7 @@ export function NuevoTramite() {
                   <FormControlLabel value="NO_REGISTRO" control={<Radio size="small" />} label="Constancia de No Registro" />
                 </RadioGroup>
               </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                 <Box>
                   <Typography variant="overline" sx={{ color: 'text.secondary' }}>Personalidad</Typography>
                   <RadioGroup row value={personalidad} onChange={(evento) => setPersonalidad(evento.target.value as Personalidad)}>
@@ -151,7 +153,7 @@ export function NuevoTramite() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <PersonaPicker tipo={personalidad} value={persona} onChange={setPersona} />
               {tipo === 'NO_ADEUDO' ? (
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, alignItems: 'end' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, alignItems: 'end' }}>
                   <TextField
                     label="NIS / Número de cuenta"
                     value={nis}
@@ -172,7 +174,7 @@ export function NuevoTramite() {
           {tipo === 'NO_REGISTRO' ? (
             <Card titulo="Domicilio del predio" subtitulo="Va impreso en la constancia; captúralo tal cual debe aparecer.">
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 2 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr' }, gap: 2 }}>
                   <TextField
                     label="Calle"
                     value={domicilioCalle}

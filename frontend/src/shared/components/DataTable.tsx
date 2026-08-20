@@ -14,6 +14,7 @@ export interface DataTableColumn<Row> {
   header: string;
   align?: 'left' | 'right' | 'center';
   width?: number | string;
+  ocultarEnMovil?: boolean;
   render: (row: Row) => ReactNode;
 }
 
@@ -32,7 +33,11 @@ export function DataTable<Row>({ columns, rows, rowKey, onRowClick, emptyMessage
         <TableHead>
           <TableRow sx={{ '&:hover': { backgroundColor: 'transparent' } }}>
             {columns.map((col) => (
-              <TableCell key={col.key} align={col.align ?? 'left'} sx={{ width: col.width, py: 1.5 }}>
+              <TableCell
+                key={col.key}
+                align={col.align ?? 'left'}
+                sx={{ width: col.width, py: 1.5, ...(col.ocultarEnMovil ? { display: { xs: 'none', sm: 'table-cell' } } : {}) }}
+              >
                 {col.header}
               </TableCell>
             ))}
@@ -55,7 +60,11 @@ export function DataTable<Row>({ columns, rows, rowKey, onRowClick, emptyMessage
                 sx={onRowClick ? { cursor: 'pointer' } : undefined}
               >
                 {columns.map((col) => (
-                  <TableCell key={col.key} align={col.align ?? 'left'} sx={{ py: 1.75 }}>
+                  <TableCell
+                    key={col.key}
+                    align={col.align ?? 'left'}
+                    sx={{ py: 1.75, ...(col.ocultarEnMovil ? { display: { xs: 'none', sm: 'table-cell' } } : {}) }}
+                  >
                     {col.render(row)}
                   </TableCell>
                 ))}

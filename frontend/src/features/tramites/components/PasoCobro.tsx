@@ -220,7 +220,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
                 : 'Registro sobrevenido detectado: no procede el cobro. Rechaza el trámite.'}
             </Alert>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1.25 }}>
+            <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
               <Button
                 variant="contained"
                 disabled={revalidando}
@@ -271,7 +271,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
             ))}
           </TextField>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2, mb: 2 }}>
             <TextField
               select
               label="Reducción"
@@ -294,7 +294,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
             <TextField label="Moneda" value="MXN" disabled />
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 1 }}>
             <Box>
               <Typography variant="overline" sx={{ color: 'text.secondary' }}>Método de pago</Typography>
               <RadioGroup row value={metodoPago} onChange={(evento) => setMetodoPago(evento.target.value as 'PUE' | 'PPD')}>
@@ -346,7 +346,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.25, mt: 1.75 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.25, mt: 1.75, flexWrap: 'wrap' }}>
             <Button variant="outlined" disabled={ocupado} onClick={guardar} startIcon={<MsIcon name="save" size={17} />}>
               Guardar borrador
             </Button>

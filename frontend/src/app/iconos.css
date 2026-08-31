@@ -1,0 +1,35 @@
+/* Iconografía del design system: subconjunto propio de Material Symbols
+   Rounded, no la fuente completa del paquete npm (4.9 MB → 5 kB).
+   Lo genera scripts/subset-iconos.mjs a partir de ICONOS en
+   shared/components/iconos.ts; ver ese archivo para agregar un icono.
+
+   El subconjunto es una instancia fija (FILL 0, wght 400, GRAD 0, opsz 24),
+   la única que la app dibuja, así que aquí el peso es `normal` y no un rango
+   variable como en el CSS del paquete. */
+@font-face {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: normal;
+  font-display: block;
+  src: url('../assets/material-symbols-rounded-subset.woff2') format('woff2');
+}
+
+/* Normalización heredada del CSS del paquete: evita que la tipografía de la
+   app (mayúsculas de los botones de MUI, letter-spacing del tema) deforme el
+   glifo. Sin `font-feature-settings: liga` — MsIcon dibuja el codepoint, no
+   el nombre del icono como ligadura. */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}

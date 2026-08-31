@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { crearTramiteSchema, listarTramitesSchema } from '@gsts/contracts';
-import type { Prisma } from '@prisma/client';
+import type { EstadoTramite, Prisma } from '@prisma/client';
 import type { Env } from '../../../config/env.js';
 import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
 import { crearVerificadorTokens } from '../../../infrastructure/verificacion/token.js';
@@ -9,29 +9,49 @@ import { requireRoles } from '../../auth/middleware.js';
 import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
+import { whereDeFolio } from './folio.js';
 
 const isTramiteState = new Set(['EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'FINALIZADO']);
+
+const ESTADOS_TRAMITE = ['CAPTURA', 'EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'COBRO', 'FINALIZADO'] as const;
+
+/** Desglose por estado con todos los estados presentes: el frontend no defiende `undefined`. */
+function porEstadoCompleto(grupos: { estado: EstadoTramite; _count: number }[]): Record<string, number> {
+  const conteo = Object.fromEntries(ESTADOS_TRAMITE.map((estado) => [estado, 0]));
+  for (const grupo of grupos) conteo[grupo.estado] = grupo._count;
+  return conteo;
+}
 
 export function createTramitesRouter(internal: RequestHandler[], env: Env): Router {
   const router = Router(); router.use(...internal);
   const verificador = crearVerificadorTokens(env);
   router.get('/', async (request, response, next) => {
     try {
-      const { take, cursor, estado, tipoConstancia, nis, desde, hasta } = listarTramitesSchema.parse(request.query);
-      const where: Prisma.TramiteWhereInput = {
-        ...(estado ? { estado } : {}),
+      const { take, cursor, estado, tipoConstancia, nis, folio, desde, hasta } = listarTramitesSchema.parse(request.query);
+      // El folio es excluyente: identifica un trámite concreto, así que manda
+      // sobre el resto de los filtros en vez de intersectarse con ellos.
+      const whereFolio = folio ? whereDeFolio(folio) : undefined;
+      if (folio && !whereFolio) throw new AppError(422, 'VALIDATION_ERROR', 'El folio no tiene un formato reconocible (ej. NA-2026-02038)');
+      // whereBase excluye `estado` a propósito: alimenta el desglose por estado,
+      // que dejaría de serlo si se filtrara por uno solo.
+      const whereBase: Prisma.TramiteWhereInput = whereFolio ?? {
         ...(tipoConstancia ? { tipoConstancia } : {}),
         ...(nis ? { nis: { contains: nis, mode: 'insensitive' } } : {}),
         ...(desde || hasta ? { createdAt: { ...(desde ? { gte: new Date(desde) } : {}), ...(hasta ? { lte: new Date(hasta) } : {}) } } : {}),
       };
-      const data = await prisma.tramite.findMany({
-        where,
-        take: take + 1,
-        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-        orderBy: { createdAt: 'desc' },
-      });
+      const where: Prisma.TramiteWhereInput = whereFolio ?? { ...whereBase, ...(estado ? { estado } : {}) };
+      const [data, total, grupos] = await Promise.all([
+        prisma.tramite.findMany({
+          where,
+          take: take + 1,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.tramite.count({ where }),
+        prisma.tramite.groupBy({ by: ['estado'], where: whereBase, _count: true }),
+      ]);
       const nextCursor = data.length > take ? data.pop()?.id : undefined;
-      response.json({ data, meta: { nextCursor }, requestId: request.id });
+      response.json({ data, meta: { nextCursor, total, porEstado: porEstadoCompleto(grupos) }, requestId: request.id });
     } catch (error) {
       next(error);
     }

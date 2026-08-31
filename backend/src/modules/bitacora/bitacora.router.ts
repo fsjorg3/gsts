@@ -39,15 +39,21 @@ export function createBitacoraRouter(internal: RequestHandler[]): Router {
         ...(actorId ? { actorId } : {}),
         ...(desde || hasta ? { timestamp: { ...(desde ? { gte: new Date(desde) } : {}), ...(hasta ? { lte: new Date(hasta) } : {}) } } : {}),
       };
-      const data = await prisma.bitacora.findMany({
-        select: SELECT_BITACORA,
-        where,
-        take: take + 1,
-        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-        orderBy: { timestamp: 'desc' },
-      });
+      // El COUNT acompaña al listado para que el paginador sepa cuántas páginas
+      // hay. La bitácora es append-only y crece sin techo: si algún día se nota,
+      // la salida es aproximar con pg_class.reltuples cuando no hay filtros.
+      const [data, total] = await Promise.all([
+        prisma.bitacora.findMany({
+          select: SELECT_BITACORA,
+          where,
+          take: take + 1,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          orderBy: { timestamp: 'desc' },
+        }),
+        prisma.bitacora.count({ where }),
+      ]);
       const nextCursor = data.length > take ? data.pop()?.id : undefined;
-      response.json({ data, meta: { nextCursor }, requestId: request.id });
+      response.json({ data, meta: { nextCursor, total }, requestId: request.id });
     } catch (error) {
       next(error);
     }

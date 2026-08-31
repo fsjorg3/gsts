@@ -82,7 +82,7 @@ Two artifacts define the backend⇄frontend boundary and must stay in sync:
 
 `backend/tests/contract/openapi.test.ts` mantiene un inventario literal `[método, ruta]`: **agregar o renombrar una ruta rompe esa prueba hasta que se actualice `openapi.ts`**. El frontend consume ese documento con `npm run gen:api` → `frontend/src/api/schema.d.ts`, y todos sus tipos salen de ahí (`components['schemas']['Tramite']`), nunca se redeclaran a mano.
 
-Convenciones de alambre: éxito `{ data, requestId? }`, listas `{ data, meta.nextCursor?, requestId? }` (paginación por cursor), error `{ error: { code, message, details? } }`.
+Convenciones de alambre: éxito `{ data, requestId? }`, listas `{ data, meta.nextCursor?, requestId? }` (paginación por cursor), error `{ error: { code, message, details? } }`. `meta` admite extras por ruta —`total` en `/tramites` y `/bitacora`, `porEstado` sólo en `/tramites`— que se declaran en el `envelopeLista` de esa ruta, nunca en el helper compartido: anunciarlos globalmente sería mentir en los listados que no los devuelven.
 
 ## Frontend architecture
 
@@ -92,6 +92,7 @@ Convenciones de alambre: éxito `{ data, requestId? }`, listas `{ data, meta.nex
 - Auth: Keycloak Authorization Code + PKCE vía `oidc-client-ts`; el `userManager` ([oidc.ts](frontend/src/auth/oidc.ts)) se comparte entre React y el cliente HTTP. **Los roles se leen de `GET /auth/me`, nunca de los claims del token en la UI** ([useAuth.ts](frontend/src/auth/useAuth.ts)).
 - Navegación: [modulos.ts](frontend/src/app/layout/modulos.ts) es la fuente única de los módulos — el sidebar filtra por rol y la ruta índice redirige al primer módulo accesible en ese orden. Cada ruta se envuelve además en `<RequireRole>`.
 - Tema: [theme.ts](frontend/src/app/theme.ts) implementa el design system institucional SOAPAP (Institutional Flat System: vino/oro, Montserrat, sin sombras, variantes `standard`/`outstanding` en Paper y Card). Fuentes e iconos (Material Symbols vía `MsIcon`) son self-hosted, sin CDN.
+- Iconos: la app **no** embebe la fuente completa de Material Symbols (4.9 MB, ~3 700 iconos) sino un subconjunto de ~5 kB con los que realmente usa. La lista es [iconos.ts](frontend/src/shared/components/iconos.ts) y `MsIcon` la exige por tipo, así que un icono fuera de ella es error de compilación, no un cuadro vacío en producción. Al agregar uno: añadirlo a `ICONOS` y correr `npm run gen:iconos` — regenera el `.woff2` y el mapa de codepoints, ambos versionados. `MsIcon` dibuja el **codepoint**, no el nombre como ligadura: subsetear por ligaduras es inviable porque los nombres son letras a–z y el cierre de ligaduras retendría casi toda la fuente.
 - Imports con alias `@/` (configurado en `vite.config.ts` y `tsconfig.json`), **sin** extensión `.js` — a diferencia del backend.
 
 ## Conventions

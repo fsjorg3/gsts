@@ -13,6 +13,7 @@ import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { formatFechaHora } from '@/api/serializers';
 import { DataTable, MsIcon, type DataTableColumn } from '@/shared/components';
+import { usePaginacionCursor } from '@/shared/hooks/usePaginacionCursor';
 import { bitacoraInfiniteOptions, type Bitacora, type FiltrosBitacora } from '../api';
 
 function actorEtiqueta(actorId: string | null): string {
@@ -39,21 +40,42 @@ export function BitacoraPage() {
   const [borrador, setBorrador] = useState<FiltrosBitacora>({});
   const [detalle, setDetalle] = useState<Bitacora | null>(null);
 
-  const consulta = useInfiniteQuery(bitacoraInfiniteOptions(filtrosAplicados));
-  const entradas = consulta.data?.pages.flatMap((page) => page.data) ?? [];
+  const [filasPorPagina, setFilasPorPagina] = useState(25);
+  const consulta = useInfiniteQuery(bitacoraInfiniteOptions(filtrosAplicados, filasPorPagina));
+  const { pagina, filas: entradas, total, irAPagina, reiniciar } = usePaginacionCursor(consulta);
+
+  const rangoInvalido = Boolean(borrador.desde && borrador.hasta && borrador.desde > borrador.hasta);
+
+  // Los campos vacíos viajarían como cadena vacía si se pasara el borrador tal
+  // cual; `api.ts` los ignora, pero es más honesto no enviarlos.
+  const buscar = () => {
+    reiniciar();
+    setFiltrosAplicados(Object.fromEntries(Object.entries(borrador).filter(([, valor]) => valor !== '')));
+  };
+  const limpiar = () => {
+    reiniciar();
+    setBorrador({});
+    setFiltrosAplicados({});
+  };
+  const cambiarFilasPorPagina = (filas: number) => {
+    reiniciar();
+    setFilasPorPagina(filas);
+  };
 
   return (
     <>
       <ModuleHeader titulo="Bitácora" subtitulo="Auditoría de acciones del sistema (rol TI)" onAbrirMenu={abrirMenu} />
       <Box sx={{ flex: 1, overflowY: 'auto', p: 3.5, display: 'flex', flexDirection: 'column', gap: 2.25 }}>
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField size="small" label="Entidad" value={borrador.entidad ?? ''} onChange={(e) => setBorrador({ ...borrador, entidad: e.target.value })} sx={{ width: 160 }} />
-          <TextField size="small" label="Acción" value={borrador.accion ?? ''} onChange={(e) => setBorrador({ ...borrador, accion: e.target.value })} sx={{ width: 180 }} />
-          <TextField size="small" label="Desde" type="date" slotProps={{ inputLabel: { shrink: true } }} value={borrador.desde ?? ''} onChange={(e) => setBorrador({ ...borrador, desde: e.target.value })} sx={{ width: 160 }} />
-          <TextField size="small" label="Hasta" type="date" slotProps={{ inputLabel: { shrink: true } }} value={borrador.hasta ?? ''} onChange={(e) => setBorrador({ ...borrador, hasta: e.target.value })} sx={{ width: 160 }} />
-          <TextField size="small" label="Actor ID" value={borrador.actorId ?? ''} onChange={(e) => setBorrador({ ...borrador, actorId: e.target.value })} sx={{ width: 220 }} />
-          <Button variant="contained" onClick={() => setFiltrosAplicados(borrador)}>Buscar</Button>
-          <Button variant="text" onClick={() => { setBorrador({}); setFiltrosAplicados({}); }}>Limpiar</Button>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <TextField size="small" label="Entidad" value={borrador.entidad ?? ''} onChange={(e) => setBorrador({ ...borrador, entidad: e.target.value })} helperText=" " sx={{ width: 160 }} />
+          <TextField size="small" label="Acción" value={borrador.accion ?? ''} onChange={(e) => setBorrador({ ...borrador, accion: e.target.value })} helperText=" " sx={{ width: 180 }} />
+          {/* min/max acotan el selector, pero el campo sigue siendo tecleable:
+              de ahí el error visible y el botón deshabilitado. */}
+          <TextField size="small" label="Desde" type="date" slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: borrador.hasta || undefined } }} value={borrador.desde ?? ''} onChange={(e) => setBorrador({ ...borrador, desde: e.target.value })} error={rangoInvalido} helperText=" " sx={{ width: 160 }} />
+          <TextField size="small" label="Hasta" type="date" slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: borrador.desde || undefined } }} value={borrador.hasta ?? ''} onChange={(e) => setBorrador({ ...borrador, hasta: e.target.value })} error={rangoInvalido} helperText={rangoInvalido ? '«Hasta» no puede ser anterior a «Desde»' : ' '} sx={{ width: 220 }} />
+          <TextField size="small" label="Actor ID" value={borrador.actorId ?? ''} onChange={(e) => setBorrador({ ...borrador, actorId: e.target.value })} helperText=" " sx={{ width: 220 }} />
+          <Button variant="contained" onClick={buscar} disabled={rangoInvalido} sx={{ mt: 0.5 }}>Buscar</Button>
+          <Button variant="text" onClick={limpiar} sx={{ mt: 0.5 }}>Limpiar</Button>
         </Box>
 
         <DataTable
@@ -62,14 +84,14 @@ export function BitacoraPage() {
           rowKey={(b) => b.id}
           onRowClick={(b) => setDetalle(b)}
           emptyMessage={consulta.isPending ? 'Cargando…' : 'Sin entradas de auditoría para estos filtros.'}
+          paginacion={{
+            pagina,
+            total,
+            filasPorPagina,
+            onCambiarPagina: irAPagina,
+            onCambiarFilasPorPagina: cambiarFilasPorPagina,
+          }}
         />
-        {consulta.hasNextPage ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <Button variant="text" disabled={consulta.isFetchingNextPage} onClick={() => void consulta.fetchNextPage()}>
-              {consulta.isFetchingNextPage ? 'Cargando…' : 'Cargar más'}
-            </Button>
-          </Box>
-        ) : null}
       </Box>
 
       <Dialog open={Boolean(detalle)} onClose={() => setDetalle(null)} maxWidth="md" fullWidth>

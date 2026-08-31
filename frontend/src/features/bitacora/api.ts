@@ -15,15 +15,15 @@ export interface FiltrosBitacora {
   hasta?: string;
 }
 
-export const bitacoraInfiniteOptions = (filtros: FiltrosBitacora) =>
+export const bitacoraInfiniteOptions = (filtros: FiltrosBitacora, take = 25) =>
   infiniteQueryOptions({
-    queryKey: ['bitacora', filtros],
+    queryKey: ['bitacora', filtros, take],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const { data } = await api.GET('/bitacora', {
         params: {
           query: {
-            take: 25,
+            take,
             cursor: pageParam,
             ...(filtros.entidad ? { entidad: filtros.entidad } : {}),
             ...(filtros.entidadId ? { entidadId: filtros.entidadId } : {}),

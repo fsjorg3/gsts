@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useOutletContext, useParams } from 'react-router';
 import type { AppShellContext } from '@/app/layout/AppShell';
 import { useNotificar } from '@/store/useNotificar';
-import { EstadoBadge, EstadoDeBadge, ESTADO_TRAMITE, MsIcon } from '@/shared/components';
+import { EstadoBadge, EstadoDeBadge, ESTADO_TRAMITE, MsIcon, type IconoNombre } from '@/shared/components';
 import { catalogoVistaPreviaOptions, gruposAplicables } from '@/features/catalogos/api';
 import { ChecklistRequisitos, checklistSatisfecho } from '@/features/evidencias/ChecklistRequisitos';
 import { tieneValidacionInicial } from '@/features/validaciones/api';
@@ -118,7 +118,7 @@ export function TramiteWizard() {
   const validacionInicialOk = tieneValidacionInicial(tramite);
   const plazoVencido = tramite.plazoPagoHasta ? new Date(tramite.plazoPagoHasta).getTime() < Date.now() : false;
 
-  let primario: { label: string; icon: string; disabled: boolean; onClick: () => void } | null = null;
+  let primario: { label: string; icon: IconoNombre; disabled: boolean; onClick: () => void } | null = null;
   if (!terminadoMal) {
     if (paso === 0) {
       primario = {

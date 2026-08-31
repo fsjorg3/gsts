@@ -24,13 +24,15 @@ Las rutas bajo `/public/*` y `/health`, `/ready`, `/openapi.json` no requieren a
 
 ## 3. Convenciones de alambre
 
-- **Envolvente de éxito**: `{ "data": ..., "requestId"?: string }`. Los listados usan `{ "data": [...], "meta"?: { "nextCursor"?: string }, "requestId"?: string }`. `requestId` es opcional en el esquema porque algunas rutas no lo incluyen (`GET /catalogos/requisitos/activo`, las rutas `/public/*`).
+- **Envolvente de éxito**: `{ "data": ..., "requestId"?: string }`. Los listados usan `{ "data": [...], "meta"?: { "nextCursor"?: string }, "requestId"?: string }`. Algunas rutas agregan claves a `meta`: `total` (registros que cumplen el filtro, en todas las páginas) en `GET /tramites` y `GET /bitacora`, y `porEstado` (conteo por estado, calculado **sin** el filtro `estado` para que siga siendo un desglose) sólo en `GET /tramites`. `requestId` es opcional en el esquema porque algunas rutas no lo incluyen (`GET /catalogos/requisitos/activo`, las rutas `/public/*`).
 - **Envolvente de error**: `{ "error": { "code": string, "message": string, "details"?: unknown }, "requestId"?: string }` (ver [shared/errors.ts](backend/src/shared/errors.ts)).
 - **Fechas**: `string` ISO 8601 (`DateTime` de Prisma).
 - **Montos**: `string`, no `number`. Prisma serializa `Decimal` (`montoBase`, `montoFinal`, `porcentajeReduccion`, `monto`, `adeudoMonto`) como string para no perder precisión — el cliente debe parsearlo explícitamente, nunca asumir `number`.
 - **UUIDs**: `string` con formato `uuid`.
 - **Archivos**: evidencias, PDFs de constancia y el comprobante de pago (voucher) del cobro se envían como `contenidoBase64`/`pdfBase64`/`comprobante.base64` dentro del JSON (no `multipart/form-data`). La cadena debe ser Base64 estricto en una sola línea (`^[A-Za-z0-9+/]+={0,2}$`): con saltos de línea o con prefijo `data:` la petición se rechaza con `422`. Límite de cuerpo HTTP: 42 MB; límite acumulado de evidencias por trámite: 30 MiB (31 457 280 bytes), impuesto por trigger — el comprobante no tiene un límite propio, solo el del cuerpo HTTP.
-- **Paginación**: `GET /tramites` usa cursor (`take`, `cursor` como query params), no offset.
+- **Paginación**: `GET /tramites` usa cursor (`take`, `cursor` como query params), no offset. La consecuencia para la UI es que sólo se puede avanzar de a una página y retroceder entre las ya cargadas: **no hay salto directo a la última**, porque la página *n* requiere haber recorrido las anteriores. `meta.total` sí permite mostrar cuántos registros hay en total.
+- **Filtro por folio** (`GET /tramites?folio=`): el folio de presentación no es una columna —se deriva de `tipoConstancia` + año de `createdAt` + `numeroTramite`—, así que el backend lo descompone. Se acepta completo (`NA-2026-02038`) o por segmentos (`NA-2026`, `NA`, `02038`); lo que no se admite es truncar dígitos (`203` no encuentra a 2038). Es **excluyente**: cuando viene, el resto de los filtros se ignora. Como `numeroTramite` es único global, si el folio trae número el segmento de año no se aplica —el año impreso es hora local y aquí sólo se puede acotar en UTC—. Un folio irreconocible responde `422 VALIDATION_ERROR`, nunca un listado sin filtrar.
+- **Rango de fechas**: en `GET /tramites` y `GET /bitacora`, un `desde` posterior a `hasta` se rechaza con `422 VALIDATION_ERROR` en vez de devolver una lista vacía.
 
 ## 4. Máquinas de estado
 

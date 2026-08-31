@@ -137,16 +137,30 @@ export const guardarConfiguracionConstanciaSchema = z.object({
   oficioPrefijo: z.string().trim().min(1).max(60),
 });
 
+// Rango de fechas coherente: un `desde` posterior a `hasta` no es una consulta
+// vacía legítima, es una captura equivocada. Las cadenas son ISO-8601 con `Z`
+// (lo impone .datetime()), así que el orden lexicográfico es el cronológico.
+const rangoFechasCoherente = (
+  { desde, hasta }: { desde?: string | undefined; hasta?: string | undefined },
+): unknown => !desde || !hasta || desde <= hasta;
+
+const MENSAJE_RANGO_FECHAS = {
+  message: '`desde` debe ser anterior o igual a `hasta`',
+  path: ['hasta'],
+};
+
 // Filtros del visor de bitácora (rol ti). ip_address/user_agent nunca se
 // exponen: no forman parte de este schema ni de bitacoraDto más abajo.
-export const listarBitacoraSchema = paginationSchema.extend({
-  entidad: z.string().trim().min(1).max(80).optional(),
-  entidadId: z.string().uuid().optional(),
-  accion: z.string().trim().min(1).max(80).optional(),
-  actorId: z.string().uuid().optional(),
-  desde: z.string().datetime().optional(),
-  hasta: z.string().datetime().optional(),
-});
+export const listarBitacoraSchema = paginationSchema
+  .extend({
+    entidad: z.string().trim().min(1).max(80).optional(),
+    entidadId: z.string().uuid().optional(),
+    accion: z.string().trim().min(1).max(80).optional(),
+    actorId: z.string().uuid().optional(),
+    desde: z.string().datetime().optional(),
+    hasta: z.string().datetime().optional(),
+  })
+  .refine(rangoFechasCoherente, MENSAJE_RANGO_FECHAS);
 
 // ===================== ENUMS DE ENTIDAD (para DTOs de respuesta) =====================
 // Espejo de los enums de backend/prisma/schema.prisma. Los request schemas de arriba
@@ -228,13 +242,22 @@ export const estadoVerificacionConstanciaSchema = z.enum(['ANULADA', 'VIGENTE', 
 
 // Filtros del listado de trámites (Ventanilla). nis usa coincidencia parcial
 // (contains/insensitive); desde/hasta acotan createdAt.
-export const listarTramitesSchema = paginationSchema.extend({
-  estado: estadoTramiteSchema.optional(),
-  tipoConstancia: tipoConstanciaSchema.optional(),
-  nis: z.string().trim().min(1).max(60).optional(),
-  desde: z.string().datetime().optional(),
-  hasta: z.string().datetime().optional(),
-});
+//
+// `folio` es **excluyente**: el folio identifica un trámite concreto, así que
+// cuando viene, el resto de los filtros se descarta en el router en vez de
+// intersectarse con él (buscar un folio y no encontrarlo por un `estado` que
+// quedó puesto de una búsqueda anterior sería desconcertante). Se acepta
+// completo o por segmentos — ver `whereDeFolio` en tramites.router.ts.
+export const listarTramitesSchema = paginationSchema
+  .extend({
+    estado: estadoTramiteSchema.optional(),
+    tipoConstancia: tipoConstanciaSchema.optional(),
+    nis: z.string().trim().min(1).max(60).optional(),
+    folio: z.string().trim().min(1).max(20).optional(),
+    desde: z.string().datetime().optional(),
+    hasta: z.string().datetime().optional(),
+  })
+  .refine(rangoFechasCoherente, MENSAJE_RANGO_FECHAS);
 
 // ===================== DTOs DE RESPUESTA =====================
 // Describen el formato de alambre (JSON) de lo que la API realmente devuelve, no el

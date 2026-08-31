@@ -16,24 +16,29 @@ export function folioTramite(t: Pick<Tramite, 'tipoConstancia' | 'numeroTramite'
   return `${prefijo}-${anio}-${String(t.numeroTramite).padStart(5, '0')}`;
 }
 
+// `folio` es excluyente en el backend: cuando viene, el resto de los filtros se
+// ignora. La UI lo refleja deshabilitando los demás campos, pero la regla la
+// impone el servidor, no la pantalla.
 export interface FiltrosTramites {
   estado?: Tramite['estado'];
   tipoConstancia?: Tramite['tipoConstancia'];
   nis?: string;
+  folio?: string;
   desde?: string;
   hasta?: string;
 }
 
-export const tramitesInfiniteOptions = (filtros: FiltrosTramites) =>
+export const tramitesInfiniteOptions = (filtros: FiltrosTramites, take = 25) =>
   infiniteQueryOptions({
-    queryKey: ['tramites', filtros],
+    queryKey: ['tramites', filtros, take],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const { data } = await api.GET('/tramites', {
         params: {
           query: {
-            take: 25,
+            take,
             cursor: pageParam,
+            ...(filtros.folio ? { folio: filtros.folio } : {}),
             ...(filtros.estado ? { estado: filtros.estado } : {}),
             ...(filtros.tipoConstancia ? { tipoConstancia: filtros.tipoConstancia } : {}),
             ...(filtros.nis ? { nis: filtros.nis } : {}),

@@ -2191,6 +2191,8 @@ export interface paths {
                             meta?: {
                                 /** Format: uuid */
                                 nextCursor?: string;
+                                /** @description Registros que cumplen el filtro, en todas las páginas */
+                                total?: number;
                             };
                             requestId?: string;
                         };
@@ -2207,6 +2209,15 @@ export interface paths {
                 };
                 /** @description Sin permisos suficientes */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2231,13 +2242,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Listar trámites (filtros opcionales; paginación por cursor) */
+        /**
+         * Listar trámites (filtros opcionales; paginación por cursor)
+         * @description `folio` es excluyente: cuando viene, el resto de los filtros se ignora. Acepta el folio completo (`NA-2026-02038`) o por segmentos (`NA-2026`, `NA`, `02038`); si trae número, el segmento de año no se aplica porque `numeroTramite` ya es único. `meta.porEstado` se calcula sobre el filtro aplicado **sin** `estado`.
+         */
         get: {
             parameters: {
                 query?: {
                     estado?: "CAPTURA" | "EN_VALIDACION" | "APROBADO" | "RECHAZADO" | "EXPIRADO" | "COBRO" | "FINALIZADO";
                     tipoConstancia?: "NO_ADEUDO" | "NO_REGISTRO";
                     nis?: string;
+                    folio?: string;
                     desde?: string;
                     hasta?: string;
                     take?: number;
@@ -2260,6 +2275,12 @@ export interface paths {
                             meta?: {
                                 /** Format: uuid */
                                 nextCursor?: string;
+                                /** @description Registros que cumplen el filtro, en todas las páginas */
+                                total?: number;
+                                /** @description Conteo por estado sobre el filtro aplicado **sin** el filtro `estado`; todos los estados presentes, los vacíos en 0 */
+                                porEstado?: {
+                                    [key: string]: number;
+                                };
                             };
                             requestId?: string;
                         };
@@ -2276,6 +2297,15 @@ export interface paths {
                 };
                 /** @description Sin permisos suficientes */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };

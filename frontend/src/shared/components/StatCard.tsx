@@ -1,10 +1,11 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { MsIcon } from './MsIcon';
+import type { IconoNombre } from './iconos';
 
 // KPI card del prototipo: ícono + etiqueta arriba, valor grande abajo.
 export interface StatCardProps {
-  icon: string;
+  icon: IconoNombre;
   iconColor?: string;
   label: string;
   value: string;

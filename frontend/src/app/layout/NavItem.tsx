@@ -1,13 +1,13 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { NavLink } from 'react-router';
-import { MsIcon } from '@/shared/components';
+import { MsIcon, type IconoNombre } from '@/shared/components';
 
 // Fila de navegación del sidebar (design system): hover gris, activa con
 // wash vino y barra izquierda de 3px.
 export interface NavItemProps {
   to: string;
-  icon: string;
+  icon: IconoNombre;
   label: string;
   badge?: number;
 }

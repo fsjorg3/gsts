@@ -178,7 +178,15 @@ function envelope(name: string, opts: { nullable?: boolean; description?: string
   };
 }
 
-function envelopeLista(name: string, description = 'Listado paginado') {
+// `total` y `porEstado` sólo los devuelven los listados que alimentan un
+// paginador o unas tarjetas; se declaran por ruta y no aquí, para no anunciarlos
+// en las que no los traen.
+interface MetaExtra {
+  total?: boolean;
+  porEstado?: boolean;
+}
+
+function envelopeLista(name: string, description = 'Listado paginado', extra: MetaExtra = {}) {
   return {
     description,
     content: {
@@ -188,7 +196,22 @@ function envelopeLista(name: string, description = 'Listado paginado') {
           required: ['data'],
           properties: {
             data: { type: 'array', items: ref(name) },
-            meta: { type: 'object', properties: { nextCursor: { type: 'string', format: 'uuid' } } },
+            meta: {
+              type: 'object',
+              properties: {
+                nextCursor: { type: 'string', format: 'uuid' },
+                ...(extra.total ? { total: { type: 'integer', description: 'Registros que cumplen el filtro, en todas las páginas' } } : {}),
+                ...(extra.porEstado
+                  ? {
+                      porEstado: {
+                        type: 'object',
+                        description: 'Conteo por estado sobre el filtro aplicado **sin** el filtro `estado`; todos los estados presentes, los vacíos en 0',
+                        additionalProperties: { type: 'integer' },
+                      },
+                    }
+                  : {}),
+              },
+            },
             requestId: { type: 'string' },
           },
         },
@@ -341,7 +364,7 @@ export const openApiDocument = {
           { name: 'take', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 25 } },
           { name: 'cursor', in: 'query', schema: { type: 'string', format: 'uuid' } },
         ],
-        responses: { '200': envelopeLista(Bitacora, 'Entradas de bitácora, más reciente primero'), ...ERRORES_AUTENTICACION },
+        responses: { '200': envelopeLista(Bitacora, 'Entradas de bitácora, más reciente primero', { total: true }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION },
       },
     },
 
@@ -349,16 +372,18 @@ export const openApiDocument = {
     '/tramites': {
       get: {
         tags: ['Trámites'], security: bearer, summary: 'Listar trámites (filtros opcionales; paginación por cursor)',
+        description: '`folio` es excluyente: cuando viene, el resto de los filtros se ignora. Acepta el folio completo (`NA-2026-02038`) o por segmentos (`NA-2026`, `NA`, `02038`); si trae número, el segmento de año no se aplica porque `numeroTramite` ya es único. `meta.porEstado` se calcula sobre el filtro aplicado **sin** `estado`.',
         parameters: [
           { name: 'estado', in: 'query', schema: { type: 'string', enum: ['CAPTURA', 'EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'COBRO', 'FINALIZADO'] } },
           { name: 'tipoConstancia', in: 'query', schema: { type: 'string', enum: ['NO_ADEUDO', 'NO_REGISTRO'] } },
           { name: 'nis', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 60 } },
+          { name: 'folio', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 20 } },
           { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
           { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
           { name: 'take', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 25 } },
           { name: 'cursor', in: 'query', schema: { type: 'string', format: 'uuid' } },
         ],
-        responses: { '200': envelopeLista(Tramite), ...ERRORES_AUTENTICACION },
+        responses: { '200': envelopeLista(Tramite, 'Listado paginado', { total: true, porEstado: true }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION },
       },
       post: { tags: ['Trámites'], security: bearer, summary: 'Crear trámite (requiere catálogo activo publicado; rol ventanilla)', requestBody: body(CrearTramite), responses: { '201': envelope(TramiteConPersonas, { description: 'Trámite creado en CAPTURA' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION, '409': errorResponse('No existe un catálogo activo para crear el trámite') } },
     },

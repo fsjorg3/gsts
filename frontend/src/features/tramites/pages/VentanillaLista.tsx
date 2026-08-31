@@ -10,6 +10,7 @@ import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { formatFecha } from '@/api/serializers';
 import { DataTable, EstadoDeBadge, ESTADO_TRAMITE, MsIcon, StatCard, type DataTableColumn } from '@/shared/components';
+import { usePaginacionCursor } from '@/shared/hooks/usePaginacionCursor';
 import { folioTramite, tramitesInfiniteOptions, type FiltrosTramites, type Tramite } from '../api';
 
 const COLUMNAS: DataTableColumn<Tramite>[] = [
@@ -27,6 +28,7 @@ const COLUMNAS: DataTableColumn<Tramite>[] = [
 ];
 
 interface BorradorFiltros {
+  folio: string;
   estado: string;
   tipoConstancia: string;
   nis: string;
@@ -34,34 +36,55 @@ interface BorradorFiltros {
   hasta: string;
 }
 
-const FILTROS_VACIOS: BorradorFiltros = { estado: '', tipoConstancia: '', nis: '', desde: '', hasta: '' };
+const FILTROS_VACIOS: BorradorFiltros = { folio: '', estado: '', tipoConstancia: '', nis: '', desde: '', hasta: '' };
 
 export function VentanillaLista() {
   const navigate = useNavigate();
   const { abrirMenu } = useOutletContext<AppShellContext>();
   const [borrador, setBorrador] = useState<BorradorFiltros>(FILTROS_VACIOS);
   const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosTramites>({});
-  const consulta = useInfiniteQuery(tramitesInfiniteOptions(filtrosAplicados));
-  const tramites = consulta.data?.pages.flatMap((page) => page.data) ?? [];
+  const [filasPorPagina, setFilasPorPagina] = useState(25);
+  const consulta = useInfiniteQuery(tramitesInfiniteOptions(filtrosAplicados, filasPorPagina));
+  const { pagina, filas: tramites, total, irAPagina, reiniciar } = usePaginacionCursor(consulta);
 
-  const buscar = () =>
-    setFiltrosAplicados({
-      ...(borrador.estado ? { estado: borrador.estado as Tramite['estado'] } : {}),
-      ...(borrador.tipoConstancia ? { tipoConstancia: borrador.tipoConstancia as Tramite['tipoConstancia'] } : {}),
-      ...(borrador.nis ? { nis: borrador.nis } : {}),
-      ...(borrador.desde ? { desde: borrador.desde } : {}),
-      ...(borrador.hasta ? { hasta: borrador.hasta } : {}),
-    });
+  // El folio identifica un trámite concreto: manda sobre el resto de los
+  // filtros, tanto aquí como en el backend.
+  const porFolio = borrador.folio.trim() !== '';
+  const rangoInvalido = Boolean(borrador.desde && borrador.hasta && borrador.desde > borrador.hasta);
+
+  const buscar = () => {
+    reiniciar();
+    setFiltrosAplicados(
+      porFolio
+        ? { folio: borrador.folio.trim() }
+        : {
+            ...(borrador.estado ? { estado: borrador.estado as Tramite['estado'] } : {}),
+            ...(borrador.tipoConstancia ? { tipoConstancia: borrador.tipoConstancia as Tramite['tipoConstancia'] } : {}),
+            ...(borrador.nis ? { nis: borrador.nis } : {}),
+            ...(borrador.desde ? { desde: borrador.desde } : {}),
+            ...(borrador.hasta ? { hasta: borrador.hasta } : {}),
+          },
+    );
+  };
   const limpiar = () => {
+    reiniciar();
     setBorrador(FILTROS_VACIOS);
     setFiltrosAplicados({});
   };
+  const cambiarFilasPorPagina = (filas: number) => {
+    reiniciar();
+    setFilasPorPagina(filas);
+  };
 
-  // KPIs derivados de lo cargado (no existe endpoint de métricas).
-  const abiertos = tramites.filter((t) => ['CAPTURA', 'EN_VALIDACION'].includes(t.estado)).length;
-  const porCobrar = tramites.filter((t) => t.estado === 'APROBADO').length;
-  const enCobro = tramites.filter((t) => t.estado === 'COBRO').length;
-  const finalizados = tramites.filter((t) => t.estado === 'FINALIZADO').length;
+  // Conteos del universo filtrado completo, no de la página visible: el backend
+  // los calcula ignorando el filtro `estado`, que si no dejaría en cero a las
+  // tarjetas restantes.
+  const porEstado = consulta.data?.pages[0]?.meta?.porEstado;
+  const conteo = (estado: string) => porEstado?.[estado] ?? 0;
+  const abiertos = conteo('CAPTURA') + conteo('EN_VALIDACION');
+  const porCobrar = conteo('APROBADO');
+  const enCobro = conteo('COBRO');
+  const finalizados = conteo('FINALIZADO');
 
   return (
     <>
@@ -76,7 +99,16 @@ export function VentanillaLista() {
         }
       />
       <Box sx={{ flex: 1, overflowY: 'auto', p: 3.5, display: 'flex', flexDirection: 'column', gap: 2.25 }}>
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <TextField
+            size="small"
+            label="Folio"
+            placeholder="NA-2026-02038"
+            value={borrador.folio}
+            onChange={(e) => setBorrador({ ...borrador, folio: e.target.value })}
+            helperText={porFolio ? 'El folio ignora los demás filtros' : ' '}
+            sx={{ width: 190 }}
+          />
           <TextField
             select
             size="small"
@@ -86,6 +118,8 @@ export function VentanillaLista() {
               const tipoConstancia = e.target.value;
               setBorrador({ ...borrador, tipoConstancia, ...(tipoConstancia === 'NO_REGISTRO' ? { nis: '' } : {}) });
             }}
+            disabled={porFolio}
+            helperText=" "
             sx={{ width: 160 }}
           >
             <MenuItem value="">Todos</MenuItem>
@@ -98,6 +132,8 @@ export function VentanillaLista() {
             label="Estado"
             value={borrador.estado}
             onChange={(e) => setBorrador({ ...borrador, estado: e.target.value })}
+            disabled={porFolio}
+            helperText=" "
             sx={{ width: 180 }}
           >
             <MenuItem value="">Todos</MenuItem>
@@ -112,31 +148,40 @@ export function VentanillaLista() {
             label="NIS / Cuenta"
             value={borrador.nis}
             onChange={(e) => setBorrador({ ...borrador, nis: e.target.value })}
-            disabled={borrador.tipoConstancia === 'NO_REGISTRO'}
+            disabled={porFolio || borrador.tipoConstancia === 'NO_REGISTRO'}
+            helperText=" "
             sx={{ width: 160 }}
           />
+          {/* min/max acotan el selector de fecha, pero el campo sigue siendo
+              tecleable: de ahí el error visible y el botón deshabilitado. */}
           <TextField
             size="small"
             label="Desde"
             type="date"
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: borrador.hasta || undefined } }}
             value={borrador.desde}
             onChange={(e) => setBorrador({ ...borrador, desde: e.target.value })}
+            disabled={porFolio}
+            error={rangoInvalido}
+            helperText=" "
             sx={{ width: 160 }}
           />
           <TextField
             size="small"
             label="Hasta"
             type="date"
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: borrador.desde || undefined } }}
             value={borrador.hasta}
             onChange={(e) => setBorrador({ ...borrador, hasta: e.target.value })}
-            sx={{ width: 160 }}
+            disabled={porFolio}
+            error={rangoInvalido}
+            helperText={rangoInvalido ? '«Hasta» no puede ser anterior a «Desde»' : ' '}
+            sx={{ width: 220 }}
           />
-          <Button variant="contained" onClick={buscar}>
+          <Button variant="contained" onClick={buscar} disabled={rangoInvalido} sx={{ mt: 0.5 }}>
             Buscar
           </Button>
-          <Button variant="text" onClick={limpiar}>
+          <Button variant="text" onClick={limpiar} sx={{ mt: 0.5 }}>
             Limpiar
           </Button>
         </Box>
@@ -156,14 +201,14 @@ export function VentanillaLista() {
             rowKey={(t) => t.id}
             onRowClick={(t) => void navigate(`/ventanilla/tramites/${t.id}`)}
             emptyMessage={consulta.isPending ? 'Cargando…' : 'Aún no hay trámites. Crea el primero con "Nuevo trámite".'}
+            paginacion={{
+              pagina,
+              total,
+              filasPorPagina,
+              onCambiarPagina: irAPagina,
+              onCambiarFilasPorPagina: cambiarFilasPorPagina,
+            }}
           />
-          {consulta.hasNextPage ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
-              <Button variant="text" disabled={consulta.isFetchingNextPage} onClick={() => void consulta.fetchNextPage()}>
-                {consulta.isFetchingNextPage ? 'Cargando…' : 'Cargar más'}
-              </Button>
-            </Box>
-          ) : null}
         </Box>
       </Box>
     </>

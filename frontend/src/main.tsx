@@ -13,11 +13,13 @@ import { AuthGate } from '@/auth/AuthGate';
 import { userManager } from '@/auth/oidc';
 
 // Tipografía e iconografía del design system (self-host, sin CDN).
+// Los iconos van en un subconjunto propio con los ~55 que la app usa, no la
+// fuente completa del paquete (4.9 MB): ver app/iconos.css y shared/components/iconos.ts.
 import '@fontsource/montserrat/400.css';
 import '@fontsource/montserrat/500.css';
 import '@fontsource/montserrat/600.css';
 import '@fontsource/montserrat/700.css';
-import 'material-symbols/rounded.css';
+import '@/app/iconos.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

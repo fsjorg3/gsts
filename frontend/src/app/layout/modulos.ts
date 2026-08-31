@@ -1,11 +1,12 @@
 import type { RolGsts } from '@/auth/useAuth';
+import type { IconoNombre } from '@/shared/components';
 
 // Fuente única de los módulos del sidebar: AppShell filtra qué NavItem se
 // renderiza y el router usa el mismo orden para decidir a dónde redirigir la
 // ruta índice según el rol del usuario autenticado.
 export interface Modulo {
   to: string;
-  icon: string;
+  icon: IconoNombre;
   label: string;
   roles: RolGsts[];
   /**

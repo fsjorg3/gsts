@@ -78,9 +78,12 @@ export function useAplicarBorrador(tramiteId: string) {
 export function useCobroDirecto(tramiteId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: Omit<CobroRequest, 'comprobante'> & { comprobante?: File }) => {
+    // El comprobante es obligatorio al cobrar directo (se reenvía a GAF al
+    // solicitar factura, que exige 1-3 archivos); el borrador sigue
+    // aceptándolo opcional porque es un avance a medias.
+    mutationFn: async (input: Omit<CobroRequest, 'comprobante'> & { comprobante: File }) => {
       const { comprobante, ...resto } = input;
-      const body: CobroRequest = { ...resto, ...(comprobante ? { comprobante: await comprobanteAJson(comprobante) } : {}) };
+      const body: CobroRequest = { ...resto, comprobante: await comprobanteAJson(comprobante) };
       const { data } = await api.POST('/tramites/{id}/cobros', {
         params: { path: { id: tramiteId } },
         headers: { 'idempotency-key': nuevaIdempotencyKey() },
@@ -90,6 +93,20 @@ export function useCobroDirecto(tramiteId: string) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tramites'] });
+    },
+  });
+}
+
+// Descarga del ticket/comprobante ya adjuntado al cobrar. Mismo patrón que
+// useDescargarConstancia: cliente tipado + parseAs 'blob'.
+export function useDescargarComprobante(tramiteId: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.GET('/tramites/{id}/cobros/comprobante', {
+        params: { path: { id: tramiteId } },
+        parseAs: 'blob',
+      });
+      return data as Blob;
     },
   });
 }

@@ -2435,7 +2435,7 @@ export interface paths {
         put?: never;
         /**
          * Transicionar el estado del trámite (rol ventanilla)
-         * @description Valores válidos de `accion`: iniciar-validacion (→EN_VALIDACION), aprobar (→APROBADO), rechazar (→RECHAZADO), expirar (→EXPIRADO), finalizar (→FINALIZADO). Las condiciones de guardia de cada transición las impone la base de datos — ver CONTRATO_API_SICEF.md.
+         * @description Valores válidos de `accion`: iniciar-validacion (→EN_VALIDACION), aprobar (→APROBADO), rechazar (→RECHAZADO), expirar (→EXPIRADO), finalizar (→FINALIZADO). Las condiciones de guardia de cada transición las impone la base de datos — ver CONTRATO_API_GSTS.md.
          */
         post: {
             parameters: {
@@ -2661,6 +2661,75 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/tramites/{id}/evidencias/{evidenciaId}/archivo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Descargar el archivo de una evidencia cargada (roles ventanilla o direccion)
+         * @description Devuelve el archivo binario tal como se cargó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    evidenciaId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Contenido de la evidencia */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/octet-stream": string;
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/tramites/{id}/validaciones/no-adeudo": {
@@ -3161,6 +3230,74 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tramites/{id}/cobros/comprobante": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Descargar el comprobante de pago adjuntado al cobrar (rol ventanilla)
+         * @description Devuelve el archivo binario tal como se adjuntó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Contenido del comprobante */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/octet-stream": string;
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3691,7 +3828,8 @@ export interface components {
              */
             facturaSolicitadaEnVentanilla: boolean;
             referenciaPago?: string;
-            comprobante?: {
+            /** @description Obligatorio: se reenvía a GAF al capturar la solicitud de factura */
+            comprobante: {
                 /** @description Comprobante de pago (voucher) codificado en Base64 */
                 base64: string;
                 nombreOriginal: string;

@@ -1,11 +1,15 @@
 # GSTS después de la separación de facturación
 
-> Documento de estado destino. Describe cómo queda GSTS una vez que la facturación
+> Documento de estado destino, ya alcanzado. Describe cómo queda GSTS una vez que la facturación
 > se traslada a un sistema independiente. Su contraparte es
-> [SISTEMA_FINANZAS.md](SISTEMA_FINANZAS.md).
+> [SISTEMA_FINANZAS.md](SISTEMA_FINANZAS.md), que sí sigue siendo un plan a futuro (ese sistema
+> aún no existe).
 >
-> Los documentos de `documentacion/` describen el sistema **actual** y siguen siendo
-> válidos hasta que el recorte de la sección 9 se ejecute.
+> **El recorte de la sección 9 ya se ejecutó** — es de los primeros commits del repositorio
+> (`aace26b Extraer la facturación de SICEF hacia el sistema Finanzas`, y la migración
+> `0008_recorte_facturacion`). Los documentos de `documentacion/` ya describen este mismo estado
+> posterior al recorte, no un estado anterior a él. La sección 9 se conserva como registro histórico
+> de qué cambió y por qué, con cada paso anotado con su evidencia de cierre.
 
 ## 1. Propósito y qué cambia
 
@@ -354,38 +358,39 @@ flowchart LR
 
 La flecha punteada es la única que existe, y va en un solo sentido. GSTS no conoce la existencia de Finanzas. No hay push, ni outbox, ni cola, ni transacción distribuida.
 
-## 9. Plan de recorte
+## 9. Plan de recorte — ✅ ejecutado
 
-Orden pensado para que el árbol compile y las pruebas pasen al final de cada paso.
+Orden pensado para que el árbol compile y las pruebas pasen al final de cada paso. Los 7 pasos ya se
+aplicaron (migración `0008_recorte_facturacion`); se dejan aquí como registro de qué cambió y por qué,
+cada uno con la evidencia que confirma su cierre.
 
-**Paso 1 — Invertir la guardia de finalización.**
+**Paso 1 — Invertir la guardia de finalización. ✅**
 Editar `fn_tramite_transicion_valida` (quitar el renglón 506 y la variable `v_requiere_factura`) y `fn_cobro_integridad` (quitar 536-544). Es el único cambio de comportamiento visible para el usuario y puede desplegarse solo, antes que todo lo demás.
-*Verifica:* pruebas de transición de trámite en `backend/tests/`; un trámite con `requiereFactura=true` y sin factura debe poder finalizar.
+*Cerrado:* `migration_complementaria.sql` ya no exige CFDI timbrado para cerrar un trámite — el comentario vigente dice *"El trámite cierra con la constancia emitida. La factura dejó de ser [relevante]"*.
 
-**Paso 2 — Retirar rutas.**
+**Paso 2 — Retirar rutas. ✅**
 Borrar `backend/src/modules/facturacion/`, su import y su montaje en [router.ts](../backend/src/api/router.ts); las dos rutas de factura de [publico.router.ts](../backend/src/modules/constancias/publico/publico.router.ts); las entradas correspondientes de `backend/src/api/openapi.ts`; `solicitudFacturaPublicaSchema` y los DTO de factura de `packages/contracts/src/index.ts`.
-*Verifica:* `backend/tests/contract/openapi.test.ts` falla hasta que se actualice el inventario literal — ése es el semáforo. Después, `npm run check && npm run test` en la raíz.
+*Cerrado:* `backend/src/modules/facturacion/` no existe en el árbol actual; no hay rutas de factura en `router.ts` ni en `openapi.ts`.
 
-**Paso 3 — Recortar el esquema.**
+**Paso 3 — Recortar el esquema. ✅**
 Quitar de [schema.prisma](../backend/prisma/schema.prisma) los cuatro modelos, los dos enums, el valor `RECEPTOR_FISCAL` y los campos de 4.3. Renombrar `requiereFactura`. Generar la migración.
-> Si hay filas en producción, **exportarlas hacia Finanzas antes** de aplicar la bajada. Las tablas de factura tienen trigger de no-borrado ([660-661](../backend/prisma/migration_complementaria.sql)), así que el `DROP TABLE` debe ir después de retirar esos triggers.
+*Cerrado:* `schema.prisma` no tiene el valor de enum `RECEPTOR_FISCAL`; el campo ya se llama `facturaSolicitadaEnVentanilla` (mapeado a la columna `factura_solicitada_en_ventanilla`).
 
-*Verifica:* `npm run prisma:generate && npm run check` en `backend/`.
-
-**Paso 4 — Limpiar la SQL complementaria.**
+**Paso 4 — Limpiar la SQL complementaria. ✅**
 Aplicar la tabla de la sección 6. Recordar que el archivo se ejecuta **después** de `prisma migrate`, y que `prisma migrate` solo no instala nada de esto.
-*Verifica:* aplicar sobre una base limpia y correr la suite de integración.
+*Cerrado:* verificado contra `migration_complementaria.sql` vigente — sin triggers ni CHECKs de factura/CFDI/timbrado.
 
-**Paso 5 — Agregar la consulta de integración.**
+**Paso 5 — Agregar la consulta de integración. ✅**
 Nueva ruta de la sección 8, con su rol de service account, su schema en `@gsts/contracts` y su registro en `openapi.ts`.
-*Verifica:* inventario de `openapi.test.ts` actualizado; prueba que confirme que la respuesta no incluye campos con PII.
+*Cerrado:* existen y están documentadas `GET /constancias/{folio}/cobro`, `GET /constancias/{folio}/cobro/comprobante` y `GET /direccion/metricas`.
 
-**Paso 6 — Frontend.**
+**Paso 6 — Frontend. ✅**
 Retirar el módulo Finanzas de [modulos.ts](../frontend/src/app/layout/modulos.ts), sus rutas, su `<RequireRole>` y sus mocks en `frontend/src/mocks/`. Regenerar tipos con `npm run gen:api`.
-*Verifica:* `npm run check && npm run test` en `frontend/`.
+*Cerrado:* `modulos.ts` sólo lista Ventanilla, Administración y Bitácora, con un comentario explícito de que Finanzas y Dirección se trasladaron a la app de Finanzas.
 
-**Paso 7 — Documentación.**
-Actualizar `documentacion/CONTRATO_API_GSTS.md` (§4.3, §4.4, la guardia de §4.1 y el catálogo de errores), `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` y `PENDIENTES_BACKEND_FRONTEND.md`. Al terminar, `documentacion2/` puede fusionarse con `documentacion/`.
+**Paso 7 — Documentación. ✅**
+Actualizar `documentacion/CONTRATO_API_GSTS.md` (§4.3, §4.4, la guardia de §4.1 y el catálogo de errores), `GUIA_MODELO_SICNAF_Y_CATALOGOS.md` y `PENDIENTES_BACKEND_FRONTEND.md`.
+*Cerrado:* los tres documentos ya reflejan el estado posterior al recorte. `documentacion2/` no se fusionó con `documentacion/` todavía porque `SISTEMA_FINANZAS.md` sigue describiendo un sistema que aún no se construye — cuando exista, ambas carpetas pueden reconsiderarse.
 
 ## 10. Decisiones cerradas
 

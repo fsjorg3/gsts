@@ -6,10 +6,11 @@ import { useQuery, type UseMutationResult } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
 import { useNotificar } from '@/store/useNotificar';
 import { formatBytes } from '@/api/serializers';
+import { abrirBlobEnPestana } from '@/shared/descargarArchivo';
 import { EstadoBadge, MsIcon } from '@/shared/components';
 import { catalogoVistaPreviaOptions, gruposAplicables, type GrupoConArbol } from '@/features/catalogos/api';
 import type { TramiteDetalle } from '@/features/tramites/api';
-import { MAX_EVIDENCIA_TOTAL_BYTES, MIME_PERMITIDOS, useActualizarEvidencia, useSubirEvidencia, type Evidencia } from './api';
+import { MAX_EVIDENCIA_TOTAL_BYTES, MIME_PERMITIDOS, useActualizarEvidencia, useDescargarEvidencia, useSubirEvidencia, type Evidencia } from './api';
 
 // Checklist Y/O/Y del catálogo estampado en el trámite, con carga de evidencias.
 // Grupos se combinan con Y; opciones de un grupo con O; documentos de una opción con Y.
@@ -64,6 +65,7 @@ function DocumentoDropzone({
   totalBytes,
   subir,
   actualizar,
+  descargar,
   notificar,
 }: {
   doc: DocumentoRequisito;
@@ -72,6 +74,7 @@ function DocumentoDropzone({
   totalBytes: number;
   subir: UseMutationResult<Evidencia, Error, { opcionDocumentoId: string; archivo: File }>;
   actualizar: UseMutationResult<Evidencia, Error, { evidenciaId: string; estado: 'VALIDADO' | 'RECHAZADO' }>;
+  descargar: UseMutationResult<Blob, Error, string>;
   notificar: Notificar;
 }) {
   const [preview, setPreview] = useState<PreviewArchivo | null>(null);
@@ -173,6 +176,22 @@ function DocumentoDropzone({
           </Typography>
         ) : null}
       </Box>
+      {estadoDoc?.evidenciaId ? (
+        <Button
+          size="small"
+          variant="text"
+          disabled={descargar.isPending}
+          onClick={() =>
+            descargar.mutate(estadoDoc.evidenciaId!, {
+              onSuccess: (blob) => abrirBlobEnPestana(blob),
+              onError: (error) => notificar.error(error),
+            })
+          }
+          startIcon={<MsIcon name="visibility" size={15} />}
+        >
+          {descargar.isPending ? 'Abriendo…' : 'Ver'}
+        </Button>
+      ) : null}
       {!soloLectura ? (
         <Button
           size="small"
@@ -193,6 +212,7 @@ export function ChecklistRequisitos({ tramite, soloLectura = false }: { tramite:
   const catalogo = useQuery(catalogoVistaPreviaOptions(tramite.versionCatalogoId));
   const subir = useSubirEvidencia(tramite.id);
   const actualizar = useActualizarEvidencia(tramite.id);
+  const descargar = useDescargarEvidencia(tramite.id);
 
   const grupos = useMemo(
     () =>
@@ -265,6 +285,7 @@ export function ChecklistRequisitos({ tramite, soloLectura = false }: { tramite:
                           totalBytes={totalBytes}
                           subir={subir}
                           actualizar={actualizar}
+                          descargar={descargar}
                           notificar={notificar}
                         />
                       ))}

@@ -461,20 +461,24 @@ Esta guía describe lo que efectivamente expresan los dos archivos analizados. H
 - ~~reglas de descuentos: el porcentaje y su importe quedan en `cobro`, pero no existe un catálogo versionado de fundamentos y autorizaciones~~ — resuelto parcialmente con `motivo_reduccion` (catálogo simple gestionado por `ti`, sin versionado/publicación); sigue abierto si el negocio requiere además una autorización o justificación documentada por reducción aplicada;
 - obligatoriedad de `nis` para `NO_ADEUDO` y del domicilio del predio para `NO_REGISTRO` — ambos ya existen como columnas opcionales sin regla dura; sigue abierto si algún día deben volverse obligatorios a nivel de base de datos, y si el comprobante de pago del cobro debería seguir el mismo camino;
 - unicidad y coherencia de titular, representante, apoderado y receptor fiscal por trámite;
-- campos fiscales que el PAC exige antes de timbrar;
 - firma digital institucional, ya que `firma_digital` y `certificado_id` todavía son opcionales;
 - permisos reales del rol de aplicación para impedir `UPDATE`/`DELETE` sobre bitácora y borrados de entidades críticas;
 - estrategia de retención, respaldo y reconciliación entre NFS y las referencias de archivos.
 
-## 12. Advertencia sobre el historial de migraciones
+(Se retiró de esta lista "campos fiscales que el PAC exige antes de timbrar": desde el recorte de
+facturación, timbrar y validar esos campos es responsabilidad del sistema Finanzas, no de GSTS — ver
+[documentacion2/SISTEMA_FINANZAS.md](../documentacion2/SISTEMA_FINANZAS.md).)
 
-Al comparar los archivos del proyecto, la primera migración histórica contiene una versión anterior de `evidencia` con `opcion_requisito_id`, mientras que el `schema.prisma` actual sólo modela `opcion_documento_id`. Además, `20260701180834_init/migration.sql` está vacío.
+## 12. Historial de migraciones
 
-Antes de promover el modelo, comprobar en cada ambiente:
+`backend/prisma/migrations/` va de `0001_init` a `0009_validacion_no_registro` (pasando por
+`0008_recorte_facturacion`, la migración que retiró del schema los modelos y campos de facturación al
+extraerla al sistema Finanzas). Es una secuencia lineal sin huecos ni migraciones vacías.
+
+Antes de promover el modelo a un ambiente nuevo, comprobar igualmente:
 
 - qué migraciones ya fueron aplicadas;
-- si la tabla `evidencia` coincide exactamente con el esquema actual;
-- si la migración complementaria se instaló completa;
+- si la migración complementaria (`migration_complementaria.sql`) se instaló completa;
 - si existe drift de Prisma.
 
 Si una migración ya fue compartida o aplicada, no se debe reescribir su historial: se debe crear una migración correctiva nueva y documentar la transición. La base de datos de producción debe terminar con una sola estructura coherente con el `schema.prisma` vigente y con todas las reglas complementarias instaladas.

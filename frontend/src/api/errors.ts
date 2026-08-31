@@ -49,6 +49,7 @@ const COPY_POR_CODIGO: Record<string, string> = {
   INVALID_STATE: 'La acción no procede en el estado actual del trámite.',
   INVALID_VALIDITY: 'La vigencia de la constancia debe ser una fecha futura.',
   FILE_TOO_LARGE: 'El archivo excede el límite de 30 MB acumulados por trámite.',
+  FILE_INVALID: 'El archivo no es válido: su contenido no coincide con el tipo declarado.',
   INVALID_PATH: 'La referencia del registro es inválida.',
   INTERNAL_ERROR: 'Ocurrió un error inesperado. Intenta de nuevo; si persiste, contacta a TI.',
 };

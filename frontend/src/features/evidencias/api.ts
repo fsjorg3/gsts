@@ -34,6 +34,21 @@ export function useActualizarEvidencia(tramiteId: string) {
   });
 }
 
+// Descarga del archivo real de una evidencia ya cargada. Mismo patrón que
+// useDescargarConstancia: cliente tipado + parseAs 'blob' para conservar el
+// bearer y el manejo de errores del middleware.
+export function useDescargarEvidencia(tramiteId: string) {
+  return useMutation({
+    mutationFn: async (evidenciaId: string) => {
+      const { data } = await api.GET('/tramites/{id}/evidencias/{evidenciaId}/archivo', {
+        params: { path: { id: tramiteId, evidenciaId } },
+        parseAs: 'blob',
+      });
+      return data as Blob;
+    },
+  });
+}
+
 export function useSubirEvidencia(tramiteId: string) {
   const queryClient = useQueryClient();
   return useMutation({

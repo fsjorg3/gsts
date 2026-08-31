@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { actualizarEvidenciaSchema } from '@gsts/contracts';
 import { NfsStorage } from '../../../infrastructure/storage/nfs-storage.js';
-import { withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
+import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
 import { auditarUsuario } from '../../auditoria/service.js';
+import { requireRoles } from '../../auth/middleware.js';
 import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
@@ -12,7 +13,7 @@ const evidenciaSchema = z.object({ opcionDocumentoId: z.string().uuid(), nombreO
 
 export function createEvidenciasRouter(storage: NfsStorage, maxBytes: number): Router {
   const router = Router({ mergeParams: true });
-  router.post('/', async (request, response, next) => {
+  router.post('/', requireRoles('ventanilla'), async (request, response, next) => {
     let archivo: Awaited<ReturnType<NfsStorage['save']>> | undefined;
     try {
       const input = evidenciaSchema.parse(request.body); const contenido = Buffer.from(input.contenidoBase64, 'base64');
@@ -22,7 +23,7 @@ export function createEvidenciasRouter(storage: NfsStorage, maxBytes: number): R
       response.status(201).json({ data, requestId: request.id });
     } catch (error) { if (archivo) await storage.remove(archivo.ruta).catch(() => undefined); next(error); }
   });
-  router.patch('/:id', async (request, response, next) => {
+  router.patch('/:id', requireRoles('ventanilla'), async (request, response, next) => {
     try {
       const input = actualizarEvidenciaSchema.parse(request.body);
       const tramiteId = routeParam((request.params as { tramiteId?: string }).tramiteId, 'tramiteId');
@@ -36,6 +37,21 @@ export function createEvidenciasRouter(storage: NfsStorage, maxBytes: number): R
         return evidencia;
       });
       response.json({ data, requestId: request.id });
+    } catch (error) { next(error); }
+  });
+  router.get('/:id/archivo', requireRoles('ventanilla', 'direccion'), async (request, response, next) => {
+    try {
+      const tramiteId = routeParam((request.params as { tramiteId?: string }).tramiteId, 'tramiteId');
+      const evidenciaId = routeParam((request.params as { id?: string }).id, 'id');
+      const evidencia = await prisma.evidencia.findFirst({
+        where: { id: evidenciaId, tramiteId },
+        select: { archivoUuid: true, mimeType: true, nombreOriginal: true },
+      });
+      if (!evidencia) throw new AppError(404, 'NOT_FOUND', 'Evidencia no encontrada en el trámite');
+      const contenido = await storage.leerPorUuid('evidencias', evidencia.archivoUuid);
+      response.setHeader('content-type', evidencia.mimeType);
+      response.setHeader('content-disposition', `attachment; filename="${evidencia.nombreOriginal}"`);
+      response.send(contenido);
     } catch (error) { next(error); }
   });
   return router;

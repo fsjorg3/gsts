@@ -1,5 +1,12 @@
 # Handoff · Validación sustantiva de No Registro
 
+> **Implementado.** El trabajo de frontend descrito en la sección 4 ya está construido: `PasoValidacion.tsx`
+> captura `SIN_REGISTRO`/`CON_REGISTRO`, `PasoCobro.tsx` generaliza la revalidación para los dos tipos y
+> `TramiteWizard.tsx` generalizó `validacionInicialOk`, con el segundo hook (`useRegistrarValidacionNoRegistro`)
+> en `features/validaciones/api.ts`. Este documento se conserva como registro del porqué (§1) y de las
+> reglas de negocio (§3); las secciones 4 y 5 describen trabajo ya cerrado, no un pendiente — ver
+> `documentacion/PENDIENTES_BACKEND_FRONTEND.md`.
+
 > **Para la sesión de frontend.** Este documento y el **OpenAPI regenerado** son las dos fuentes: consúltalos juntos. El OpenAPI da la forma exacta de los tipos; esto da el porqué, las reglas de la base que no se ven en el contrato y la lista de lo que hay que tocar.
 >
 > Primer paso, con el backend corriendo:

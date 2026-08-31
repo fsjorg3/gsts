@@ -83,7 +83,7 @@ const cobroRequestSchema = z.object({
     base64: z.string().min(1).describe('Comprobante de pago (voucher) codificado en Base64'),
     nombreOriginal: z.string().trim().min(1).max(255),
     mimeType: z.string().trim().min(1).max(100),
-  }).optional(),
+  }).describe('Obligatorio: se reenvía a GAF al capturar la solicitud de factura'),
 });
 const plazosRequestSchema = z.object({
   plazoPagoDias: z.number().int().positive(),
@@ -377,6 +377,22 @@ export const openApiDocument = {
     },
     '/tramites/{id}/evidencias': { post: { tags: ['Trámites'], security: bearer, summary: 'Guardar evidencia en NFS (Base64; rol ventanilla)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(EvidenciaRequest), responses: { '201': envelope(Evidencia, { description: 'Evidencia registrada' }), ...ERRORES_AUTENTICACION, '422': errorResponse('Entrada inválida o evidencia excede el límite acumulado de 30 MiB') } } },
     '/tramites/{id}/evidencias/{evidenciaId}': { patch: { tags: ['Trámites'], security: bearer, summary: 'Validar o rechazar una evidencia cargada (rol ventanilla)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }, { name: 'evidenciaId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ActualizarEvidencia), responses: { '200': envelope(Evidencia, { description: 'Evidencia resuelta' }), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO, ...ERRORES_VALIDACION } } },
+    '/tramites/{id}/evidencias/{evidenciaId}/archivo': {
+      get: {
+        tags: ['Trámites'], security: bearer,
+        summary: 'Descargar el archivo de una evidencia cargada (roles ventanilla o direccion)',
+        description: 'Devuelve el archivo binario tal como se cargó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'evidenciaId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          '200': { description: 'Contenido de la evidencia', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } },
+          ...ERRORES_AUTENTICACION,
+          ...ERRORES_NO_ENCONTRADO,
+        },
+      },
+    },
     '/tramites/{id}/validaciones/no-adeudo': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar el cruce con el OUC de un trámite de No Adeudo (rol ventanilla). Upsert por momento: repetirlo corrige el resultado. Aprobar exige VALIDACION_INICIAL con SIN_ADEUDO; cobrar exige REVALIDACION_COBRO con SIN_ADEUDO', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionRequest), responses: { '200': envelope(ValidacionNoAdeudo, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
     '/tramites/{id}/validaciones/no-registro': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar la consulta al padrón de un trámite de No Registro (rol ventanilla). Upsert por momento. Aprobar exige VALIDACION_INICIAL con SIN_REGISTRO; cobrar exige REVALIDACION_COBRO con SIN_REGISTRO. Registrar CON_REGISTRO es válido y deja el trámite bloqueado a propósito', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionNoRegistroRequest), responses: { '200': envelope(ValidacionNoRegistro, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
 
@@ -390,6 +406,19 @@ export const openApiDocument = {
 
     // ---------- Cobro directo y emisión ----------
     '/tramites/{id}/cobros': { post: { tags: ['Cobros y constancias'], security: bearer, summary: 'Crear cobro directo (sin borrador) y pasar el trámite a COBRO', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(CobroRequest), responses: { '201': envelope(CobroRespuesta, { description: 'Cobro registrado' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION, '409': errorResponse('El trámite no está APROBADO vigente o no hay tarifa activa compatible') } } },
+    '/tramites/{id}/cobros/comprobante': {
+      get: {
+        tags: ['Cobros y constancias'], security: bearer,
+        summary: 'Descargar el comprobante de pago adjuntado al cobrar (rol ventanilla)',
+        description: 'Devuelve el archivo binario tal como se adjuntó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': { description: 'Contenido del comprobante', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } },
+          ...ERRORES_AUTENTICACION,
+          ...ERRORES_NO_ENCONTRADO,
+        },
+      },
+    },
     '/tramites/{id}/constancias/{constanciaId}/archivo': {
       get: {
         tags: ['Cobros y constancias'], security: bearer, summary: 'Descargar el PDF de la constancia emitida (rol ventanilla)',

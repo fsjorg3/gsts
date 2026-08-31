@@ -8,6 +8,7 @@ import { NuevoTramite } from '@/features/tramites/pages/NuevoTramite';
 import { TramiteWizard } from '@/features/tramites/pages/TramiteWizard';
 import { VentanillaLista } from '@/features/tramites/pages/VentanillaLista';
 import { AppShell } from './layout/AppShell';
+import { NotFoundPage } from './layout/NotFoundPage';
 import { MODULOS } from './layout/modulos';
 
 // Envía a la ruta índice al primer módulo (en el orden de MODULOS) al que el
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
           </RequireRole>
         ),
       },
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ]);

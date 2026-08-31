@@ -6,7 +6,16 @@ import { auditarUsuario } from '../../auditoria/service.js';
 import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
+import { mimeRealCoincide } from './mime-real.js';
 import { resolverMotivoReduccion } from './motivo-reduccion.js';
+
+function validarComprobante(comprobante: { base64: string; mimeType: string }): Buffer {
+  const contenido = Buffer.from(comprobante.base64, 'base64');
+  if (!mimeRealCoincide(contenido, comprobante.mimeType)) {
+    throw new AppError(422, 'FILE_INVALID', 'El tipo de archivo del comprobante no coincide con su contenido');
+  }
+  return contenido;
+}
 
 function tramiteIdDe(request: { params: unknown }): string {
   return routeParam((request.params as { tramiteId?: string }).tramiteId, 'tramiteId');
@@ -33,7 +42,7 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
       const tramiteId = tramiteIdDe(request);
       const abierto = await prisma.borradorCobro.findFirst({ where: { tramiteId, estado: 'ABIERTO' }, select: { id: true } });
       if (abierto) throw new AppError(409, 'DRAFT_ALREADY_OPEN', 'El trámite ya tiene un borrador de cobro abierto');
-      if (input.comprobante) archivo = await storage.save('comprobantes', Buffer.from(input.comprobante.base64, 'base64'));
+      if (input.comprobante) archivo = await storage.save('comprobantes', validarComprobante(input.comprobante));
       const data = await withBusinessTransaction(context, async (tx) => {
         const { motivoReduccionId, comprobante, ...resto } = input;
         const motivo = 'motivoReduccionId' in input ? await resolverMotivoReduccion(tx, motivoReduccionId) : {};
@@ -53,7 +62,7 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
       const input = guardarBorradorCobroSchema.parse(request.body);
       const context = requestContext(request);
       const borradorId = routeParam(request.params.borradorId, 'borradorId');
-      if (input.comprobante) archivo = await storage.save('comprobantes', Buffer.from(input.comprobante.base64, 'base64'));
+      if (input.comprobante) archivo = await storage.save('comprobantes', validarComprobante(input.comprobante));
       const data = await withBusinessTransaction(context, async (tx) => {
         const { motivoReduccionId, comprobante, ...resto } = input;
         const motivo = 'motivoReduccionId' in input ? await resolverMotivoReduccion(tx, motivoReduccionId) : {};
@@ -76,8 +85,8 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
         const borrador = await tx.borradorCobro.findUniqueOrThrow({ where: { id: borradorId } });
         if (borrador.estado !== 'ABIERTO') throw new AppError(409, 'DRAFT_NOT_OPEN', 'Sólo un borrador ABIERTO puede aplicarse');
         if (borrador.tramiteId !== tramiteId) throw new AppError(404, 'NOT_FOUND', 'El borrador no pertenece al trámite');
-        if (!borrador.tarifaId || !borrador.formaPago || !borrador.metodoPago || borrador.facturaSolicitadaEnVentanilla === null) {
-          throw new AppError(422, 'DRAFT_INCOMPLETE', 'El borrador requiere tarifa, forma de pago, método de pago y facturaSolicitadaEnVentanilla antes de aplicarse');
+        if (!borrador.tarifaId || !borrador.formaPago || !borrador.metodoPago || borrador.facturaSolicitadaEnVentanilla === null || !borrador.comprobanteArchivoUuid) {
+          throw new AppError(422, 'DRAFT_INCOMPLETE', 'El borrador requiere tarifa, forma de pago, método de pago, facturaSolicitadaEnVentanilla y comprobante antes de aplicarse');
         }
         const tarifa = await tx.tarifa.findUniqueOrThrow({ where: { id: borrador.tarifaId } });
         // Un único origen de valores para garantizar la coincidencia exacta que exige el trigger.

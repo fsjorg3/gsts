@@ -127,6 +127,25 @@ Verificado con grep: cero ocurrencias de los tres nombres viejos en `backend/src
 **Falta `RoleSicef`** (distinto, en `packages/contracts` — ver §2): mi inventario original no cubrió
 ese paquete, así que no es que se haya saltado, es que no estaba listado.
 
+**Hallazgo nuevo, documentado y no ejecutado**: "cero ocurrencias" arriba es sólo sobre esos tres
+*identificadores* de código — el barrido nunca cubrió texto libre (prosa, logs, mensajes de error,
+fixtures de test), y ahí sí persiste "sicef" literal:
+
+| Dónde | Qué dice |
+|---|---|
+| `backend/src/server.ts` | log de arranque: `'SICEF API listening...'` |
+| `backend/src/api/openapi.ts` | descripción de un KPI: "los seis KPIs que SICEF puede calcular…" |
+| `backend/src/infrastructure/database/prisma.ts` | connection string de fallback con `sicef_app`/`sicef_db` (coherente con §4: el nombre real de la base sigue siendo ése) |
+| `backend/src/infrastructure/signing/signing-client.ts` | `module: 'sicef'` |
+| `backend/src/modules/auth/claims.ts` | mensaje de error: "…rol autorizado para SICEF" |
+| `backend/src/modules/constancias/constancias/consulta.router.ts`, `plantillas/membrete.ts`, `direccion/direccion.router.ts` | comentarios sueltos |
+| `frontend/src/auth/oidc.ts` | comentario: "cliente sicef" |
+| `frontend/src/features/tramites/components/PasoEntrega.test.tsx`, `shared/descargarArchivo.test.ts` | fixtures con `folioUnico: 'SICEF-42-...'`, pese a que el prefijo real ya es `GSTS-` (§0) |
+
+Igual que los fixtures NFS de §5: es texto de prosa/pruebas, no identificadores que rompan el
+build ni comportamiento visible, así que no bloquea nada — se deja anotado para una pasada de
+limpieza de texto libre.
+
 ---
 
 ## §4 · Base de datos — opcional, no necesario

@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react';
+import Accordion from '@mui/material/Accordion';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import AccordionSummary from '@mui/material/AccordionSummary';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -9,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useOutletContext, useParams } from 'react-router';
 import type { AppShellContext } from '@/app/layout/AppShell';
 import { useNotificar } from '@/store/useNotificar';
-import { EstadoDeBadge, ESTADO_TRAMITE, MsIcon } from '@/shared/components';
+import { EstadoBadge, EstadoDeBadge, ESTADO_TRAMITE, MsIcon } from '@/shared/components';
 import { catalogoVistaPreviaOptions, gruposAplicables } from '@/features/catalogos/api';
 import { ChecklistRequisitos, checklistSatisfecho } from '@/features/evidencias/ChecklistRequisitos';
 import { tieneValidacionInicial } from '@/features/validaciones/api';
@@ -55,6 +58,7 @@ export function TramiteWizard() {
   const [subVistaCobro, setSubVistaCobro] = useState(false);
   const [rechazoAbierto, setRechazoAbierto] = useState(false);
   const [resumenAbierto, setResumenAbierto] = useState(false);
+  const [checklistAbierto, setChecklistAbierto] = useState(true);
 
   const consulta = useQuery(tramiteOptions(id ?? ''));
   const tramite = consulta.data;
@@ -201,7 +205,23 @@ export function TramiteWizard() {
               </Alert>
             ) : null}
 
-            {paso === 0 ? <ChecklistRequisitos tramite={tramite} soloLectura={terminadoMal} /> : null}
+            <Accordion
+              expanded={checklistAbierto}
+              onChange={(_event, abierto) => setChecklistAbierto(abierto)}
+              disableGutters
+              sx={{ '&::before': { display: 'none' }, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}
+            >
+              <AccordionSummary expandIcon={<MsIcon name="expand_more" size={20} />}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flex: 1, minWidth: 0 }}>
+                  <MsIcon name="fact_check" size={19} color="#5B132B" />
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 700, flex: 1 }}>Documentación del trámite</Typography>
+                  <EstadoBadge label={satisfecho ? 'Completo' : 'Incompleto'} color={satisfecho ? 'success' : 'neutral'} />
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <ChecklistRequisitos tramite={tramite} soloLectura={paso !== 0} />
+              </AccordionDetails>
+            </Accordion>
             {paso === 1 ? <PasoValidacion tramite={tramite} /> : null}
             {paso === 2 ? <PasoAprobacion tramite={tramite} /> : null}
             {paso === 3 ? <PasoCobro tramite={tramite} /> : null}

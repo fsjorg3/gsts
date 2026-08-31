@@ -18,7 +18,7 @@ Toda ruta interna exige `Authorization: Bearer <JWT>` emitido por Keycloak (real
 | `consulta-cobros` | `resource_access.gsts.roles` | Service account del sistema Finanzas: consulta de cobro y comprobante por folio |
 | `consulta-metricas` | `resource_access.gsts.roles` | Service account del sistema Finanzas: indicadores de Dirección |
 | `ti` | `realm_access.roles` | Asistente de catálogos/tarifas (crear, clonar, publicar), configurar plazos operativos, gestionar motivos de reducción, consultar bitácora de auditoría global |
-| `direccion` | `realm_access.roles` | Consultar los indicadores de `GET /direccion/metricas` |
+| `direccion` | `realm_access.roles` | Consultar los indicadores de `GET /direccion/metricas`; descargar el archivo de una evidencia (`GET /tramites/{id}/evidencias/{evidenciaId}/archivo`) |
 
 Las rutas bajo `/public/*` y `/health`, `/ready`, `/openapi.json` no requieren autenticación, pero `/public/*` tiene rate limiting (`PUBLIC_RATE_LIMIT_MAX` por `PUBLIC_RATE_LIMIT_WINDOW_MS`) y registra bitácora con `origen: PORTAL`.
 
@@ -118,6 +118,7 @@ Los borrados responden `{ "data": { "id" } }`, no `204`, para conservar la envol
 - MIME permitidos: `application/pdf`, `image/jpeg`, `image/png`. Hash SHA-256 de 64 hex.
 - El documento debe pertenecer al **mismo catálogo estampado en el trámite** (`tramite.version_catalogo_id`), no al catálogo activo actual.
 - El acumulado de evidencias del trámite no puede exceder 30 MiB.
+- **`GET /tramites/{id}/evidencias/{evidenciaId}/archivo`** descarga el archivo real (roles `ventanilla` **o** `direccion`; `POST`/`PATCH` de evidencias siguen exigiendo sólo `ventanilla`). Igual que la descarga de constancia, rompe la envolvente `{ data }`: devuelve el binario con el `Content-Type` guardado en `evidencia.mimeType` y `Content-Disposition: attachment`. Es lectura pura (sin bitácora, sin transacción de negocio) y queda acotada al `tramiteId` de la ruta.
 
 ### Motivos de reducción (`/motivos-reduccion`)
 - `GET` está abierto a cualquier actor autenticado (ventanilla lo necesita para poblar el selector de reducción al cobrar); `POST`/`PATCH` exigen rol `ti`.
@@ -189,9 +190,9 @@ Es un servicio de consulta de SOAPAP sobre su propio registro: confirma que el f
 3. `ventanilla` crea el trámite: `POST /tramites` (usa la versión de catálogo activa automáticamente; si es `NO_REGISTRO`, captura también el domicilio del predio).
 4. `ventanilla` sube evidencias: `POST /tramites/{id}/evidencias` (una por documento requerido).
 5. `ventanilla` transiciona: `POST /tramites/{id}/iniciar-validacion` (el checklist debe estar satisfecho).
-6. `ventanilla` registra validación inicial (si `NO_ADEUDO`): `POST /tramites/{id}/validaciones/no-adeudo` con `momento=VALIDACION_INICIAL`.
+6. `ventanilla` registra validación inicial: `POST /tramites/{id}/validaciones/no-adeudo` (si `NO_ADEUDO`) o `.../validaciones/no-registro` (si `NO_REGISTRO`), ambas con `momento=VALIDACION_INICIAL`.
 7. `ventanilla` aprueba o rechaza: `POST /tramites/{id}/aprobar` (estampa `plazoPagoHasta`) o `.../rechazar`.
-8. En `APROBADO`: opcionalmente `POST .../borradores-cobro` para guardar avance; si `NO_ADEUDO`, registrar revalidación con `momento=REVALIDACION_COBRO`.
+8. En `APROBADO`: opcionalmente `POST .../borradores-cobro` para guardar avance; registrar revalidación con `momento=REVALIDACION_COBRO` en la validación del tipo correspondiente (`no-adeudo` o `no-registro`).
 9. Cobrar: `POST /tramites/{id}/cobros` (directo) o `POST .../borradores-cobro/{id}/aplicar` → trámite pasa a `COBRO`; opcionalmente se adjunta el comprobante de pago (voucher) al cobro directo o al borrador antes de aplicarlo.
 10. Emitir constancia: `POST /tramites/{id}/constancias`, sin cuerpo. El backend genera el PDF con el QR ya estampado, lo firma y lo guarda. La respuesta trae `urlVerificacion` (la misma que codifica el QR impreso); el ciudadano la consulta después con `GET /public/constancias/{folio}/verificar/{token}`.
 11. Si el ciudadano quiere factura, la solicita en el portal del sistema Finanzas con el folio de su constancia. GSTS no participa: `cobro.facturaSolicitadaEnVentanilla` sólo registra qué contestó ese día.

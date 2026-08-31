@@ -8,12 +8,15 @@ import { useNotificar } from '@/store/useNotificar';
 import { EstadoBadge, MsIcon } from '@/shared/components';
 import { abrirBlobEnPestana, descargarBlob, nombreArchivoConstancia } from '@/shared/descargarArchivo';
 import { useDescargarConstancia } from '@/features/constancias/api';
+import { SolicitudFacturaForm } from '@/features/gaf/SolicitudFacturaForm';
 import type { TramiteDetalle } from '../api';
 
 // Paso 4 · Entrega: la constancia emitida, único documento que ventanilla
-// entrega. Si el ciudadano dijo querer factura, aquí sólo se le recuerda que la
-// solicite en el portal del sistema Finanzas con su folio: GSTS no emite CFDI
-// y finalizar el trámite ya no depende de que exista.
+// entrega. Si el ciudadano dijo querer factura, aquí es donde se captura y se
+// envía a GAF —es el único punto del wizard donde ya existe folio (lo exige
+// GAF como referenciaOrigen) y sigue disponible el comprobante del cobro—.
+// GSTS no guarda ni reenvía ningún dato fiscal: va directo navegador → GAF.
+// Finalizar el trámite no depende de que la solicitud se haya enviado.
 export function PasoEntrega({ tramite }: { tramite: TramiteDetalle }) {
   const constancia = tramite.constancia;
   const titular = tramite.personas[0]?.persona;
@@ -114,26 +117,13 @@ export function PasoEntrega({ tramite }: { tramite: TramiteDetalle }) {
         </Box>
       ) : null}
 
-      {tramite.cobro?.facturaSolicitadaEnVentanilla ? (
-        <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.75 }}>
-            <MsIcon name="receipt_long" size={20} color="#5B132B" />
-            <Typography sx={{ fontSize: 14, fontWeight: 700, flex: 1 }}>El ciudadano pidió factura</Typography>
-            <EstadoBadge label="Se solicita en el portal" color="info" />
-          </Box>
-          <Alert severity="info" icon={<MsIcon name="info" size={20} />}>
-            La factura no se emite desde aquí. Indíquele que la solicite en el portal con el folio de su constancia; el
-            plazo fiscal corre desde la fecha de pago. Finalizar el trámite ya no depende de que exista el CFDI.
-          </Alert>
-        </Box>
-      ) : null}
+      {tramite.cobro?.facturaSolicitadaEnVentanilla ? <SolicitudFacturaForm tramite={tramite} /> : null}
 
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25, px: 2, py: 1.75, border: '1px dashed', borderColor: 'grey.400', borderRadius: 1, bgcolor: 'grey.50' }}>
         <MsIcon name="public" size={19} color="#5B132B" />
         <Typography sx={{ fontSize: 12.5, fontWeight: 500, color: 'text.secondary', lineHeight: 1.6 }}>
           El ciudadano verifica la autenticidad de la constancia en el portal público con el folio{' '}
-          <Box component="span" sx={{ color: 'primary.light', fontWeight: 600 }}>{constancia?.folioUnico ?? '—'}</Box>
-          {tramite.cobro?.facturaSolicitadaEnVentanilla ? ', y con ese mismo folio solicita su factura' : ''}.
+          <Box component="span" sx={{ color: 'primary.light', fontWeight: 600 }}>{constancia?.folioUnico ?? '—'}</Box>.
         </Typography>
       </Box>
     </Box>

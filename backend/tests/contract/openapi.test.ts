@@ -44,10 +44,11 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   ['get', '/bitacora'],
   ['get', '/tramites'], ['post', '/tramites'], ['get', '/tramites/{id}'], ['post', '/tramites/{id}/{accion}'],
   ['post', '/tramites/{id}/evidencias'], ['patch', '/tramites/{id}/evidencias/{evidenciaId}'],
+  ['get', '/tramites/{id}/evidencias/{evidenciaId}/archivo'],
   ['post', '/tramites/{id}/validaciones/no-adeudo'], ['post', '/tramites/{id}/validaciones/no-registro'],
   ['get', '/tramites/{id}/borradores-cobro'], ['post', '/tramites/{id}/borradores-cobro'],
   ['patch', '/tramites/{id}/borradores-cobro/{borradorId}'], ['post', '/tramites/{id}/borradores-cobro/{borradorId}/aplicar'],
-  ['post', '/tramites/{id}/cobros'], ['post', '/tramites/{id}/constancias'],
+  ['post', '/tramites/{id}/cobros'], ['get', '/tramites/{id}/cobros/comprobante'], ['post', '/tramites/{id}/constancias'],
   ['get', '/tramites/{id}/constancias/{constanciaId}/archivo'],
   // Superficie de sólo lectura hacia el sistema Finanzas (service account).
   ['get', '/constancias/{folio}/cobro'], ['get', '/constancias/{folio}/cobro/comprobante'],

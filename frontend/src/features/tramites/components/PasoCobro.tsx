@@ -165,9 +165,9 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
           onError: (error) => notificar.error(error),
         },
       );
-    } else {
+    } else if (comprobante) {
       cobroDirecto.mutate(
-        { tarifaId, motivoReduccionId: motivoReduccionId || null, formaPago, metodoPago, moneda: 'MXN', facturaSolicitadaEnVentanilla, ...(referenciaPago.trim() ? { referenciaPago: referenciaPago.trim() } : {}), ...(comprobante ? { comprobante } : {}) },
+        { tarifaId, motivoReduccionId: motivoReduccionId || null, formaPago, metodoPago, moneda: 'MXN', facturaSolicitadaEnVentanilla, ...(referenciaPago.trim() ? { referenciaPago: referenciaPago.trim() } : {}), comprobante },
         alTerminar,
       );
     }
@@ -190,6 +190,9 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
   };
 
   const ocupado = guardarBorrador.isPending || aplicarBorrador.isPending || cobroDirecto.isPending;
+  // El comprobante es obligatorio para cobrar: si no se eligió uno ahora, el
+  // borrador abierto (si lo hay) debe traer uno ya guardado de una sesión previa.
+  const comprobanteListo = Boolean(comprobante) || Boolean(borradorAbierto?.comprobanteNombreOriginal);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
@@ -314,7 +317,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
               onChange={(evento) => setComprobante(evento.target.files?.[0] ?? null)}
             />
             <Button variant="outlined" size="small" onClick={() => comprobanteRef.current?.click()} startIcon={<MsIcon name="receipt" size={17} />}>
-              {comprobante ? 'Cambiar comprobante' : 'Adjuntar comprobante de pago (opcional)'}
+              {comprobante ? 'Cambiar comprobante' : 'Adjuntar comprobante de pago'}
             </Button>
             {comprobante ? (
               <Typography noWrap sx={{ fontSize: 12, color: 'success.main' }}>{comprobante.name}</Typography>
@@ -322,7 +325,11 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
               <Typography noWrap sx={{ fontSize: 12, color: 'text.secondary' }}>
                 Ya hay un comprobante adjunto: «{borradorAbierto.comprobanteNombreOriginal}» — elegir uno nuevo lo reemplaza.
               </Typography>
-            ) : null}
+            ) : (
+              <Typography noWrap sx={{ fontSize: 12, color: 'text.disabled' }}>
+                Obligatorio: si el ciudadano pide factura, este mismo archivo se reenvía a GAF al entregar la constancia.
+              </Typography>
+            )}
           </Box>
 
           {/* Facturación — se registra la intención; el CFDI lo emite Finanzas */}
@@ -334,8 +341,8 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
             </RadioGroup>
             <Alert severity="info" icon={<MsIcon name={facturaSolicitadaEnVentanilla ? 'receipt_long' : 'groups'} size={19} />} sx={{ mt: 1 }}>
               {facturaSolicitadaEnVentanilla
-                ? 'La factura no se emite aquí: indíquele que la solicite en el portal con el folio de su constancia. Este dato queda sólo como registro de lo que contestó hoy.'
-                : 'No se registra solicitud de factura. Si cambia de opinión, puede pedirla después en el portal con el folio de su constancia.'}
+                ? 'Los datos fiscales se capturan al entregar la constancia, cuando ya exista su folio — no se piden en este paso.'
+                : 'No se registra solicitud de factura. Si cambia de opinión, se puede capturar al entregarle la constancia.'}
             </Alert>
           </Box>
 
@@ -350,7 +357,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
             <Button variant="outlined" disabled={ocupado} onClick={guardar} startIcon={<MsIcon name="save" size={17} />}>
               Guardar borrador
             </Button>
-            <Button variant="contained" disabled={ocupado || !tarifaId} onClick={cobrar} startIcon={<MsIcon name="payments" size={18} />}>
+            <Button variant="contained" disabled={ocupado || !tarifaId || !comprobanteListo} onClick={cobrar} startIcon={<MsIcon name="payments" size={18} />}>
               Cobrar
             </Button>
           </Box>

@@ -21,6 +21,14 @@ export default defineConfig({
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
+      // GAF (sistema de Finanzas): repo y backend aparte, puerto distinto. El
+      // navegador de ventanilla le manda los datos fiscales directo, con el
+      // mismo token de sesión; el proxy evita CORS en dev igual que /api/v1.
+      '/api/gaf': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/gaf/, '/api/v1'),
+      },
     },
   },
   test: {

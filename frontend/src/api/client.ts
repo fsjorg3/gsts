@@ -1,5 +1,6 @@
 import createClient, { type Middleware } from 'openapi-fetch';
 import { obtenerAccessToken } from '@/auth/oidc';
+import { marcarSesionExpirada } from '@/auth/sesion';
 import { ApiError, type ApiErrorBody } from './errors';
 import type { paths } from './schema';
 
@@ -18,6 +19,12 @@ const auth: Middleware = {
   },
   async onResponse({ response }) {
     if (response.ok) return response;
+    // Un 401 es la otra cara de sesion.ts: cubre lo que el evento
+    // `AccessTokenExpired` no ve —rotación de llaves en Keycloak, logout SSO
+    // desde otro cliente, desfase de reloj—. Sólo 401: un 403 MISSING_ROLE es
+    // una cuenta sin rol, no una sesión vencida, y reautenticarla haría un
+    // bucle. El error se sigue lanzando igual para quien llamó.
+    if (response.status === 401) marcarSesionExpirada();
     let body: ApiErrorBody | undefined;
     try {
       body = (await response.clone().json()) as ApiErrorBody;

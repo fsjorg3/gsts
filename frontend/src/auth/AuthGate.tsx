@@ -3,6 +3,8 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import { useAuth as useOidc } from 'react-oidc-context';
+import { rutaDeRegreso } from './oidc';
+import { SesionExpiradaDialog } from './SesionExpiradaDialog';
 
 // Única ruta pública del frontend: callback de front-channel logout (ver
 // LogoutFrontChannel.tsx), que Keycloak carga sin sesión en un iframe oculto.
@@ -17,7 +19,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (esRutaPublica) return;
     if (!oidc.isLoading && !oidc.isAuthenticated && !oidc.activeNavigator && !oidc.error) {
-      void oidc.signinRedirect();
+      // `state.returnTo` conserva el deep link: redirect_uri es la raíz, así
+      // que sin esto entrar a /ventanilla/tramites/{id} sin sesión aterriza en
+      // el índice tras el login (ver oidc.ts y main.tsx).
+      void oidc.signinRedirect({ state: { returnTo: rutaDeRegreso() } });
     }
   }, [oidc, esRutaPublica]);
 
@@ -59,5 +64,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      <SesionExpiradaDialog />
+    </>
+  );
 }

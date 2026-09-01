@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
@@ -10,6 +10,7 @@ import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { formatFecha } from '@/api/serializers';
 import { DataTable, EstadoDeBadge, ESTADO_TRAMITE, MsIcon, StatCard, type DataTableColumn } from '@/shared/components';
+import { useFiltrosUrl } from '@/shared/hooks/useFiltrosUrl';
 import { usePaginacionCursor } from '@/shared/hooks/usePaginacionCursor';
 import { folioTramite, tramitesInfiniteOptions, type FiltrosTramites, type Tramite } from '../api';
 
@@ -36,14 +37,46 @@ interface BorradorFiltros {
   hasta: string;
 }
 
-const FILTROS_VACIOS: BorradorFiltros = { folio: '', estado: '', tipoConstancia: '', nis: '', desde: '', hasta: '' };
+/** Rellena los campos de captura con lo que traiga la URL. */
+function borradorDesde(filtros: Partial<Record<(typeof CLAVES_FILTRO)[number], string>>): BorradorFiltros {
+  return {
+    folio: filtros.folio ?? '',
+    estado: filtros.estado ?? '',
+    tipoConstancia: filtros.tipoConstancia ?? '',
+    nis: filtros.nis ?? '',
+    desde: filtros.desde ?? '',
+    hasta: filtros.hasta ?? '',
+  };
+}
+
+// Los filtros aplicados viven en la URL (`filas` es el tamaño de página), no en
+// estado local: así una búsqueda se comparte, sobrevive a un F5 y se recupera
+// al volver a iniciar sesión. El índice de página no, porque la API es por cursor.
+const CLAVES_FILTRO = ['folio', 'estado', 'tipoConstancia', 'nis', 'desde', 'hasta', 'filas'] as const;
+const OPCIONES_FILAS = [10, 25, 50, 100];
 
 export function VentanillaLista() {
   const navigate = useNavigate();
   const { abrirMenu } = useOutletContext<AppShellContext>();
-  const [borrador, setBorrador] = useState<BorradorFiltros>(FILTROS_VACIOS);
-  const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosTramites>({});
-  const [filasPorPagina, setFilasPorPagina] = useState(25);
+  const { filtros, aplicar, limpiar: limpiarUrl } = useFiltrosUrl(CLAVES_FILTRO);
+  const [borrador, setBorrador] = useState<BorradorFiltros>(() => borradorDesde(filtros));
+
+  // El borrador es lo que se teclea; la URL, lo aplicado. Se re-sincroniza
+  // cuando la URL cambia por fuera (Atrás/Adelante o el regreso desde Keycloak)
+  // para que los campos nunca muestren algo distinto de la lista.
+  useEffect(() => setBorrador(borradorDesde(filtros)), [filtros]);
+
+  const filasPorPagina = OPCIONES_FILAS.includes(Number(filtros.filas)) ? Number(filtros.filas) : 25;
+  const filtrosAplicados: FiltrosTramites = filtros.folio
+    ? { folio: filtros.folio }
+    : {
+        ...(filtros.estado ? { estado: filtros.estado as Tramite['estado'] } : {}),
+        ...(filtros.tipoConstancia ? { tipoConstancia: filtros.tipoConstancia as Tramite['tipoConstancia'] } : {}),
+        ...(filtros.nis ? { nis: filtros.nis } : {}),
+        ...(filtros.desde ? { desde: filtros.desde } : {}),
+        ...(filtros.hasta ? { hasta: filtros.hasta } : {}),
+      };
+
   const consulta = useInfiniteQuery(tramitesInfiniteOptions(filtrosAplicados, filasPorPagina));
   const { pagina, filas: tramites, total, irAPagina, reiniciar } = usePaginacionCursor(consulta);
 
@@ -54,26 +87,16 @@ export function VentanillaLista() {
 
   const buscar = () => {
     reiniciar();
-    setFiltrosAplicados(
-      porFolio
-        ? { folio: borrador.folio.trim() }
-        : {
-            ...(borrador.estado ? { estado: borrador.estado as Tramite['estado'] } : {}),
-            ...(borrador.tipoConstancia ? { tipoConstancia: borrador.tipoConstancia as Tramite['tipoConstancia'] } : {}),
-            ...(borrador.nis ? { nis: borrador.nis } : {}),
-            ...(borrador.desde ? { desde: borrador.desde } : {}),
-            ...(borrador.hasta ? { hasta: borrador.hasta } : {}),
-          },
-    );
+    const filas = String(filasPorPagina);
+    aplicar(porFolio ? { folio: borrador.folio.trim(), filas } : { ...borrador, filas });
   };
   const limpiar = () => {
     reiniciar();
-    setBorrador(FILTROS_VACIOS);
-    setFiltrosAplicados({});
+    limpiarUrl();
   };
   const cambiarFilasPorPagina = (filas: number) => {
     reiniciar();
-    setFilasPorPagina(filas);
+    aplicar({ ...filtros, filas: String(filas) });
   };
 
   // Conteos del universo filtrado completo, no de la página visible: el backend

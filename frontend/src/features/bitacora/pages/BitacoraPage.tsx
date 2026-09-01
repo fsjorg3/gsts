@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -13,6 +13,7 @@ import type { AppShellContext } from '@/app/layout/AppShell';
 import { ModuleHeader } from '@/app/layout/ModuleHeader';
 import { formatFechaHora } from '@/api/serializers';
 import { DataTable, MsIcon, type DataTableColumn } from '@/shared/components';
+import { useFiltrosUrl } from '@/shared/hooks/useFiltrosUrl';
 import { usePaginacionCursor } from '@/shared/hooks/usePaginacionCursor';
 import { bitacoraInfiniteOptions, type Bitacora, type FiltrosBitacora } from '../api';
 
@@ -34,32 +35,48 @@ const COLUMNAS: DataTableColumn<Bitacora>[] = [
   { key: 'actor', header: 'Actor', width: 100, ocultarEnMovil: true, render: (b) => <Typography sx={{ fontSize: 12.5, fontFamily: 'monospace' }}>{actorEtiqueta(b.actorId)}</Typography> },
 ];
 
+// Filtros aplicados en la URL (`filas` es el tamaño de página): la búsqueda se
+// comparte y sobrevive a un F5. El índice de página no va, porque la API es
+// por cursor y no se puede saltar a la página N en frío.
+const CLAVES_FILTRO = ['entidad', 'entidadId', 'accion', 'actorId', 'desde', 'hasta', 'filas'] as const;
+const OPCIONES_FILAS = [10, 25, 50, 100];
+
 export function BitacoraPage() {
   const { abrirMenu } = useOutletContext<AppShellContext>();
-  const [filtrosAplicados, setFiltrosAplicados] = useState<FiltrosBitacora>({});
-  const [borrador, setBorrador] = useState<FiltrosBitacora>({});
+  const { filtros, aplicar, limpiar: limpiarUrl } = useFiltrosUrl(CLAVES_FILTRO);
+  const [borrador, setBorrador] = useState<FiltrosBitacora>(filtros);
   const [detalle, setDetalle] = useState<Bitacora | null>(null);
 
-  const [filasPorPagina, setFilasPorPagina] = useState(25);
+  // El borrador es lo que se teclea; la URL, lo aplicado. Se re-sincroniza al
+  // cambiar la URL por fuera (Atrás/Adelante o el regreso desde Keycloak).
+  useEffect(() => setBorrador(filtros), [filtros]);
+
+  const filasPorPagina = OPCIONES_FILAS.includes(Number(filtros.filas)) ? Number(filtros.filas) : 25;
+  // `filas` es del paginador, no un filtro de la API: no viaja en la consulta.
+  const filtrosAplicados: FiltrosBitacora = {
+    ...(filtros.entidad ? { entidad: filtros.entidad } : {}),
+    ...(filtros.entidadId ? { entidadId: filtros.entidadId } : {}),
+    ...(filtros.accion ? { accion: filtros.accion } : {}),
+    ...(filtros.actorId ? { actorId: filtros.actorId } : {}),
+    ...(filtros.desde ? { desde: filtros.desde } : {}),
+    ...(filtros.hasta ? { hasta: filtros.hasta } : {}),
+  };
   const consulta = useInfiniteQuery(bitacoraInfiniteOptions(filtrosAplicados, filasPorPagina));
   const { pagina, filas: entradas, total, irAPagina, reiniciar } = usePaginacionCursor(consulta);
 
   const rangoInvalido = Boolean(borrador.desde && borrador.hasta && borrador.desde > borrador.hasta);
 
-  // Los campos vacíos viajarían como cadena vacía si se pasara el borrador tal
-  // cual; `api.ts` los ignora, pero es más honesto no enviarlos.
   const buscar = () => {
     reiniciar();
-    setFiltrosAplicados(Object.fromEntries(Object.entries(borrador).filter(([, valor]) => valor !== '')));
+    aplicar({ ...borrador, filas: String(filasPorPagina) });
   };
   const limpiar = () => {
     reiniciar();
-    setBorrador({});
-    setFiltrosAplicados({});
+    limpiarUrl();
   };
   const cambiarFilasPorPagina = (filas: number) => {
     reiniciar();
-    setFilasPorPagina(filas);
+    aplicar({ ...filtros, filas: String(filas) });
   };
 
   return (

@@ -1,4 +1,5 @@
 import { StrictMode } from 'react';
+import type { User } from 'oidc-client-ts';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -36,9 +37,14 @@ const queryClient = new QueryClient({
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('No existe el elemento #root');
 
-// Al volver del login de Keycloak, limpiar code/state de la URL.
-function onSigninCallback() {
-  window.history.replaceState({}, document.title, window.location.pathname);
+// Al volver del login de Keycloak: limpiar code/state de la URL y restaurar la
+// ruta desde la que se pidió la sesión (`state.returnTo`, ver oidc.ts). Sin
+// esto todo login aterriza en la raíz, porque redirect_uri es siempre `/`.
+function onSigninCallback(user: User | undefined) {
+  const returnTo = (user?.state as { returnTo?: string } | undefined)?.returnTo;
+  // Sólo rutas internas: un `state` manipulado no debe poder mandar a otro sitio.
+  const destino = returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : window.location.pathname;
+  window.history.replaceState({}, document.title, destino);
 }
 
 // AuthProvider queda fuera de StrictMode a propósito: procesa el callback de

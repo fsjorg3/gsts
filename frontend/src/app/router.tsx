@@ -1,15 +1,24 @@
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import { LogoutFrontChannel } from '@/auth/LogoutFrontChannel';
 import { RequireRole } from '@/auth/RequireRole';
 import { useAuth } from '@/auth/useAuth';
-import { AdministracionPage } from '@/features/administracion/pages/AdministracionPage';
-import { BitacoraPage } from '@/features/bitacora/pages/BitacoraPage';
-import { NuevoTramite } from '@/features/tramites/pages/NuevoTramite';
-import { TramiteWizard } from '@/features/tramites/pages/TramiteWizard';
-import { VentanillaLista } from '@/features/tramites/pages/VentanillaLista';
 import { AppShell } from './layout/AppShell';
 import { NotFoundPage } from './layout/NotFoundPage';
 import { MODULOS } from './layout/modulos';
+
+// Las páginas se cargan bajo demanda: sin esto, quien sólo usa Ventanilla
+// descarga también Administración y Bitácora (y el wizard arrastra
+// react-dropzone, qrcode.react y el formulario de facturación). El <Suspense>
+// que las cubre está sobre el <Outlet> de AppShell.
+//
+// LogoutFrontChannel y NotFoundPage se quedan estáticos: el primero corre sin
+// shell dentro de un iframe de Keycloak y el segundo es trivial.
+const AdministracionPage = lazy(async () => ({ default: (await import('@/features/administracion/pages/AdministracionPage')).AdministracionPage }));
+const BitacoraPage = lazy(async () => ({ default: (await import('@/features/bitacora/pages/BitacoraPage')).BitacoraPage }));
+const NuevoTramite = lazy(async () => ({ default: (await import('@/features/tramites/pages/NuevoTramite')).NuevoTramite }));
+const TramiteWizard = lazy(async () => ({ default: (await import('@/features/tramites/pages/TramiteWizard')).TramiteWizard }));
+const VentanillaLista = lazy(async () => ({ default: (await import('@/features/tramites/pages/VentanillaLista')).VentanillaLista }));
 
 // Envía a la ruta índice al primer módulo (en el orden de MODULOS) al que el
 // usuario tenga acceso, en vez de asumir siempre /ventanilla — evita aterrizar

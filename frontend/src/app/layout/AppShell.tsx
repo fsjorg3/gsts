@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
@@ -146,10 +147,22 @@ export function AppShell() {
 
       {/* Área del módulo */}
       <Box component="main" sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Outlet context={{ abrirMenu: () => setMenuAbierto(true) }} />
+        {/* Las páginas se cargan bajo demanda (ver router.tsx); mientras llega
+            el chunk se muestra el mismo spinner que usa AuthGate al entrar. */}
+        <Suspense fallback={<CargandoModulo />}>
+          <Outlet context={{ abrirMenu: () => setMenuAbierto(true) }} />
+        </Suspense>
       </Box>
 
       <Notifier />
+    </Box>
+  );
+}
+
+function CargandoModulo() {
+  return (
+    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <CircularProgress size={28} sx={{ color: 'primary.main' }} />
     </Box>
   );
 }

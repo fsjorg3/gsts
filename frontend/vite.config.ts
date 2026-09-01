@@ -35,5 +35,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: false,
+    // En la app VITE_API_BASE_URL es relativa (/api/v1) para pasar por el proxy
+    // de arriba; el fetch de jsdom no resuelve rutas relativas sin origen, así
+    // que en pruebas se le da uno absoluto. No afecta al build.
+    env: { VITE_API_BASE_URL: 'http://localhost:3000/api/v1' },
   },
 });

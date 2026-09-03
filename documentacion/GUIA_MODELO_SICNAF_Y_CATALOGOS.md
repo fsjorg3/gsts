@@ -147,8 +147,7 @@ El cobro congela sus importes. Cambiar una tarifa futura no debe cambiar el cobr
 
 ### Configuración de constancias
 
-- `configuracion_constancia` tiene una fila por `tipo_constancia` con la vigencia en días naturales, los datos del firmante y el prefijo del número de oficio que se imprimen en el PDF. Sólo `ti`.
-- `oficio_prefijo` se compone con el año de emisión como `{oficioPrefijo}/{año}` (p. ej. `SOAPAP/GSTS/CNR/2026`), sin consecutivo: todas las constancias del mismo tipo y año comparten el mismo número de oficio. No identifica el documento — para eso está el folio, que se sigue imprimiendo junto al oficio.
+- `configuracion_constancia` tiene una fila por `tipo_constancia` con la vigencia en días naturales y los datos del firmante que se imprimen en el PDF. Sólo `ti`.
 - **No hay valores por defecto ni semilla**: si falta la fila del tipo que se está emitiendo, la emisión falla con `CONSTANCIA_CONFIG_NOT_SET`. Es deliberado — la vigencia de un documento oficial no debe caer a un número que nadie decidió en Administración.
 - La vigencia no se guarda como fecha: el backend calcula `vigencia_fin = emitida_at + vigencia_dias` al emitir y congela el resultado en `constancia`. El mismo número se interpola en el cuerpo impreso, de modo que el documento no pueda contradecir su propia vigencia registrada.
 - Cambiar la configuración nunca altera constancias ya emitidas: `trg_constancia_inmutable` bloquea cualquier `UPDATE` sobre los campos canónicos.

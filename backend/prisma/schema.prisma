@@ -444,9 +444,6 @@ model ConfiguracionConstancia {
   vigenciaDias     Int            @map("vigencia_dias")
   firmanteNombre   String         @map("firmante_nombre")
   firmanteCargo    String         @map("firmante_cargo")
-  /// Se compone con el año de emisión como "{oficioPrefijo}/{año}", sin
-  /// consecutivo. El identificador único del documento sigue siendo el folio.
-  oficioPrefijo    String         @map("oficio_prefijo")
   actualizadoPorId String         @map("actualizado_por_id") @db.Uuid
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -579,6 +576,24 @@ model Constancia {
 
   @@index([folioUnico])
   @@map("constancia")
+}
+
+/// Contador del consecutivo del folio de constancias: una fila por
+/// (tipoConstancia, año de emisión en Puebla), con id "{tipoConstancia}_{año}"
+/// (p. ej. "NO_REGISTRO_2026"), creada perezosamente en el primer INSERT ...
+/// ON CONFLICT de generarFolioUnico (folio.ts) — no requiere seed. Cada fila
+/// se incrementa con un UPDATE atómico dentro de la misma transacción que
+/// persiste la Constancia: si esa transacción hace rollback (PDF, storage o
+/// el INSERT fallan), el incremento se revierte con ella y el número queda
+/// libre para el siguiente intento — nunca hay huecos ni duplicados. A
+/// diferencia de una SEQUENCE de Postgres (como la de `Tramite.numeroTramite`),
+/// el avance de este contador SÍ es transaccional.
+model ContadorFolio {
+  id        String   @id
+  valor     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("contador_folio")
 }
 
 // ===================== ARCHIVOS Y BITÁCORA =====================

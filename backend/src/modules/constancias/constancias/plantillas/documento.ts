@@ -1,4 +1,4 @@
-import { formatearFechaLarga, formatearNumeroOficio } from './formato.js';
+import { formatearFechaLarga } from './formato.js';
 import { dibujarEncabezado, dibujarPie, FIRMA_AUTOGRAFA, MARGENES } from './membrete.js';
 import type { DatosPlantillaConstancia, Parrafo } from './tipos.js';
 
@@ -30,17 +30,16 @@ export function renderDocumento(
   dibujarEncabezado(doc);
 
   // Identificación del documento, alineada a la derecha bajo el membrete. El
-  // oficio no es único (todas las constancias del mismo tipo y año lo
-  // comparten): quien necesite localizar un trámite usa el folio, por eso se
-  // conservan ambos.
+  // consecutivo vive dentro del folio mismo (GSTS-{tipo}-{año}-{consecutivo}),
+  // así que basta una sola línea; se conserva la etiqueta "Número de Oficio"
+  // porque así la nombra el formato oficial impreso.
   const identY = 112;
   doc.font('Helvetica').fontSize(9.5).fillColor('#000000');
   doc.text(`H. Puebla de Zaragoza; a ${formatearFechaLarga(datos.emitidaAt)}`, MARGENES.left, identY, { width: anchoUtil, align: 'right' });
   doc.font('Helvetica-Bold').fontSize(9.5);
-  doc.text(`Número de Oficio: ${formatearNumeroOficio(datos.oficioPrefijo, datos.emitidaAt)}`, MARGENES.left, identY + 14, { width: anchoUtil, align: 'right' });
-  doc.text(`FOLIO: ${datos.folioUnico}`, MARGENES.left, identY + 28, { width: anchoUtil, align: 'right' });
+  doc.text(`Número de Oficio: ${datos.folioUnico}`, MARGENES.left, identY + 14, { width: anchoUtil, align: 'right' });
 
-  doc.y = identY + 48;
+  doc.y = identY + 34;
   doc.font('Helvetica-Bold').fontSize(13).text(titulo.toUpperCase(), MARGENES.left, doc.y, { width: anchoUtil, align: 'center' });
 
   doc.moveDown(1.2);
@@ -81,6 +80,12 @@ function dibujarFirma(doc: PDFKit.PDFDocument, datos: DatosPlantillaConstancia, 
   doc.image(datos.qrPng, MARGENES.left, y, { fit: [QR, QR] });
   doc.font('Helvetica').fontSize(7).fillColor('#5A6068');
   doc.text('Verifica esta constancia', MARGENES.left, y + QR + 3, { width: QR, align: 'center' });
+  // Código de respaldo si el QR no se puede escanear ni fotografiar: el
+  // portal público acepta folio + este código como alternativa al token
+  // completo. No es un dato nuevo que guardar — es el mismo HMAC del QR,
+  // recortado (ver codigoCorto en infrastructure/verificacion/token.ts).
+  doc.font('Helvetica-Bold').fontSize(7.5);
+  doc.text(datos.codigoVerificacion.toUpperCase(), MARGENES.left, y + QR + 13, { width: QR, align: 'center' });
   doc.fillColor('#000000');
 
   doc.font('Helvetica-Bold').fontSize(10.5);

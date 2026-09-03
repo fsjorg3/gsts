@@ -8,29 +8,24 @@ describe('guardarConfiguracionConstanciaSchema', () => {
       vigenciaDias: 30,
       firmanteNombre: 'Dattoli Mora Miguel Ángel',
       firmanteCargo: 'Gerencia de Supervisión Técnica de los Servicios',
-      oficioPrefijo: 'SOAPAP/GSTS/CNR',
     });
     expect(configuracion.vigenciaDias).toBe(30);
   });
 
   it('no inventa una vigencia por defecto: el campo es obligatorio', () => {
-    expect(() => guardarConfiguracionConstanciaSchema.parse({ firmanteNombre: 'X', firmanteCargo: 'Y', oficioPrefijo: 'Z' })).toThrow();
+    expect(() => guardarConfiguracionConstanciaSchema.parse({ firmanteNombre: 'X', firmanteCargo: 'Y' })).toThrow();
   });
 
   it('rechaza vigencias no positivas o fraccionarias', () => {
-    const base = { firmanteNombre: 'X', firmanteCargo: 'Y', oficioPrefijo: 'Z' };
+    const base = { firmanteNombre: 'X', firmanteCargo: 'Y' };
     expect(() => guardarConfiguracionConstanciaSchema.parse({ ...base, vigenciaDias: 0 })).toThrow();
     expect(() => guardarConfiguracionConstanciaSchema.parse({ ...base, vigenciaDias: -5 })).toThrow();
     expect(() => guardarConfiguracionConstanciaSchema.parse({ ...base, vigenciaDias: 1.5 })).toThrow();
   });
 
   it('exige nombre y cargo del firmante no vacíos', () => {
-    expect(() => guardarConfiguracionConstanciaSchema.parse({ vigenciaDias: 30, firmanteNombre: '   ', firmanteCargo: 'Y', oficioPrefijo: 'Z' })).toThrow();
-    expect(() => guardarConfiguracionConstanciaSchema.parse({ vigenciaDias: 30, firmanteNombre: 'X', firmanteCargo: '', oficioPrefijo: 'Z' })).toThrow();
-  });
-
-  it('rechaza un prefijo de oficio vacío', () => {
-    expect(() => guardarConfiguracionConstanciaSchema.parse({ vigenciaDias: 30, firmanteNombre: 'X', firmanteCargo: 'Y', oficioPrefijo: '   ' })).toThrow();
+    expect(() => guardarConfiguracionConstanciaSchema.parse({ vigenciaDias: 30, firmanteNombre: '   ', firmanteCargo: 'Y' })).toThrow();
+    expect(() => guardarConfiguracionConstanciaSchema.parse({ vigenciaDias: 30, firmanteNombre: 'X', firmanteCargo: '' })).toThrow();
   });
 });
 

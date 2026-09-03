@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { generarPdfConstancia } from '../../src/modules/constancias/constancias/plantillas/generar.js';
-import { formatearDomicilio, formatearFechaLarga, formatearNumeroOficio } from '../../src/modules/constancias/constancias/plantillas/formato.js';
+import { formatearDomicilio, formatearFechaLarga } from '../../src/modules/constancias/constancias/plantillas/formato.js';
 import { parrafosNoAdeudo, renderNoAdeudo, TITULO_NO_ADEUDO } from '../../src/modules/constancias/constancias/plantillas/no-adeudo.js';
 import { parrafosNoRegistro, renderNoRegistro, TITULO_NO_REGISTRO } from '../../src/modules/constancias/constancias/plantillas/no-registro.js';
 import { PLANTILLAS } from '../../src/modules/constancias/constancias/plantillas/tipos.js';
@@ -16,7 +16,7 @@ const textoAutoritativo = (nombre: string): string =>
   fileURLToPath(new URL(`../../../documentacion/${nombre}`, import.meta.url));
 
 const DATOS: DatosSinQr = {
-  folioUnico: 'GSTS-42-A1B2C3D4',
+  folioUnico: 'GSTS-CNR-2026-42',
   emitidaAt: new Date('2026-07-24T18:00:00.000Z'),
   vigenciaFin: new Date('2026-08-23T18:00:00.000Z'),
   vigenciaDias: 30,
@@ -26,8 +26,8 @@ const DATOS: DatosSinQr = {
   // El cargo del documento oficial ocupa tres renglones: se usa tal cual para
   // que la prueba ejercite el bloque de firma en su caso más alto.
   firmante: { nombre: 'Dattoli Mora Miguel Ángel', cargo: 'GERENTE DE SUPERVISIÓN TÉCNICA DE LOS SERVICIOS DEL SISTEMA OPERADOR DE AGUA POTABLE Y ALCANTARILLADO DEL MUNICIPIO DE PUEBLA (SOAPAP).' },
-  oficioPrefijo: 'SOAPAP/GSTS/CNR',
-  urlVerificacion: 'https://portal.test/constancias/GSTS-42-A1B2C3D4/verificar/v1.abcdef0123456789abcd',
+  urlVerificacion: 'https://portal.test/constancias/GSTS-CNR-2026-42/verificar/v1.abcdef0123456789abcd',
+  codigoVerificacion: 'ABCDEF01',
 };
 
 const CON_QR: DatosPlantillaConstancia = { ...DATOS, qrPng: Buffer.alloc(0) };
@@ -92,8 +92,8 @@ describe.each(PLANTILLAS_PROBADAS)('plantilla de constancia de $nombre', ({ arch
       const extraido = normalizar(readFileSync(join(carpeta, 'salida.txt'), 'utf8'));
 
       expect(extraido).toContain(`H. Puebla de Zaragoza; a ${formatearFechaLarga(DATOS.emitidaAt)}`);
-      expect(extraido).toContain('Número de Oficio: SOAPAP/GSTS/CNR/2026');
-      expect(extraido).toContain(`FOLIO: ${DATOS.folioUnico}`);
+      expect(extraido).toContain(`Número de Oficio: ${DATOS.folioUnico}`);
+      expect(extraido).not.toContain('FOLIO:');
       expect(extraido).toContain(titulo.toUpperCase());
       expect(extraido).toContain('ATENTAMENTE');
       expect(extraido).toContain(DATOS.firmante.nombre);
@@ -105,6 +105,7 @@ describe.each(PLANTILLAS_PROBADAS)('plantilla de constancia de $nombre', ({ arch
       expect(extraido).toContain('www.soapap.gob.mx');
       // El cargo ocupa el ancho completo; si subiera por encima del QR se
       // encimaría con él. El orden vertical del texto extraído lo delata.
+      expect(extraido).toContain(DATOS.codigoVerificacion);
       expect(extraido.indexOf('Verifica esta constancia')).toBeLessThan(extraido.indexOf(DATOS.firmante.cargo));
       expect(extraido.indexOf(DATOS.firmante.cargo)).toBeLessThan(extraido.indexOf('C.c.p. Archivo.'));
       for (const parrafo of parrafosEsperados(archivo)) {
@@ -181,13 +182,5 @@ describe('formato de la constancia', () => {
 
   it('tolera un domicilio incompleto sin romper la redacción', () => {
     expect(formatearDomicilio({ calle: null, numero: null, colonia: null, perteneceA: null, perteneceANombre: null })).toBe('PUEBLA');
-  });
-
-  it('compone el número de oficio con el prefijo y el año de emisión en la zona horaria de Puebla', () => {
-    expect(formatearNumeroOficio('SOAPAP/GSTS/CNR', new Date('2026-07-24T18:00:00.000Z'))).toBe('SOAPAP/GSTS/CNR/2026');
-    // El prefijo distingue los dos tipos: CNR no registro, CNA no adeudo.
-    expect(formatearNumeroOficio('SOAPAP/GSTS/CNA', new Date('2026-07-24T18:00:00.000Z'))).toBe('SOAPAP/GSTS/CNA/2026');
-    // 00:30 UTC del 1 de enero sigue siendo 31 de diciembre en Puebla.
-    expect(formatearNumeroOficio('SOAPAP/GSTS/CNR', new Date('2027-01-01T00:30:00.000Z'))).toBe('SOAPAP/GSTS/CNR/2026');
   });
 });

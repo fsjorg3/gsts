@@ -25,7 +25,7 @@ const env: Env = {
 // borra o renombra una ruta sin actualizar openapi.ts, esta prueba lo detecta.
 const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   ['get', '/health'], ['get', '/ready'], ['get', '/openapi.json'],
-  ['get', '/public/constancias/{folio}/verificar/{token}'],
+  ['get', '/public/constancias/{folio}/verificar/{token}'], ['post', '/public/constancias/verificar'],
   ['get', '/auth/me'],
   ['get', '/catalogos/requisitos/activo'], ['get', '/catalogos/requisitos'], ['post', '/catalogos/requisitos'],
   ['get', '/catalogos/requisitos/{id}/validar'], ['get', '/catalogos/requisitos/{id}/vista-previa'],
@@ -42,7 +42,7 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   ['get', '/personas'], ['post', '/personas'],
   ['get', '/motivos-reduccion'], ['post', '/motivos-reduccion'], ['patch', '/motivos-reduccion/{id}'],
   ['get', '/bitacora'],
-  ['get', '/tramites'], ['post', '/tramites'], ['get', '/tramites/{id}'], ['post', '/tramites/{id}/{accion}'],
+  ['get', '/tramites'], ['post', '/tramites'], ['get', '/tramites/export'], ['get', '/tramites/{id}'], ['post', '/tramites/{id}/{accion}'],
   ['post', '/tramites/{id}/evidencias'], ['patch', '/tramites/{id}/evidencias/{evidenciaId}'],
   ['get', '/tramites/{id}/evidencias/{evidenciaId}/archivo'],
   ['post', '/tramites/{id}/validaciones/no-adeudo'], ['post', '/tramites/{id}/validaciones/no-registro'],
@@ -58,6 +58,7 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
 // Mutaciones donde el router realmente valida un body (evidencia extraída de cada
 // router.*.ts). Publicar y aplicar no reciben body: son disparadores de transición.
 const RUTAS_CON_REQUEST_BODY = new Set([
+  'post /public/constancias/verificar',
   'post /catalogos/requisitos', 'post /catalogos/requisitos/{id}/grupos', 'post /catalogos/grupos/{id}/opciones',
   'post /catalogos/opciones/{id}/documentos', 'post /catalogos/tarifas', 'put /administracion/plazos',
   'patch /catalogos/grupos/{id}', 'patch /catalogos/opciones/{id}', 'patch /catalogos/documentos/{id}',

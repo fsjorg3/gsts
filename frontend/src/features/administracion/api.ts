@@ -44,7 +44,7 @@ export const configuracionConstanciaOptions = (tipo: TipoConstancia) =>
 export function useGuardarConfiguracionConstancia(tipo: TipoConstancia) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { vigenciaDias: number; firmanteNombre: string; firmanteCargo: string; oficioPrefijo: string }) => {
+    mutationFn: async (input: { vigenciaDias: number; firmanteNombre: string; firmanteCargo: string }) => {
       const { data } = await api.PUT('/administracion/constancias/{tipo}', { params: { path: { tipo } }, body: input });
       return data!.data as ConfiguracionConstancia;
     },

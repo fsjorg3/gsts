@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import type { Env } from '../../../config/env.js';
 import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
@@ -9,8 +8,19 @@ import { auditarUsuario } from '../../auditoria/service.js';
 import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
+import { generarFolioUnico } from './folio.js';
 import { generarPdfConstancia } from './plantillas/generar.js';
 import { PLANTILLAS } from './plantillas/tipos.js';
+
+/**
+ * Margen generoso sobre el timeout por defecto de una interactive transaction
+ * de Prisma (5s): esta transacción, a diferencia de las demás, renderiza el
+ * PDF y lo guarda en NFS antes del INSERT — a propósito, para que el
+ * consecutivo del folio (folio.ts) sólo avance si la emisión completa
+ * termina bien. El volumen es bajo (emisión manual, una a la vez), así que
+ * serializar sobre la fila del contador durante ese trabajo es aceptable.
+ */
+const TIMEOUT_TRANSACCION_EMISION_MS = 20_000;
 
 /** Suma días naturales. La vigencia se cuenta desde la emisión, no desde la aprobación. */
 export function sumarDias(desde: Date, dias: number): Date {
@@ -39,7 +49,7 @@ export function createConstanciasRouter(storage: NfsStorage, env: Env): Router {
       const tramite = await prisma.tramite.findUniqueOrThrow({
         where: { id: tramiteId },
         select: {
-          numeroTramite: true, estado: true, tipoConstancia: true, nis: true,
+          estado: true, tipoConstancia: true, nis: true,
           domicilioCalle: true, domicilioNumero: true, domicilioColonia: true,
           domicilioPerteneceA: true, domicilioPerteneceANombre: true,
           personas: { where: { rol: 'TITULAR' }, select: { personaId: true, persona: { select: { nombreRazonSocial: true } } }, take: 1 },
@@ -68,34 +78,38 @@ export function createConstanciasRouter(storage: NfsStorage, env: Env): Router {
       // se guarda. Corregirlo después con un UPDATE chocaría con trg_constancia_inmutable.
       const emitidaAt = new Date(); const vigenciaInicio = emitidaAt;
       const vigenciaFin = sumarDias(emitidaAt, configuracion.vigenciaDias);
-      // El folio y el token se resuelven antes de renderizar: el QR impreso los necesita.
-      //cambio del numero de oficio Jorge
-      const folioUnico = `GSTS-${tramite.numeroTramite}-${randomUUID().slice(0, 8).toUpperCase()}`;
       const versionToken = verificador.versionActual;
-      const urlVerificacion = verificador.urlVerificacion(folioUnico, versionToken);
-      if (!urlVerificacion) throw new AppError(500, 'INTERNAL_ERROR', 'No se pudo construir la URL de verificación de la constancia');
 
-      const pdf = await generarPdfConstancia(plantilla, {
-        folioUnico, emitidaAt, vigenciaFin, vigenciaDias: configuracion.vigenciaDias,
-        titular: { nombreRazonSocial: titular.persona.nombreRazonSocial },
-        nis: tramite.nis,
-        domicilio: {
-          calle: tramite.domicilioCalle, numero: tramite.domicilioNumero, colonia: tramite.domicilioColonia,
-          perteneceA: tramite.domicilioPerteneceA, perteneceANombre: tramite.domicilioPerteneceANombre,
-        },
-        firmante: { nombre: configuracion.firmanteNombre, cargo: configuracion.firmanteCargo },
-        oficioPrefijo: configuracion.oficioPrefijo,
-        urlVerificacion,
-      });
-
-      const archivoGuardado = await storage.save('constancias', pdf); archivo = archivoGuardado;
+      // El folio, el PDF y su guardado en NFS viven dentro de la transacción,
+      // después de reservar el consecutivo: si cualquier paso falla, el
+      // rollback también libera el número (ver folio.ts) y el archivo huérfano
+      // se limpia en el catch de abajo.
       const data = await withBusinessTransaction(context, async (tx) => {
+        const folioUnico = await generarFolioUnico(tx, tramite.tipoConstancia, emitidaAt);
+        const urlVerificacion = verificador.urlVerificacion(folioUnico, versionToken);
+        if (!urlVerificacion) throw new AppError(500, 'INTERNAL_ERROR', 'No se pudo construir la URL de verificación de la constancia');
+        const codigoVerificacion = verificador.codigoCorto(folioUnico, versionToken);
+
+        const pdf = await generarPdfConstancia(plantilla, {
+          folioUnico, emitidaAt, vigenciaFin, vigenciaDias: configuracion.vigenciaDias,
+          titular: { nombreRazonSocial: titular.persona.nombreRazonSocial },
+          nis: tramite.nis,
+          domicilio: {
+            calle: tramite.domicilioCalle, numero: tramite.domicilioNumero, colonia: tramite.domicilioColonia,
+            perteneceA: tramite.domicilioPerteneceA, perteneceANombre: tramite.domicilioPerteneceANombre,
+          },
+          firmante: { nombre: configuracion.firmanteNombre, cargo: configuracion.firmanteCargo },
+          urlVerificacion,
+          codigoVerificacion,
+        });
+
+        const archivoGuardado = await storage.save('constancias', pdf); archivo = archivoGuardado;
         const hashContenido = calcularHashContenido({ folioUnico, tipoConstancia: tramite.tipoConstancia, personaTitularId: titular.personaId, emitidaAt, vigenciaInicio, vigenciaFin });
         const constancia = await tx.constancia.create({ data: { tramiteId, folioUnico, archivoUuid: archivoGuardado.archivoUuid, hashPdf: archivoGuardado.hashSha256, hashContenido, versionToken, firmaDigital: null, certificadoId: null, emitidaAt, vigenciaInicio, vigenciaFin } });
         await tx.archivoGenerado.create({ data: { constanciaId: constancia.id, tipo: 'PDF', archivoUuid: archivoGuardado.archivoUuid, ruta: archivoGuardado.ruta, hashSha256: archivoGuardado.hashSha256, mimeType: 'application/pdf', tamanoBytes: archivoGuardado.tamanoBytes } });
         await auditarUsuario(tx, context, { entidad: 'constancia', entidadId: constancia.id, accion: 'EMITIR', estadoNuevo: 'EMITIDA' });
         return constancia;
-      });
+      }, { timeoutMs: TIMEOUT_TRANSACCION_EMISION_MS });
       response.status(201).json({ data: { ...data, urlVerificacion: verificador.urlVerificacion(data.folioUnico, data.versionToken) }, requestId: request.id });
     } catch (error) { if (archivo) await storage.remove(archivo.ruta).catch(() => undefined); next(error); }
   });

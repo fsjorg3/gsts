@@ -40,6 +40,20 @@ describe('resolveGstsClaims', () => {
     }, 'gsts')).toThrow('rol autorizado');
   });
 
+  it('jefatura sólo es válido desde resource_access.<clienteId>.roles, nunca desde realm_access', () => {
+    // GET /tramites/export exige exactamente esto: un jefatura puesto por
+    // error en el realm no debe habilitar la exportación.
+    expect(resolveGstsClaims({
+      sub: 'subject-6',
+      resource_access: { gsts: { roles: ['jefatura'] } },
+    }, 'gsts')).toEqual({ sub: 'subject-6', roles: ['jefatura'] });
+
+    expect(() => resolveGstsClaims({
+      sub: 'subject-7',
+      realm_access: { roles: ['jefatura'] },
+    }, 'gsts')).toThrow('rol autorizado');
+  });
+
   it('usa el clienteId configurado, no un nombre fijo: ignora roles bajo otro client_id', () => {
     // Si el token trae los roles bajo un client_id distinto al configurado
     // (p. ej. resabios de 'sicef' mientras se termina la migración), no cuentan.

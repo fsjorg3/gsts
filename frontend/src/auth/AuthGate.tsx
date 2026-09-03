@@ -6,15 +6,22 @@ import { useAuth as useOidc } from 'react-oidc-context';
 import { rutaDeRegreso } from './oidc';
 import { SesionExpiradaDialog } from './SesionExpiradaDialog';
 
-// Única ruta pública del frontend: callback de front-channel logout (ver
-// LogoutFrontChannel.tsx), que Keycloak carga sin sesión en un iframe oculto.
-const RUTA_LOGOUT_FRONTCHANNEL = '/logout-frontchannel';
+// Rutas públicas del frontend, sin sesión: el callback de front-channel logout
+// (ver LogoutFrontChannel.tsx), que Keycloak carga en un iframe oculto, y las
+// de verificación de constancias (features/verificacion-publica), que abre un
+// ciudadano desde el QR impreso o tecleando el enlace — forzarlas por
+// Keycloak las volvería inútiles para quien no tiene cuenta en GSTS.
+const RUTAS_PUBLICAS: RegExp[] = [
+  /^\/logout-frontchannel$/,
+  /^\/verificar$/,
+  /^\/constancias\/[^/]+\/verificar\/[^/]+$/,
+];
 
 // Toda la app interna exige sesión: si no hay usuario, redirige a Keycloak —
-// salvo la ruta pública de arriba.
+// salvo las rutas públicas de arriba.
 export function AuthGate({ children }: { children: ReactNode }) {
   const oidc = useOidc();
-  const esRutaPublica = window.location.pathname === RUTA_LOGOUT_FRONTCHANNEL;
+  const esRutaPublica = RUTAS_PUBLICAS.some((patron) => patron.test(window.location.pathname));
 
   useEffect(() => {
     if (esRutaPublica) return;

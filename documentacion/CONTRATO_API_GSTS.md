@@ -15,6 +15,7 @@ Toda ruta interna exige `Authorization: Bearer <JWT>` emitido por Keycloak (real
 | Rol | Origen del claim | Habilita |
 |---|---|---|
 | `ventanilla` | `resource_access.gsts.roles` | Crear/transicionar trámites, evidencias, validaciones de no adeudo, borradores de cobro, cobro directo, emisión de constancias |
+| `jefatura` | `resource_access.gsts.roles` | Exclusivo de `GET /tramites/export`: descarga en XLSX de los trámites que cumplan un filtro, con titular, NIS, domicilio, cobro y folio de constancia |
 | `consulta-cobros` | `resource_access.gsts.roles` | Service account del sistema Finanzas: consulta de cobro y comprobante por folio |
 | `consulta-metricas` | `resource_access.gsts.roles` | Service account del sistema Finanzas: indicadores de Dirección |
 | `ti` | `realm_access.roles` | Asistente de catálogos/tarifas (crear, clonar, publicar), configurar plazos operativos, gestionar motivos de reducción, consultar bitácora de auditoría global |
@@ -116,6 +117,12 @@ Los borrados responden `{ "data": { "id" } }`, no `204`, para conservar la envol
 - El domicilio del predio (`domicilioCalle`, `domicilioNumero`, `domicilioColonia`, `domicilioPerteneceA` ∈ `{JUNTA_AUXILIAR, MUNICIPIO}`, `domicilioPerteneceANombre`) es opcional a nivel de contrato — el backend lo acepta vacío igual que `nis`. Solo tiene sentido para `NO_REGISTRO`, porque va impreso en la constancia; la UI de ventanilla lo exige antes de crear el trámite de ese tipo, pero no hay validación equivalente en el servidor.
 - Sin catálogo de juntas auxiliares/municipios: `domicilioPerteneceANombre` es texto libre. La zona de cobertura de SOAPAP abarca Puebla y 4 municipios más, por lo que una lista fija no era manejable; el domicilio se captura en mayúsculas desde el frontend para no fragmentar agrupaciones futuras por variaciones de mayúsculas/minúsculas.
 
+### Exportación (`GET /tramites/export`, rol `jefatura`)
+- Mismos filtros que `GET /tramites` (`estado`, `tipoConstancia`, `nis`, `folio`, `desde`, `hasta`; `folio` sigue siendo excluyente), sin `take`/`cursor`: exporta todo lo que cumpla el filtro, no una página. Si el filtro reúne más de 10 000 trámites responde `409 EXPORT_TOO_LARGE` en vez de truncar en silencio.
+- Rompe la envolvente `{ data }` — es una descarga, como el PDF de constancia y el archivo de evidencia. `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment; filename="tramites-{YYYY-MM-DD}.xlsx"`. Los errores sí conservan `{ error }`.
+- Columnas: número de trámite, tipo, estado, titular, NIS, domicilio, monto base/final, forma de pago, folio de constancia, vigencia, si está anulada, fecha de creación.
+- **Es la única descarga que audita en bitácora.** Las demás (evidencia, comprobante, PDF de constancia) son lectura pura sin bitácora a propósito — un archivo puntual no lo amerita. Ésta sí: es una extracción masiva de datos personales (nombre del titular, NIS, domicilio) de N trámites a la vez, así que cada llamada deja una entrada `accion: EXPORTAR` con los filtros usados y el total de filas. Como no hay una única entidad a la que atarla, usa el mismo patrón que el singleton `ConfiguracionPlazos`: un `entidadId` fijo y conocido (`00000000-0000-0000-0000-000000000002`).
+
 ### Evidencias
 - MIME permitidos: `application/pdf`, `image/jpeg`, `image/png`. Hash SHA-256 de 64 hex.
 - El documento debe pertenecer al **mismo catálogo estampado en el trámite** (`tramite.version_catalogo_id`), no al catálogo activo actual.
@@ -143,8 +150,8 @@ Los borrados responden `{ "data": { "id" } }`, no `204`, para conservar la envol
 - **La emisión no firma digitalmente.** El Servicio de Firma quedó fuera del proyecto (tentativamente), así que `firmaDigital` y `certificadoId` nacen en `null` — el modelo ya los declaraba opcionales. El backend sí calcula y persiste el hash SHA-256 del PDF (`hashPdf`) como ancla de integridad del archivo. La autenticidad del documento se sostiene en la **firma autógrafa** del papel y en la **verificación pública por QR**.
   - Consecuencia a tener presente: `trg_constancia_inmutable` cubre `firma_digital`, de modo que una constancia emitida sin firma **no puede firmarse después** con un `UPDATE`. Si el Servicio de Firma se reincorpora, las constancias históricas quedarán sin firma.
   - El cliente HTTP del servicio sigue en `backend/src/infrastructure/signing/`, sin uso, para cuando vuelva.
-- `folioUnico` tiene el formato `GSTS-{numeroTramite}-{8 hex}`.
-- El PDF imprime, bajo la fecha, el **número de oficio** (`{oficioPrefijo}/{año de emitidaAt}`, tomado de `ConfiguracionConstancia`) además del folio — ver la sección de configuración de constancias más abajo. El oficio no es único por documento; el folio sí.
+- `folioUnico` tiene el formato `GSTS-{CODIGO_TIPO}-{año}-{consecutivo}` (p. ej. `GSTS-CNR-2026-1` para No Registro, `GSTS-CNA-2026-1` para No Adeudo), donde `CODIGO_TIPO` es un mapa fijo en código (`{ NO_ADEUDO: 'CNA', NO_REGISTRO: 'CNR' }`, ver `backend/src/modules/constancias/constancias/folio.ts`), `año` es el de `emitidaAt` en la zona horaria de Puebla, y `consecutivo` sale de `contador_folio` — una fila por `(tipoConstancia, año)`, con id `"{tipoConstancia}_{año}"`, creada perezosamente: se reserva con un `INSERT ... ON CONFLICT` atómico **dentro de la misma transacción** que renderiza el PDF, lo guarda en NFS y hace el `INSERT` de la constancia — si cualquier paso falla y la transacción hace rollback, el número se libera con ella. Así el consecutivo no tiene duplicados ni huecos, a diferencia de una `SEQUENCE` de Postgres (como la de `Tramite.numeroTramite`), cuyo avance no es transaccional. El consecutivo reinicia en 1 cada año natural, por separado para cada tipo de constancia.
+- El PDF imprime, bajo la fecha, una sola línea bajo la etiqueta **"Número de Oficio"** con el folio único como valor — ya no hay un número de oficio separado del folio ni un campo de configuración para su prefijo (`ConfiguracionConstancia` dejó de tener `oficioPrefijo`).
 - **Dos hashes distintos, con propósitos distintos**: `hashPdf` es SHA-256 sobre los bytes del archivo (integridad del archivo); `hashContenido` es SHA-256 sobre los datos estructurados (`folioUnico`, `tipoConstancia`, id del titular, `emitidaAt`, `vigenciaInicio`, `vigenciaFin`) y es el ancla de integridad del **registro**, independiente de cómo se renderice el PDF.
 - Por eso `emitidaAt` lo fija el backend antes del `INSERT` en vez de dejarlo al `now()` de PostgreSQL: el hash se calcula sobre el valor exacto que se persiste, y corregirlo después con un `UPDATE` chocaría con `trg_constancia_inmutable`.
 - La respuesta incluye `urlVerificacion`, campo **derivado** (no es columna): la URL que codifica el QR impreso. `GET /tramites/{id}` también la reconstruye dentro de `constancia`. Es `null` si la versión de clave con la que nació la constancia ya fue retirada.
@@ -159,17 +166,23 @@ Los borrados responden `{ "data": { "id" } }`, no `204`, para conservar la envol
 - `GET /direccion/metricas?desde=&hasta=` (roles `direccion` o `consulta-metricas`): seis KPIs, serie mensual de constancias por tipo y distribución por estado. El éxito de timbrado y las cancelaciones de CFDI no están aquí: son de Finanzas.
 - La solicitud y la consulta de CFDI se trasladaron a ese sistema. Ver `documentacion2/SISTEMA_FINANZAS.md`.
 
-### Verificación pública de constancias por QR (`GET /public/constancias/{folio}/verificar/{token}`)
+### Verificación pública de constancias (`/public/constancias/...`)
 
-Es un servicio de consulta de SOAPAP sobre su propio registro: confirma que el folio existe, que lo emitió SOAPAP, a nombre de quién y en qué estado de vigencia está. **No sustituye la firma autógrafa del documento ni pretende valor probatorio autónomo.**
+Son servicios de consulta de SOAPAP sobre su propio registro: confirman que el folio existe, que lo emitió SOAPAP, a nombre de quién y en qué estado de vigencia está. **No sustituyen la firma autógrafa del documento ni pretenden valor probatorio autónomo.** Hay dos rutas, con el mismo resultado y las mismas reglas — sólo cambia cómo llega la credencial:
 
-- **El token funciona como capacidad, no como firma**: es HMAC-SHA256 del folio truncado a 80 bits, con la versión de clave al frente (`v1.a1b2c3d4e5f60718a9bc`). Sólo quien tiene el documento impreso —donde va el QR— puede consultarlo. **No existe una ruta equivalente sin token**, y es deliberado: `folioUnico` lleva el consecutivo del trámite, así que una ruta por folio solo sería enumerable.
-- **Folio inexistente y token inválido devuelven un `404` idéntico**, mismo cuerpo y mismo código. Si difirieran, el endpoint confirmaría qué folios existen y volvería a ser enumerable. Por la misma razón la consulta a la base de datos se ejecuta incluso con token inválido: el tiempo de respuesta no debe delatar qué folios existen.
-- **Una constancia vencida o anulada responde `200`**, no `404`: sí existe, y su estado real (`VIGENTE | VENCIDA | ANULADA`) es justo lo que quien escanea necesita saber. El estado se deriva de `anulada` y `vigenciaFin`; el enum de la respuesta **no** incluye `NO_ENCONTRADA` — ese caso es el `404`.
-- **Rate limit propio**, más estricto que el global de `/public` (`VERIFICACION_RATE_LIMIT_MAX` por `VERIFICACION_RATE_LIMIT_WINDOW_MS`, por omisión 10/min): con un HMAC truncado y una respuesta que expone titular y domicilio, este limitador es lo que separa una fuerza bruta de una fuga de datos personales.
+- **`GET /public/constancias/{folio}/verificar/{token}`**: la ruta que codifica el QR impreso.
+- **`POST /public/constancias/verificar`** con `{ folio, codigo }`: fallback manual para cuando el QR no se puede escanear ni fotografiar. `codigo` acepta indistintamente el token completo (pegado tal cual, p. ej. decodificado con otra app) o el **código corto** impreso en texto bajo el QR.
+
+Reglas comunes a ambas:
+
+- **La credencial funciona como capacidad, no como firma**: es HMAC-SHA256 del folio. El token completo va truncado a 80 bits (`v1.a1b2c3d4e5f60718a9bc`); el código corto es un prefijo de 32 bits del mismo HMAC, pensado para tecleo manual. Sólo quien tiene el documento impreso —donde van QR y código— puede consultar. **No existe una ruta equivalente sin credencial**, y es deliberado: el folio (`GSTS-{CODIGO_TIPO}-{año}-{consecutivo}`) es enumerable por diseño (ver arriba), así que una ruta por folio solo sería enumerable sin más.
+  - El código corto tiene mucha menos entropía que el token completo (32 bits contra 80): la seguridad de esa vía recae más en el rate limit que en el espacio de búsqueda, precisamente porque el folio que lo acompaña ya no hay que adivinarlo.
+- **Folio inexistente y credencial inválida devuelven un `404` idéntico**, mismo cuerpo y mismo código, en las dos rutas. Si difirieran, el endpoint confirmaría qué folios existen y volvería a ser enumerable. Por la misma razón la consulta a la base de datos se ejecuta incluso con credencial inválida: el tiempo de respuesta no debe delatar qué folios existen.
+- **Una constancia vencida o anulada responde `200`**, no `404`: sí existe, y su estado real (`VIGENTE | VENCIDA | ANULADA`) es justo lo que quien verifica necesita saber. El estado se deriva de `anulada` y `vigenciaFin`; el enum de la respuesta **no** incluye `NO_ENCONTRADA` — ese caso es el `404`.
+- **Rate limit propio**, más estricto que el global de `/public` (`VERIFICACION_RATE_LIMIT_MAX` por `VERIFICACION_RATE_LIMIT_WINDOW_MS`, por omisión 10/min), compartido por ambas rutas: con una credencial que puede ir truncada a sólo 32 bits y una respuesta que expone titular y domicilio, este limitador es lo que separa una fuerza bruta de una fuga de datos personales.
 - **Sólo sale el mínimo**: folio, tipo, estado, vigencia, nombre del titular y —únicamente en `NO_REGISTRO`— el domicilio del predio. Nunca RFC, identificadores internos, NIS, hashes, ni personas distintas del titular (representante, apoderado o receptor fiscal). La restricción se aplica desde el `select` de Prisma, no sólo en el DTO — mismo criterio que la bitácora.
-- **Claves versionadas y rotables**: `SECRETO_VERIFICADOR_V1`/`_V2` (mínimo 32 bytes cada una) y `VERSION_TOKEN_ACTUAL`. Cada constancia persiste en `versionToken` la versión con la que nació, así que rotar la clave no invalida lo ya impreso; una versión sólo se retira cuando ninguna constancia vigente la referencia. Para rotar: definir `SECRETO_VERIFICADOR_V2` y apuntar `VERSION_TOKEN_ACTUAL` a `v2`.
-- Cada intento —válido o no— queda en bitácora con `origen: PORTAL`, `accion: VERIFICAR_QR` y `detalle.resultado` ∈ `{VALIDO, FOLIO_INEXISTENTE, TOKEN_INVALIDO}`. Los intentos sin folio real se asientan contra el UUID centinela `…0002`, porque `bitacora.entidad_id` es `NOT NULL`.
+- **Claves versionadas y rotables**: `SECRETO_VERIFICADOR_V1`/`_V2` (mínimo 32 bytes cada una) y `VERSION_TOKEN_ACTUAL`. Cada constancia persiste en `versionToken` la versión con la que nació, así que rotar la clave no invalida lo ya impreso; una versión sólo se retira cuando ninguna constancia vigente la referencia. Para rotar: definir `SECRETO_VERIFICADOR_V2` y apuntar `VERSION_TOKEN_ACTUAL` a `v2`. El código corto no trae la versión impresa (el papel sólo imprime el vigente al emitir), así que `verificarCodigo` prueba contra todas las claves configuradas.
+- Cada intento —válido o no— queda en bitácora con `origen: PORTAL`, `accion` ∈ `{VERIFICAR_QR, VERIFICAR_CODIGO}` según la ruta, y `detalle.resultado` ∈ `{VALIDO, FOLIO_INEXISTENTE, CREDENCIAL_INVALIDA}`. Los intentos sin folio real se asientan contra el UUID centinela `…0002`, porque `bitacora.entidad_id` es `NOT NULL`.
 
 ### Bitácora (`/bitacora`, rol `ti`)
 - Visor de auditoría global de solo lectura sobre `bitacora`, filtrable por `entidad`, `entidadId`, `accion`, `actorId` y rango de fechas (`desde`/`hasta`), paginado por cursor.
@@ -178,8 +191,7 @@ Es un servicio de consulta de SOAPAP sobre su propio registro: confirma que el f
 
 ### Configuración de constancias (`/administracion/constancias/{tipo}`, rol `ti`)
 - `GET` devuelve `null` si ese tipo nunca se configuró — la UI distingue "sin configurar" de un valor real, y la emisión de ese tipo falla hasta que exista.
-- `PUT` hace *upsert* de `vigenciaDias`, `firmanteNombre`, `firmanteCargo` y `oficioPrefijo`. `{tipo}` ∈ `{NO_ADEUDO, NO_REGISTRO}`; cualquier otro valor responde `404`.
-- `oficioPrefijo` es el prefijo del número de oficio impreso bajo la fecha; se compone con el año de emisión como `{oficioPrefijo}/{año}` (p. ej. `SOAPAP/GSTS/CNR/2026`), **sin consecutivo** — todas las constancias del mismo tipo y año comparten el mismo número de oficio. El folio sigue siendo el identificador único del documento y se imprime junto a él.
+- `PUT` hace *upsert* de `vigenciaDias`, `firmanteNombre` y `firmanteCargo`. `{tipo}` ∈ `{NO_ADEUDO, NO_REGISTRO}`; cualquier otro valor responde `404`.
 - Hay **una fila por tipo de constancia** (no un singleton como `ConfiguracionPlazos`), porque el plazo legal puede diferir entre tipos. El firmante, en cambio, se modela como valor institucional por tipo.
 - La tabla **nace vacía**: no hay semilla. Hasta que `ti` configure al menos `NO_REGISTRO`, no se puede emitir ninguna constancia de ese tipo.
 - Cambiar la configuración **no altera constancias ya emitidas**: `vigenciaFin` y los datos del firmante quedaron congelados en el PDF y en el registro al momento de emitir.
@@ -224,6 +236,7 @@ Todos siguen el formato `{ "error": { "code", "message", "details"? } }` ([share
 | `CONSTANCIA_CONFIG_NOT_SET` | 409 | No hay `ConfiguracionConstancia` para el tipo del trámite: TI debe definir vigencia y firmante |
 | `TEMPLATE_NOT_CONFIGURED` | 409 | No existe plantilla de constancia para ese tipo (hoy ninguno: los dos tipos están cubiertos) |
 | `FILE_TOO_LARGE` | 422 | La evidencia excede `MAX_EVIDENCIA_TOTAL_BYTES` |
+| `EXPORT_TOO_LARGE` | 409 | `GET /tramites/export` (rol `jefatura`): el filtro reúne más de 10 000 trámites |
 | `INVALID_PATH` | 400 | Un parámetro de ruta (`:id`, `:tramiteId`, etc.) llegó vacío o repetido |
 | `UNIQUE_CONFLICT` | 409 | Ya existe un registro con ese valor. `details.campos` trae las columnas en conflicto (nunca el valor) |
 | `REFERENCE_CONFLICT` | 409 | Llave foránea: se apunta a algo que no existe, o se intenta borrar algo todavía referenciado |

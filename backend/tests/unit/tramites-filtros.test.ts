@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listarBitacoraSchema, listarTramitesSchema } from '@gsts/contracts';
+import { exportarTramitesSchema, listarBitacoraSchema, listarTramitesSchema } from '@gsts/contracts';
 
 describe('listarTramitesSchema', () => {
   it('aplica los valores por defecto de paginación sin filtros', () => {
@@ -49,5 +49,39 @@ describe('listarTramitesSchema', () => {
   it('no exige el rango completo: cada extremo vale por separado', () => {
     expect(() => listarTramitesSchema.parse({ desde: '2026-05-10T00:00:00.000Z' })).not.toThrow();
     expect(() => listarTramitesSchema.parse({ hasta: '2026-05-10T00:00:00.000Z' })).not.toThrow();
+  });
+});
+
+// GET /tramites/export (rol jefatura): mismo vocabulario de filtro que el
+// listado, sin paginación — take/cursor no forman parte de este schema.
+describe('exportarTramitesSchema', () => {
+  it('acepta el mismo vocabulario de filtro que listarTramitesSchema, sin take/cursor', () => {
+    const filtros = exportarTramitesSchema.parse({
+      estado: 'FINALIZADO',
+      tipoConstancia: 'NO_ADEUDO',
+      nis: '12345',
+      folio: 'NA-2026-02038',
+      desde: '2026-01-01T00:00:00.000Z',
+      hasta: '2026-12-31T23:59:59.000Z',
+    });
+    expect(filtros).toEqual({
+      estado: 'FINALIZADO',
+      tipoConstancia: 'NO_ADEUDO',
+      nis: '12345',
+      folio: 'NA-2026-02038',
+      desde: '2026-01-01T00:00:00.000Z',
+      hasta: '2026-12-31T23:59:59.000Z',
+    });
+    expect('take' in filtros).toBe(false);
+    expect('cursor' in filtros).toBe(false);
+  });
+
+  it('sin filtros, no exige ninguno', () => {
+    expect(exportarTramitesSchema.parse({})).toEqual({});
+  });
+
+  it('comparte la misma regla de rango de fechas que el listado', () => {
+    const invertido = { desde: '2026-05-10T00:00:00.000Z', hasta: '2026-01-01T00:00:00.000Z' };
+    expect(() => exportarTramitesSchema.parse(invertido)).toThrow();
   });
 });

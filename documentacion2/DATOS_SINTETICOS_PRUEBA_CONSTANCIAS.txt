@@ -1,0 +1,170 @@
+====================================================================
+TRAMITE 1 - No Adeudo
+====================================================================
+Clasificación del trámite
+  Tipo de constancia:     Constancia de No Adeudo
+  Personalidad:           Física
+  Quién se presenta:      Titular
+
+Datos del titular
+  Nombre completo:        JUAN CARLOS RAMIREZ TORRES
+  RFC (opcional):         RATJ850312AB1
+
+Datos del predio / servicio
+  NIS:                    10234567
+
+Cobro
+  Tarifa:                 la activa para No Adeudo
+  Forma de pago:          Efectivo
+  Método de pago:         PUE
+  Referencia de pago:     TICKET-2026-0001
+  ¿Solicita factura?:     No
+  Comprobante:            adjuntar cualquier imagen/PDF de prueba
+
+
+====================================================================
+TRAMITE 2 - No Adeudo (con factura)
+====================================================================
+Clasificación del trámite
+  Tipo de constancia:     Constancia de No Adeudo
+  Personalidad:           Moral
+  Quién se presenta:      Titular
+
+Datos del titular
+  Razón social:           INMOBILIARIA DEL VALLE SA DE CV
+  RFC (opcional):         IVA980521XY2
+
+Datos del predio / servicio
+  NIS:                    10234889
+
+Cobro
+  Tarifa:                 la activa para No Adeudo
+  Forma de pago:          Transferencia
+  Método de pago:         PUE
+  Referencia de pago:     TICKET-2026-0002
+  ¿Solicita factura?:     Sí
+
+  Datos fiscales para GAF (si el formulario los pide aparte):
+    RFC receptor:         IVA980521XY2
+    Nombre receptor:      INMOBILIARIA DEL VALLE SA DE CV
+    Monto:                el de la tarifa aplicada
+    Fecha de pago:        la fecha real en que se captura el cobro
+    Régimen fiscal:       elegir cualquiera del catálogo SAT que muestre el formulario
+    Uso CFDI:             elegir uno permitido para el régimen elegido (el propio formulario filtra las opciones válidas)
+  Comprobante:            adjuntar cualquier imagen/PDF de prueba
+
+
+====================================================================
+TRAMITE 3 - No Adeudo
+====================================================================
+Clasificación del trámite
+  Tipo de constancia:     Constancia de No Adeudo
+  Personalidad:           Física
+  Quién se presenta:      Titular
+
+Datos del titular
+  Nombre completo:        MARIA FERNANDA LOPEZ HERNANDEZ
+  RFC (opcional):         LOHF900704CD3
+
+Datos del predio / servicio
+  NIS:                    10235012
+
+Cobro
+  Tarifa:                 la activa para No Adeudo
+  Forma de pago:          Efectivo
+  Método de pago:         PUE
+  Referencia de pago:     TICKET-2026-0003
+  ¿Solicita factura?:     No
+  Comprobante:            adjuntar cualquier imagen/PDF de prueba
+
+
+====================================================================
+TRAMITE 4 - No Registro
+====================================================================
+Clasificación del trámite
+  Tipo de constancia:     Constancia de No Registro
+  Personalidad:           Física
+  Quién se presenta:      Titular
+
+Datos del titular
+  Nombre completo:        ROBERTO CARLOS MENDOZA SILVA
+  RFC (opcional):         MESR870915EF4
+
+Domicilio del predio
+  Calle:                  Calle 5 Poniente
+  Número:                 234
+  Colonia:                Centro
+  Pertenece a:            Municipio
+  Nombre (municipio):     PUEBLA
+
+Cobro
+  Tarifa:                 la activa para No Registro
+  Forma de pago:          Efectivo
+  Método de pago:         PUE
+  Referencia de pago:     TICKET-2026-0004
+  ¿Solicita factura?:     No
+  Comprobante:            adjuntar cualquier imagen/PDF de prueba
+
+
+====================================================================
+TRAMITE 5 - No Registro (con factura)
+====================================================================
+Clasificación del trámite
+  Tipo de constancia:     Constancia de No Registro
+  Personalidad:           Moral
+  Quién se presenta:      Titular
+
+Datos del titular
+  Razón social:           DISTRIBUIDORA REGIONAL DEL SUR SA DE CV
+  RFC (opcional):         DRS050630GH5
+
+Domicilio del predio
+  Calle:                  Av. Reforma
+  Número:                 1102
+  Colonia:                La Paz
+  Pertenece a:            Municipio
+  Nombre (municipio):     SAN PEDRO CHOLULA
+
+Cobro
+  Tarifa:                 la activa para No Registro
+  Forma de pago:          Transferencia
+  Método de pago:         PUE
+  Referencia de pago:     TICKET-2026-0005
+  ¿Solicita factura?:     Sí
+
+  Datos fiscales para GAF (si el formulario los pide aparte):
+    RFC receptor:         DRS050630GH5
+    Nombre receptor:      DISTRIBUIDORA REGIONAL DEL SUR SA DE CV
+    Monto:                el de la tarifa aplicada
+    Fecha de pago:        la fecha real en que se captura el cobro
+    Régimen fiscal:       elegir cualquiera del catálogo SAT que muestre el formulario
+    Uso CFDI:             elegir uno permitido para el régimen elegido (el propio formulario filtra las opciones válidas)
+  Comprobante:            adjuntar cualquier imagen/PDF de prueba
+
+
+====================================================================
+TRAMITE 6 - No Registro
+====================================================================
+Clasificación del trámite
+  Tipo de constancia:     Constancia de No Registro
+  Personalidad:           Física
+  Quién se presenta:      Titular
+
+Datos del titular
+  Nombre completo:        ANA SOFIA GUTIERREZ VAZQUEZ
+  RFC (opcional):         GUVA930228IJ6
+
+Domicilio del predio
+  Calle:                  Calle Morelos
+  Número:                 45
+  Colonia:                San Baltazar
+  Pertenece a:            Junta auxiliar
+  Nombre (junta auxiliar): SAN BALTAZAR CAMPECHE
+
+Cobro
+  Tarifa:                 la activa para No Registro
+  Forma de pago:          Efectivo
+  Método de pago:         PUE
+  Referencia de pago:     TICKET-2026-0006
+  ¿Solicita factura?:     No
+  Comprobante:            adjuntar cualquier imagen/PDF de prueba

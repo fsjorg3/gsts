@@ -1,5 +1,5 @@
 import { Router, type RequestHandler } from 'express';
-import { crearTramiteSchema, listarTramitesSchema } from '@gsts/contracts';
+import { crearTramiteSchema, exportarTramitesSchema, listarTramitesSchema } from '@gsts/contracts';
 import type { EstadoTramite, Prisma } from '@prisma/client';
 import type { Env } from '../../../config/env.js';
 import { prisma, withBusinessTransaction } from '../../../infrastructure/database/prisma.js';
@@ -10,6 +10,7 @@ import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
 import { whereDeFolio } from './folio.js';
+import { generarExportTramites } from './export.js';
 
 const isTramiteState = new Set(['EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'FINALIZADO']);
 
@@ -22,24 +23,60 @@ function porEstadoCompleto(grupos: { estado: EstadoTramite; _count: number }[]):
   return conteo;
 }
 
+interface FiltrosTramite {
+  estado?: EstadoTramite | undefined;
+  tipoConstancia?: 'NO_ADEUDO' | 'NO_REGISTRO' | undefined;
+  nis?: string | undefined;
+  folio?: string | undefined;
+  desde?: string | undefined;
+  hasta?: string | undefined;
+}
+
+/**
+ * Arma el `where` compartido por `GET /` y `GET /export`: mismo vocabulario de
+ * filtro para que jefatura pueda exportar exactamente lo que ventanilla ve
+ * listado. `whereBase` excluye `estado` a propósito — lo usa el desglose por
+ * estado de `GET /`, que dejaría de ser un desglose si se filtrara por uno
+ * solo — y `where` es el filtro completo, el que de verdad se aplica a la
+ * consulta o a la exportación.
+ *
+ * El folio es excluyente: identifica un trámite concreto, así que manda sobre
+ * el resto de los filtros en vez de intersectarse con ellos. Devuelve `null`
+ * cuando el folio no tiene un formato reconocible, para que el router lo
+ * rechace en vez de degradar a un listado sin filtrar.
+ */
+function whereDeListado(filtros: FiltrosTramite): { where: Prisma.TramiteWhereInput; whereBase: Prisma.TramiteWhereInput } | null {
+  const { estado, tipoConstancia, nis, folio, desde, hasta } = filtros;
+  const whereFolio = folio ? whereDeFolio(folio) : undefined;
+  if (folio && !whereFolio) return null;
+  const whereBase: Prisma.TramiteWhereInput = whereFolio ?? {
+    ...(tipoConstancia ? { tipoConstancia } : {}),
+    ...(nis ? { nis: { contains: nis, mode: 'insensitive' } } : {}),
+    ...(desde || hasta ? { createdAt: { ...(desde ? { gte: new Date(desde) } : {}), ...(hasta ? { lte: new Date(hasta) } : {}) } } : {}),
+  };
+  const where: Prisma.TramiteWhereInput = whereFolio ?? { ...whereBase, ...(estado ? { estado } : {}) };
+  return { where, whereBase };
+}
+
+// Límite de filas de GET /tramites/export: es una salvaguarda de ese endpoint,
+// no una regla de negocio del dominio, por eso vive aquí y no en el contrato.
+// Superarlo pide acotar el filtro en vez de truncar en silencio.
+const MAX_FILAS_EXPORT = 10_000;
+// entidad_id de Bitacora es UUID estricto (schema.prisma) y una exportación no
+// tiene una única entidad a la que atarse: mismo precedente que el singleton
+// de ConfiguracionPlazos (ver PENDIENTES_BACKEND_FRONTEND.md).
+const ENTIDAD_ID_EXPORT_TRAMITES = '00000000-0000-0000-0000-000000000002';
+
 export function createTramitesRouter(internal: RequestHandler[], env: Env): Router {
   const router = Router(); router.use(...internal);
   const verificador = crearVerificadorTokens(env);
   router.get('/', async (request, response, next) => {
     try {
-      const { take, cursor, estado, tipoConstancia, nis, folio, desde, hasta } = listarTramitesSchema.parse(request.query);
-      // El folio es excluyente: identifica un trámite concreto, así que manda
-      // sobre el resto de los filtros en vez de intersectarse con ellos.
-      const whereFolio = folio ? whereDeFolio(folio) : undefined;
-      if (folio && !whereFolio) throw new AppError(422, 'VALIDATION_ERROR', 'El folio no tiene un formato reconocible (ej. NA-2026-02038)');
-      // whereBase excluye `estado` a propósito: alimenta el desglose por estado,
-      // que dejaría de serlo si se filtrara por uno solo.
-      const whereBase: Prisma.TramiteWhereInput = whereFolio ?? {
-        ...(tipoConstancia ? { tipoConstancia } : {}),
-        ...(nis ? { nis: { contains: nis, mode: 'insensitive' } } : {}),
-        ...(desde || hasta ? { createdAt: { ...(desde ? { gte: new Date(desde) } : {}), ...(hasta ? { lte: new Date(hasta) } : {}) } } : {}),
-      };
-      const where: Prisma.TramiteWhereInput = whereFolio ?? { ...whereBase, ...(estado ? { estado } : {}) };
+      const filtros = listarTramitesSchema.parse(request.query);
+      const resultado = whereDeListado(filtros);
+      if (!resultado) throw new AppError(422, 'VALIDATION_ERROR', 'El folio no tiene un formato reconocible (ej. NA-2026-02038)');
+      const { where, whereBase } = resultado;
+      const { take, cursor } = filtros;
       const [data, total, grupos] = await Promise.all([
         prisma.tramite.findMany({
           where,
@@ -58,6 +95,53 @@ export function createTramitesRouter(internal: RequestHandler[], env: Env): Rout
   });
   router.post('/', requireRoles('ventanilla'), async (request, response, next) => {
     try { const input = crearTramiteSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const version = await tx.versionCatalogo.findFirst({ where: { activa: true, publicada: true }, select: { id: true } }); if (!version) throw new AppError(409, 'NO_ACTIVE_CATALOG', 'No existe un catálogo activo para crear el trámite'); const tramite = await tx.tramite.create({ data: { ...input, versionCatalogoId: version.id, creadoPorId: context.actorId, personas: { create: input.personas } }, include: { personas: true } }); await auditarUsuario(tx, context, { entidad: 'tramite', entidadId: tramite.id, accion: 'CREAR', estadoNuevo: 'CAPTURA' }); return tramite; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
+  });
+  // Antes de '/:id': si no, Express leería "export" como el parámetro `id`.
+  // Rol `jefatura` exclusivamente — es un client role (ver rolesCliente en
+  // @gsts/contracts), así que un `jefatura` puesto por error en el realm no
+  // habilita nada (resolveGstsClaims lo descarta antes de llegar aquí).
+  router.get('/export', requireRoles('jefatura'), async (request, response, next) => {
+    try {
+      const filtros = exportarTramitesSchema.parse(request.query);
+      const resultado = whereDeListado(filtros);
+      if (!resultado) throw new AppError(422, 'VALIDATION_ERROR', 'El folio no tiene un formato reconocible (ej. NA-2026-02038)');
+      const { where } = resultado;
+
+      const total = await prisma.tramite.count({ where });
+      if (total > MAX_FILAS_EXPORT) {
+        throw new AppError(
+          409,
+          'EXPORT_TOO_LARGE',
+          `El filtro reúne ${total} trámites; el máximo por exportación es ${MAX_FILAS_EXPORT}. Acota el rango de fechas o el estado.`,
+        );
+      }
+
+      const tramites = await prisma.tramite.findMany({
+        where,
+        include: { personas: { include: { persona: true } }, cobro: true, constancia: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      // El archivo se arma fuera de la transacción: es lectura pura y no debe
+      // mantener una transacción abierta mientras exceljs serializa. La
+      // transacción se abre después, sólo para la línea de bitácora.
+      const archivo = await generarExportTramites(tramites);
+
+      const context = requestContext(request);
+      await withBusinessTransaction(context, (tx) =>
+        auditarUsuario(tx, context, {
+          entidad: 'tramite',
+          entidadId: ENTIDAD_ID_EXPORT_TRAMITES,
+          accion: 'EXPORTAR',
+          detalle: { filtros, totalFilas: tramites.length },
+        }),
+      );
+
+      response.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      response.setHeader('Content-Disposition', `attachment; filename="tramites-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+      response.send(archivo);
+    } catch (error) {
+      next(error);
+    }
   });
   router.get('/:id', async (request, response, next) => {
     // urlVerificacion es derivada, no columna: se reconstruye con la versión de

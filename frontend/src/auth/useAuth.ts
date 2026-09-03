@@ -4,8 +4,10 @@ import { api } from '@/api/client';
 
 // `finanzas` desapareció con el recorte de facturación. `direccion` sigue
 // existiendo en el realm y en la API, pero su tablero se construye en la
-// aplicación de Finanzas, no en ésta.
-export type RolGsts = 'ventanilla' | 'ti' | 'direccion';
+// aplicación de Finanzas, no en ésta. `jefatura` es un client role exclusivo
+// de GET /tramites/export (ver rolesCliente en @gsts/contracts); un jefatura
+// puesto por error en el realm no llega hasta aquí — el backend ya lo descarta.
+export type RolGsts = 'ventanilla' | 'ti' | 'direccion' | 'jefatura';
 
 // Fuente de verdad de roles en la UI: GET /auth/me (el backend extrae cada rol
 // de su fuente correcta en el token; la UI no interpreta claims de Keycloak).

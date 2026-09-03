@@ -143,3 +143,44 @@ describe('GET /public/constancias/:folio/verificar/:token', () => {
     expect(respuestas.map((r) => r.status)).toEqual([404, 404, 429]);
   });
 });
+
+describe('POST /public/constancias/verificar', () => {
+  const CODIGO_CORTO = crearVerificadorTokens(env).codigoCorto(FOLIO);
+  const endpoint = '/api/v1/public/constancias/verificar';
+
+  it('devuelve 200 con la misma forma que la ruta por QR cuando el código corto es válido', async () => {
+    findUnique.mockResolvedValue(fila());
+    const response = await request(createApp(env)).post(endpoint).send({ folio: FOLIO, codigo: CODIGO_CORTO });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ valido: true, folio: FOLIO, estado: 'VIGENTE' });
+  });
+
+  it('también acepta el token completo pegado en el campo código', async () => {
+    findUnique.mockResolvedValue(fila());
+    const response = await request(createApp(env)).post(endpoint).send({ folio: FOLIO, codigo: TOKEN });
+    expect(response.status).toBe(200);
+  });
+
+  it('responde 404 idéntico ante código incorrecto y folio inexistente', async () => {
+    const app = createApp(env);
+    findUnique.mockResolvedValue(fila());
+    const codigoIncorrecto = await request(app).post(endpoint).send({ folio: FOLIO, codigo: 'ffffffff' });
+    findUnique.mockResolvedValue(null);
+    const folioInexistente = await request(app).post(endpoint).send({ folio: 'SICEF-99-FFFFFFFF', codigo: CODIGO_CORTO });
+    expect(codigoIncorrecto.status).toBe(404);
+    expect(folioInexistente.status).toBe(404);
+    expect(folioInexistente.body).toEqual(codigoIncorrecto.body);
+  });
+
+  it('rechaza un body sin folio o sin código', async () => {
+    const response = await request(createApp(env)).post(endpoint).send({ folio: FOLIO });
+    expect(response.status).toBe(422);
+  });
+
+  it('registra en bitácora con la acción VERIFICAR_CODIGO', async () => {
+    findUnique.mockResolvedValue(fila());
+    await request(createApp(env)).post(endpoint).send({ folio: FOLIO, codigo: CODIGO_CORTO });
+    expect(bitacoraCreate).toHaveBeenCalledTimes(1);
+    expect(bitacoraCreate.mock.calls[0]?.[0]?.data.accion).toBe('VERIFICAR_CODIGO');
+  });
+});

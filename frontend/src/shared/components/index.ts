@@ -8,6 +8,7 @@ export {
   ESTADO_TRAMITE,
   ESTADO_BORRADOR,
   ESTADO_EVIDENCIA,
+  ESTADO_VERIFICACION,
   type BadgeColor,
 } from './EstadoBadge';
 export { DataTable, type DataTableColumn, type DataTablePaginacion } from './DataTable';

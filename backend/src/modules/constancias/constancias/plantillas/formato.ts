@@ -18,19 +18,6 @@ export function formatearFechaLarga(fecha: Date): string {
 }
 
 /**
- * Número de oficio impreso bajo la fecha: "{prefijo}/{año}", p. ej.
- * "SOAPAP/GSTS/CNR/2026". Sin consecutivo — todas las constancias del mismo
- * tipo y año comparten el mismo número; quien necesite localizar un trámite
- * usa el folio. El año se toma en la zona horaria de Puebla, igual que
- * formatearFechaLarga, para que no se corra en las últimas horas del 31 de
- * diciembre.
- */
-export function formatearNumeroOficio(prefijo: string, fecha: Date): string {
-  const anio = new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', year: 'numeric' }).format(fecha);
-  return `${prefijo}/${anio}`;
-}
-
-/**
  * Arma la referencia del predio para el cuerpo de la constancia:
  * "CALLE 12 NORTE 612, COLONIA CENTRO, perteneciente a LA JUNTA AUXILIAR SAN
  * BALTAZAR CAMPECHE, PUEBLA".

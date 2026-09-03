@@ -256,13 +256,13 @@ Salen tres rutas y todo el módulo de facturación:
 | `POST /public/facturas/solicitudes` | Migra a Finanzas como `POST /public/solicitudes` |
 | `GET /public/facturas/{folio}` | Migra a Finanzas, con `referencia` en vez de `folio` |
 
-`GET /public/constancias/{folio}/verificar/{token}` **se queda**: la verificación por QR es del documento, no del pago.
+`GET /public/constancias/{folio}/verificar/{token}` **se queda**: la verificación por QR es del documento, no del pago. Se le sumó `POST /public/constancias/verificar` (folio + código, fallback manual sin QR) — mismo resultado, misma seguridad, ver `CONTRATO_API_GSTS.md`.
 
 Inventario resultante, en el orden literal que debe reflejar `backend/tests/contract/openapi.test.ts`:
 
 ```
 GET    /health, /ready, /openapi.json
-GET    /public/constancias/{folio}/verificar/{token}
+GET    /public/constancias/{folio}/verificar/{token}    POST /public/constancias/verificar
 GET    /auth/me
 GET    /catalogos/requisitos/activo, /catalogos/requisitos
 POST   /catalogos/requisitos
@@ -303,7 +303,7 @@ GET /api/v1/constancias/{folio}/cobro               → metadatos del cobro
 GET /api/v1/constancias/{folio}/cobro/comprobante   → bytes del ticket
 ```
 
-**Por qué el folio y no la referencia de pago.** El folio (`GSTS-{numeroTramite}-{8 hex}`) es `@unique`, va impreso en el documento que el ciudadano se lleva y ya lo usa el QR de verificación. `cobro.referencia_pago` es texto libre, **opcional y sin unicidad**: un cobro puede no tenerla y dos cobros pueden compartirla. Sirve como registro interno, nunca como llave de integración.
+**Por qué el folio y no la referencia de pago.** El folio (`GSTS-{consecutivo}`, consecutivo real vía `contador_folio` — ver `CONTRATO_API_GSTS.md`) es `@unique`, va impreso en el documento que el ciudadano se lleva y ya lo usa el QR de verificación. `cobro.referencia_pago` es texto libre, **opcional y sin unicidad**: un cobro puede no tenerla y dos cobros pueden compartirla. Sirve como registro interno, nunca como llave de integración.
 
 **Respuesta** de la primera, sin datos personales:
 

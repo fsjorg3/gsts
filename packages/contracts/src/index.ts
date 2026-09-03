@@ -4,15 +4,16 @@ import { z } from 'zod';
 // rol pertenece a su realm de cliente, no al de SICEF. `consulta-cobros` y
 // `consulta-metricas` son roles de *service account*, no de personas: los usa
 // el backend de Finanzas para las dos consultas de sólo lectura que SICEF le
-// expone.
-export const rolesSicef = ['ventanilla', 'ti', 'direccion', 'consulta-cobros', 'consulta-metricas'] as const;
+// expone. `jefatura` es de persona, como `ventanilla`, pero de client: exporta
+// datos (GET /tramites/export) y no debe poder colarse vía `realm_access`.
+export const rolesSicef = ['ventanilla', 'ti', 'direccion', 'consulta-cobros', 'consulta-metricas', 'jefatura'] as const;
 export const roleSicefSchema = z.enum(rolesSicef);
 export type RoleSicef = z.infer<typeof roleSicefSchema>;
 
 // Origen literal de cada rol en el token de Keycloak. Los roles de cliente sólo
 // son válidos desde `resource_access.sicef.roles`; `ti` y `direccion` sólo desde
 // `realm_access.roles`. Un rol colocado en la fuente equivocada se ignora.
-export const rolesCliente = ['ventanilla', 'consulta-cobros', 'consulta-metricas'] as const satisfies readonly RoleSicef[];
+export const rolesCliente = ['ventanilla', 'consulta-cobros', 'consulta-metricas', 'jefatura'] as const satisfies readonly RoleSicef[];
 export const rolesRealm = ['ti', 'direccion'] as const satisfies readonly RoleSicef[];
 
 export const paginationSchema = z.object({
@@ -132,9 +133,6 @@ export const guardarConfiguracionConstanciaSchema = z.object({
   vigenciaDias: z.number().int().positive().max(3650),
   firmanteNombre: z.string().trim().min(1).max(200),
   firmanteCargo: z.string().trim().min(1).max(200),
-  // Se compone con el año de emisión como `{oficioPrefijo}/{año}`, sin
-  // consecutivo: el identificador único del documento sigue siendo el folio.
-  oficioPrefijo: z.string().trim().min(1).max(60),
 });
 
 // Rango de fechas coherente: un `desde` posterior a `hasta` no es una consulta
@@ -240,24 +238,33 @@ export const recursoEliminadoDto = z.object({ id: z.string().uuid() });
 // con el mismo cuerpo, para no permitir enumeración de folios.
 export const estadoVerificacionConstanciaSchema = z.enum(['ANULADA', 'VIGENTE', 'VENCIDA']);
 
-// Filtros del listado de trámites (Ventanilla). nis usa coincidencia parcial
-// (contains/insensitive); desde/hasta acotan createdAt.
+// Filtros del listado de trámites (Ventanilla) y de su exportación (jefatura,
+// GET /tramites/export) — factorizados aquí porque ambos comparten el mismo
+// vocabulario de filtro y sólo difieren en paginación. nis usa coincidencia
+// parcial (contains/insensitive); desde/hasta acotan createdAt.
 //
 // `folio` es **excluyente**: el folio identifica un trámite concreto, así que
 // cuando viene, el resto de los filtros se descarta en el router en vez de
 // intersectarse con él (buscar un folio y no encontrarlo por un `estado` que
 // quedó puesto de una búsqueda anterior sería desconcertante). Se acepta
 // completo o por segmentos — ver `whereDeFolio` en tramites.router.ts.
-export const listarTramitesSchema = paginationSchema
-  .extend({
-    estado: estadoTramiteSchema.optional(),
-    tipoConstancia: tipoConstanciaSchema.optional(),
-    nis: z.string().trim().min(1).max(60).optional(),
-    folio: z.string().trim().min(1).max(20).optional(),
-    desde: z.string().datetime().optional(),
-    hasta: z.string().datetime().optional(),
-  })
+const filtrosTramitesBaseSchema = z.object({
+  estado: estadoTramiteSchema.optional(),
+  tipoConstancia: tipoConstanciaSchema.optional(),
+  nis: z.string().trim().min(1).max(60).optional(),
+  folio: z.string().trim().min(1).max(20).optional(),
+  desde: z.string().datetime().optional(),
+  hasta: z.string().datetime().optional(),
+});
+
+export const listarTramitesSchema = filtrosTramitesBaseSchema
+  .merge(paginationSchema)
   .refine(rangoFechasCoherente, MENSAJE_RANGO_FECHAS);
+
+// Sin paginación: GET /tramites/export trae todo lo que cumpla el filtro (con
+// techo de filas impuesto por el router, no por el contrato — es un límite de
+// ese endpoint, no una regla de negocio del dominio).
+export const exportarTramitesSchema = filtrosTramitesBaseSchema.refine(rangoFechasCoherente, MENSAJE_RANGO_FECHAS);
 
 // ===================== DTOs DE RESPUESTA =====================
 // Describen el formato de alambre (JSON) de lo que la API realmente devuelve, no el
@@ -378,7 +385,6 @@ export const configuracionConstanciaDto = z.object({
   vigenciaDias: z.number().int(),
   firmanteNombre: z.string(),
   firmanteCargo: z.string(),
-  oficioPrefijo: z.string(),
   actualizadoPorId: z.string().uuid(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -645,6 +651,18 @@ export const verificacionConstanciaPublicaDto = z.object({
 });
 
 export type VerificacionConstanciaPublica = z.infer<typeof verificacionConstanciaPublicaDto>;
+
+// Verificación manual (sin escanear el QR): el portal la usa cuando el
+// ciudadano no puede escanearlo ni fotografiarlo. `codigo` acepta indistinto
+// el token completo (pegado tal cual, p. ej. decodificado con otra app) o el
+// código corto impreso en texto bajo el QR — ver verificarCodigo en
+// backend/src/infrastructure/verificacion/token.ts.
+export const verificarConstanciaManualDto = z.object({
+  folio: z.string().trim().min(1),
+  codigo: z.string().trim().min(1),
+});
+
+export type VerificarConstanciaManual = z.infer<typeof verificarConstanciaManualDto>;
 
 // ===================== ENVOLVENTES ESTÁNDAR =====================
 // Reflejan el formato real de backend/src/shared/errors.ts. `requestId` se marca

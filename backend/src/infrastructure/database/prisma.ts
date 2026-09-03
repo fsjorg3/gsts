@@ -12,13 +12,22 @@ export interface DatabaseContext {
   requestId: string;
 }
 
-export async function withBusinessTransaction<T>(context: DatabaseContext, action: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+export async function withBusinessTransaction<T>(
+  context: DatabaseContext,
+  action: (tx: Prisma.TransactionClient) => Promise<T>,
+  // Por defecto, el timeout de interactive transaction de Prisma (5s). Algunas
+  // mutaciones hacen trabajo no trivial dentro de la transacción a propósito
+  // (p. ej. emitir constancia: renderiza el PDF y lo guarda en NFS antes del
+  // INSERT, para que el consecutivo del folio —ver folio.ts— sólo avance si
+  // todo el flujo termina bien) y necesitan más margen.
+  options?: { timeoutMs?: number },
+): Promise<T> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw(Prisma.sql`SELECT set_config('app.actor_id', ${context.actorId}, true)`);
     await tx.$executeRaw(Prisma.sql`SELECT set_config('app.roles', ${JSON.stringify(context.roles)}, true)`);
     await tx.$executeRaw(Prisma.sql`SELECT set_config('app.request_id', ${context.requestId}, true)`);
     return action(tx);
-  });
+  }, options?.timeoutMs ? { timeout: options.timeoutMs } : undefined);
 }
 
 export async function resolveActor(sub: string): Promise<string> {

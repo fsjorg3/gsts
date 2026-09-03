@@ -24,6 +24,7 @@ export const MODULOS: Modulo[] = [
   { to: '/ventanilla', icon: 'assignment_ind', label: 'Ventanilla', roles: ['ventanilla'], seccion: 'Constancias' },
   { to: '/administracion', icon: 'settings', label: 'Administración', roles: ['ti'], seccion: 'Constancias' },
   { to: '/bitacora', icon: 'history', label: 'Bitácora', roles: ['ti'], seccion: 'Constancias' },
+  { to: '/exportar', icon: 'download', label: 'Exportar trámites', roles: ['jefatura'], seccion: 'Constancias' },
 ];
 
 export interface SeccionModulos {

@@ -37,10 +37,10 @@ const NO_ENCONTRADA: ResultadoVerificacion = {
 
 export function resolverVerificacion(
   constancia: ConstanciaVerificable | null,
-  tokenValido: boolean,
+  credencialValida: boolean,
   ahora: Date,
 ): ResultadoVerificacion {
-  if (!constancia || !tokenValido) return NO_ENCONTRADA;
+  if (!constancia || !credencialValida) return NO_ENCONTRADA;
 
   // Una constancia vencida o anulada sí existe: responde 200 con su estado real.
   // Devolver 404 escondería información que el titular necesita.

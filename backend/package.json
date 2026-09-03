@@ -14,10 +14,11 @@
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma"
   },
   "dependencies": {
+    "@gsts/contracts": "file:../packages/contracts",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
-    "@gsts/contracts": "file:../packages/contracts",
     "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",

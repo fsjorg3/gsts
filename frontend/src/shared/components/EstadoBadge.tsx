@@ -67,6 +67,12 @@ export const ESTADO_EVIDENCIA: EstadoMap = {
   RECHAZADO: { label: 'Rechazado', color: 'error' },
 };
 
+export const ESTADO_VERIFICACION: EstadoMap = {
+  VIGENTE: { label: 'Vigente', color: 'success' },
+  VENCIDA: { label: 'Vencida', color: 'warning' },
+  ANULADA: { label: 'Anulada', color: 'error' },
+};
+
 export function EstadoDeBadge({ estado, mapa }: { estado: string; mapa: EstadoMap }) {
   const entry = mapa[estado] ?? { label: estado, color: 'neutral' as BadgeColor };
   return <EstadoBadge label={entry.label} color={entry.color} />;

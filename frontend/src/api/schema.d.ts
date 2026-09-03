@@ -2386,6 +2386,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tramites/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Exportar trámites a XLSX (rol jefatura, client role exclusivo)
+         * @description Mismos filtros que `GET /tramites` (`folio` sigue siendo excluyente), sin `take`/`cursor`: exporta todo lo que cumpla el filtro, hasta 10 000 registros. Rompe la envolvente `{ data }` — es una descarga, no `{ data }`. Es la única descarga que audita en bitácora (`accion: EXPORTAR`, con los filtros usados y el total de filas): a diferencia de un archivo puntual (evidencia, PDF de constancia), es una extracción masiva de datos personales.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    estado?: "CAPTURA" | "EN_VALIDACION" | "APROBADO" | "RECHAZADO" | "EXPIRADO" | "COBRO" | "FINALIZADO";
+                    tipoConstancia?: "NO_ADEUDO" | "NO_REGISTRO";
+                    nis?: string;
+                    folio?: string;
+                    desde?: string;
+                    hasta?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Libro de Excel con una fila por trámite */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description EXPORT_TOO_LARGE: el filtro reúne más trámites que el máximo exportable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tramites/{id}": {
         parameters: {
             query?: never;
@@ -3875,7 +3957,6 @@ export interface components {
             vigenciaDias: number;
             firmanteNombre: string;
             firmanteCargo: string;
-            oficioPrefijo: string;
         };
         /** @description Sólo se usa en la acción "rechazar" */
         TransicionTramiteRequest: {
@@ -3884,7 +3965,7 @@ export interface components {
         ActorMe: {
             /** Format: uuid */
             actorId: string;
-            roles: ("ventanilla" | "ti" | "direccion" | "consulta-cobros" | "consulta-metricas")[];
+            roles: ("ventanilla" | "ti" | "direccion" | "consulta-cobros" | "consulta-metricas" | "jefatura")[];
         };
         Persona: {
             /** Format: uuid */
@@ -4044,7 +4125,6 @@ export interface components {
             vigenciaDias: number;
             firmanteNombre: string;
             firmanteCargo: string;
-            oficioPrefijo: string;
             /** Format: uuid */
             actualizadoPorId: string;
             createdAt: string;

@@ -50,6 +50,7 @@ describe('controles HTTP', () => {
       request(app).get('/api/v1/administracion/constancias/NO_REGISTRO'),
       request(app).put('/api/v1/administracion/constancias/NO_REGISTRO'),
       request(app).get('/api/v1/tramites'),
+      request(app).get('/api/v1/tramites/export'),
       request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/evidencias'),
       request(app).get('/api/v1/tramites/00000000-0000-0000-0000-000000000000/evidencias/00000000-0000-0000-0000-000000000000/archivo'),
       request(app).post('/api/v1/tramites/00000000-0000-0000-0000-000000000000/validaciones/no-adeudo'),

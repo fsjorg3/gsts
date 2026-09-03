@@ -54,6 +54,7 @@ import {
   cobroPorFolioDto,
   metricasDireccionDto,
   verificacionConstanciaPublicaDto,
+  verificarConstanciaManualDto,
   errorSchema,
 } from '@gsts/contracts';
 
@@ -131,6 +132,7 @@ const CobroRequest = def('CobroRequest', cobroRequestSchema);
 const PlazosRequest = def('PlazosRequest', plazosRequestSchema);
 const ConfiguracionConstanciaRequest = def('ConfiguracionConstanciaRequest', guardarConfiguracionConstanciaSchema);
 const TransicionTramiteRequest = def('TransicionTramiteRequest', transicionTramiteRequestSchema);
+const VerificarConstanciaManual = def('VerificarConstanciaManual', verificarConstanciaManualDto);
 
 // Responses (entidades y compuestos)
 const ActorMe = def('ActorMe', actorMeDto);
@@ -260,6 +262,15 @@ export const openApiDocument = {
         responses: { '200': envelope(VerificacionConstanciaPublica, { description: 'Constancia encontrada y token válido (incluye vencidas y anuladas)' }), '404': errorResponse('Folio inexistente o token inválido — indistinguibles a propósito'), '429': errorResponse('Límite de tasa excedido') },
       },
     },
+    '/public/constancias/verificar': {
+      post: {
+        tags: ['Público'],
+        summary: 'Verificar una constancia sin escanear el QR (folio + código)',
+        description: 'Misma verificación que la ruta por QR, para cuando éste no se puede escanear ni fotografiar. `codigo` acepta el token completo del QR o el código corto impreso en texto bajo él (mismo HMAC, recortado). Folio inexistente y código inválido devuelven un 404 idéntico, por la misma razón que en la ruta por QR.',
+        requestBody: body(VerificarConstanciaManual),
+        responses: { '200': envelope(VerificacionConstanciaPublica, { description: 'Constancia encontrada y código válido (incluye vencidas y anuladas)' }), '404': errorResponse('Folio inexistente o código inválido — indistinguibles a propósito'), '422': errorResponse('Falta folio o código'), '429': errorResponse('Límite de tasa excedido') },
+      },
+    },
 
     // ---------- Auth ----------
     '/auth/me': { get: { tags: ['Auth'], security: bearer, summary: 'Contexto del actor autenticado', responses: { '200': envelope(ActorMe), ...ERRORES_AUTENTICACION } } },
@@ -386,6 +397,30 @@ export const openApiDocument = {
         responses: { '200': envelopeLista(Tramite, 'Listado paginado', { total: true, porEstado: true }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION },
       },
       post: { tags: ['Trámites'], security: bearer, summary: 'Crear trámite (requiere catálogo activo publicado; rol ventanilla)', requestBody: body(CrearTramite), responses: { '201': envelope(TramiteConPersonas, { description: 'Trámite creado en CAPTURA' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION, '409': errorResponse('No existe un catálogo activo para crear el trámite') } },
+    },
+    '/tramites/export': {
+      get: {
+        tags: ['Trámites'], security: bearer,
+        summary: 'Exportar trámites a XLSX (rol jefatura, client role exclusivo)',
+        description: 'Mismos filtros que `GET /tramites` (`folio` sigue siendo excluyente), sin `take`/`cursor`: exporta todo lo que cumpla el filtro, hasta 10 000 registros. Rompe la envolvente `{ data }` — es una descarga, no `{ data }`. Es la única descarga que audita en bitácora (`accion: EXPORTAR`, con los filtros usados y el total de filas): a diferencia de un archivo puntual (evidencia, PDF de constancia), es una extracción masiva de datos personales.',
+        parameters: [
+          { name: 'estado', in: 'query', schema: { type: 'string', enum: ['CAPTURA', 'EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'COBRO', 'FINALIZADO'] } },
+          { name: 'tipoConstancia', in: 'query', schema: { type: 'string', enum: ['NO_ADEUDO', 'NO_REGISTRO'] } },
+          { name: 'nis', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 60 } },
+          { name: 'folio', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 20 } },
+          { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Libro de Excel con una fila por trámite',
+            content: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { schema: { type: 'string', format: 'binary' } } },
+          },
+          ...ERRORES_AUTENTICACION,
+          ...ERRORES_VALIDACION,
+          '409': errorResponse('EXPORT_TOO_LARGE: el filtro reúne más trámites que el máximo exportable'),
+        },
+      },
     },
     '/tramites/{id}': { get: { tags: ['Trámites'], security: bearer, summary: 'Obtener expediente completo del trámite', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], responses: { '200': envelope(TramiteDetalle), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO } } },
     '/tramites/{id}/{accion}': {

@@ -68,7 +68,7 @@ export function PersonaPicker({ tipo, value, onChange }: PersonaPickerProps) {
             <li {...props} key={opcion.id}>
               <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                 <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>{opcion.nombreRazonSocial}</Typography>
-                <Typography sx={{ fontSize: 11.5, color: 'text.disabled' }}>{opcion.rfc ?? 'Sin RFC'}</Typography>
+                {opcion.rfc ? <Typography sx={{ fontSize: 11.5, color: 'text.disabled' }}>{opcion.rfc}</Typography> : null}
               </Box>
             </li>
           );

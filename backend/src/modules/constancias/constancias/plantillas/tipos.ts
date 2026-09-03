@@ -30,10 +30,10 @@ export interface DatosPlantillaConstancia {
   /** Sólo relevante en NO_REGISTRO. */
   domicilio: DomicilioPredio | null;
   firmante: { nombre: string; cargo: string };
-  /** Prefijo configurado por tipo; el número de oficio impreso es `{oficioPrefijo}/{año de emitidaAt}`. */
-  oficioPrefijo: string;
   /** URL pública que codifica el QR impreso. */
   urlVerificacion: string;
+  /** Código corto impreso en texto bajo el QR, para verificación manual si no se puede escanear. */
+  codigoVerificacion: string;
   /**
    * QR ya rasterizado a PNG. Se recibe hecho en vez de generarlo aquí para que
    * las plantillas sean funciones de render puras y síncronas: todo el trabajo

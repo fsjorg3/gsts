@@ -16,7 +16,18 @@ import type { Env } from '../../config/env.js';
 /** Longitud en caracteres hex del HMAC truncado (20 hex = 10 bytes = 80 bits). */
 const LONGITUD_HMAC = 20;
 
+/**
+ * Longitud del código corto (8 hex = 4 bytes = 32 bits) que se imprime en
+ * texto bajo el QR para cuando éste no se puede escanear ni fotografiar. Es
+ * el mismo HMAC del token, recortado más — no un secreto independiente — así
+ * que hereda su verificación pero con mucha menos entropía: por eso el folio
+ * que lo acompaña debe tratarse como conocido por el atacante (rate limit por
+ * folio, no sólo por IP) en vez de confiar en que también haga falta adivinarlo.
+ */
+const LONGITUD_CODIGO_CORTO = 8;
+
 const FORMATO_TOKEN = /^(v\d+)\.([0-9a-f]+)$/;
+const FORMATO_CODIGO_CORTO = /^[0-9a-f]{8}$/;
 
 export interface VerificadorTokens {
   /**
@@ -35,6 +46,18 @@ export interface VerificadorTokens {
    * debe tumbar el detalle de un trámite ya cerrado.
    */
   urlVerificacion(folio: string, version?: string): string | null;
+  /**
+   * Código corto para imprimir en texto bajo el QR (fallback manual). Es un
+   * prefijo del mismo HMAC que genera el token completo, con la versión
+   * actual.
+   */
+  codigoCorto(folio: string, version?: string): string;
+  /**
+   * Acepta indistintamente el token completo (pegado tal cual viene del QR,
+   * p. ej. decodificado con otra app cuando la cámara no puede escanearlo en
+   * vivo) o el código corto impreso en el documento. Nunca lanza.
+   */
+  verificarCodigo(folio: string, codigoRecibido: string): boolean;
   /** Versión de clave con la que se está firmando ahora mismo. */
   versionActual: string;
 }
@@ -71,6 +94,29 @@ export function crearVerificadorTokens(env: Env): VerificadorTokens {
     urlVerificacion(folio, version = versionActual) {
       if (!secretos[version]) return null;
       return `${base}/constancias/${encodeURIComponent(folio)}/verificar/${verificador.generarToken(folio, version)}`;
+    },
+
+    codigoCorto(folio, version = versionActual) {
+      const secreto = secretos[version];
+      if (!secreto) throw new Error(`No hay clave de verificación para la versión "${version}"`);
+      return calcular(folio, secreto).slice(0, LONGITUD_CODIGO_CORTO);
+    },
+
+    verificarCodigo(folio, codigoRecibido) {
+      if (typeof codigoRecibido !== 'string') return false;
+
+      // Formato de token completo ("v1.<20 hex>"): misma verificación de siempre.
+      if (FORMATO_TOKEN.test(codigoRecibido)) return verificador.verificarToken(folio, codigoRecibido);
+
+      // Código corto: no trae versión (el papel sólo imprime la actual al
+      // emitir), así que se prueba contra todas las claves configuradas.
+      const normalizado = codigoRecibido.trim().toLowerCase();
+      if (!FORMATO_CODIGO_CORTO.test(normalizado)) return false;
+      const recibido = Buffer.from(normalizado, 'hex');
+      return Object.values(secretos).some((secreto) => {
+        const esperado = Buffer.from(calcular(folio, secreto).slice(0, LONGITUD_CODIGO_CORTO), 'hex');
+        return esperado.length === recibido.length && timingSafeEqual(esperado, recibido);
+      });
     },
 
     verificarToken(folio, tokenRecibido) {

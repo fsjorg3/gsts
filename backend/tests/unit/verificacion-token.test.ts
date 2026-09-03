@@ -78,6 +78,47 @@ describe('crearVerificadorTokens', () => {
   });
 });
 
+describe('codigoCorto / verificarCodigo (fallback manual sin QR)', () => {
+  it('el código corto es el prefijo del mismo HMAC que el token completo', () => {
+    const { generarToken, codigoCorto } = crearVerificadorTokens(env());
+    const [, hmac] = generarToken(FOLIO).split('.');
+    expect(codigoCorto(FOLIO)).toBe(hmac!.slice(0, 8));
+  });
+
+  it('verificarCodigo acepta el token completo pegado tal cual', () => {
+    const { generarToken, verificarCodigo } = crearVerificadorTokens(env());
+    expect(verificarCodigo(FOLIO, generarToken(FOLIO))).toBe(true);
+  });
+
+  it('verificarCodigo acepta el código corto, insensible a mayúsculas y a espacios', () => {
+    const { codigoCorto, verificarCodigo } = crearVerificadorTokens(env());
+    const corto = codigoCorto(FOLIO);
+    expect(verificarCodigo(FOLIO, corto)).toBe(true);
+    expect(verificarCodigo(FOLIO, corto.toUpperCase())).toBe(true);
+    expect(verificarCodigo(FOLIO, ` ${corto} `)).toBe(true);
+  });
+
+  it('rechaza el código corto de otro folio', () => {
+    const { codigoCorto, verificarCodigo } = crearVerificadorTokens(env());
+    expect(verificarCodigo('SICEF-99-FFFFFFFF', codigoCorto(FOLIO))).toBe(false);
+  });
+
+  it('rechaza códigos cortos malformados sin lanzar', () => {
+    const { verificarCodigo } = crearVerificadorTokens(env());
+    for (const codigo of ['', 'zzzzzzzz', 'a1b2c3', 'a1b2c3d4e5', 'a1b2c3d4']) {
+      // 'a1b2c3d4' es hex válido de longitud correcta pero no corresponde al folio.
+      expect(() => verificarCodigo(FOLIO, codigo), codigo).not.toThrow();
+    }
+    expect(verificarCodigo(FOLIO, 'a1b2c3d4')).toBe(false);
+  });
+
+  it('un código corto sigue verificando tras rotar la clave, probando contra todas las versiones configuradas', () => {
+    const cortoV1 = crearVerificadorTokens(env()).codigoCorto(FOLIO);
+    const conDosVersiones = crearVerificadorTokens(env({ SECRETO_VERIFICADOR_V2: CLAVE_V2, VERSION_TOKEN_ACTUAL: 'v2' }));
+    expect(conDosVersiones.verificarCodigo(FOLIO, cortoV1)).toBe(true);
+  });
+});
+
 describe('rotación de claves', () => {
   const conDosVersiones = env({ SECRETO_VERIFICADOR_V2: CLAVE_V2, VERSION_TOKEN_ACTUAL: 'v2' });
 

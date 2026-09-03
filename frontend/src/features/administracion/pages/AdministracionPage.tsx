@@ -109,19 +109,16 @@ function FormularioConstancia({ tipo, etiqueta }: { tipo: TipoConstancia; etique
   const [dias, setDias] = useState('');
   const [nombre, setNombre] = useState('');
   const [cargo, setCargo] = useState('');
-  const [oficio, setOficio] = useState('');
   const [editado, setEditado] = useState(false);
-  const anioActual = new Date().getFullYear();
 
   useEffect(() => {
     if (editado || !vigente.data) return;
     setDias(String(vigente.data.vigenciaDias));
     setNombre(vigente.data.firmanteNombre);
     setCargo(vigente.data.firmanteCargo);
-    setOficio(vigente.data.oficioPrefijo);
   }, [vigente.data, editado]);
 
-  const listo = Boolean(Number(dias)) && nombre.trim() !== '' && cargo.trim() !== '' && oficio.trim() !== '';
+  const listo = Boolean(Number(dias)) && nombre.trim() !== '' && cargo.trim() !== '';
 
   return (
     <Box sx={{ mb: 3 }}>
@@ -135,19 +132,12 @@ function FormularioConstancia({ tipo, etiqueta }: { tipo: TipoConstancia; etique
         <TextField label="Vigencia (días naturales)" value={dias} onChange={(e) => { setEditado(true); setDias(e.target.value.replace(/\D/g, '')); }} sx={{ width: 190 }} />
         <TextField label="Nombre del firmante" value={nombre} onChange={(e) => { setEditado(true); setNombre(e.target.value); }} sx={{ width: 280 }} />
         <TextField label="Cargo del firmante" value={cargo} onChange={(e) => { setEditado(true); setCargo(e.target.value); }} sx={{ width: 320 }} />
-        <TextField
-          label="Prefijo de oficio"
-          value={oficio}
-          onChange={(e) => { setEditado(true); setOficio(e.target.value); }}
-          helperText={oficio.trim() ? `Se imprime como "${oficio.trim()}/${anioActual}"` : 'Ej. SOAPAP/GSTS/CNR'}
-          sx={{ width: 260 }}
-        />
         <Button
           variant="contained"
           disabled={!listo || guardar.isPending}
           onClick={() =>
             guardar.mutate(
-              { vigenciaDias: Number(dias), firmanteNombre: nombre.trim(), firmanteCargo: cargo.trim(), oficioPrefijo: oficio.trim() },
+              { vigenciaDias: Number(dias), firmanteNombre: nombre.trim(), firmanteCargo: cargo.trim() },
               { onSuccess: () => { setEditado(false); notificar.exito(`Configuración de ${etiqueta} actualizada.`); }, onError: (error) => notificar.error(error) },
             )
           }
@@ -169,10 +159,6 @@ function PanelConstancias() {
       </Typography>
       <FormularioConstancia tipo="NO_REGISTRO" etiqueta="No Registro" />
       <FormularioConstancia tipo="NO_ADEUDO" etiqueta="No Adeudo" />
-      <Alert severity="info" icon={<MsIcon name="info" size={20} />}>
-        La plantilla de No Adeudo aún no existe: su texto legal está por confirmarse, así que la emisión de ese tipo
-        seguirá rechazándose aunque se configure aquí.
-      </Alert>
     </Card>
   );
 }

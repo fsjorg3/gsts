@@ -88,6 +88,7 @@ const cobroRequestSchema = z.object({
 });
 const plazosRequestSchema = z.object({
   plazoPagoDias: z.number().int().positive(),
+  revalidacionGraciaMinutos: z.number().int().min(0),
   activa: z.boolean().default(true),
 });
 const transicionTramiteRequestSchema = z.object({ motivo: z.string().trim().min(1).optional() }).describe('Sólo se usa en la acción "rechazar"');

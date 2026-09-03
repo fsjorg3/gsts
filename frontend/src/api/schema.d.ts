@@ -4171,6 +4171,7 @@ export interface components {
         };
         PlazosRequest: {
             plazoPagoDias: number;
+            revalidacionGraciaMinutos: number;
             /** @default true */
             activa: boolean;
         };
@@ -4338,6 +4339,7 @@ export interface components {
             /** @enum {string} */
             id: "PLAZOS_OPERATIVOS";
             plazoPagoDias: number;
+            revalidacionGraciaMinutos: number;
             activa: boolean;
             /** Format: uuid */
             actualizadoPorId: string;
@@ -4377,6 +4379,7 @@ export interface components {
             /** @enum {string} */
             estado: "CAPTURA" | "EN_VALIDACION" | "APROBADO" | "RECHAZADO" | "EXPIRADO" | "COBRO" | "FINALIZADO";
             plazoPagoHasta: string | null;
+            aprobadoEn: string | null;
             motivoRechazo: string | null;
             /** Format: uuid */
             creadoPorId: string;
@@ -4405,6 +4408,7 @@ export interface components {
             /** @enum {string} */
             estado: "CAPTURA" | "EN_VALIDACION" | "APROBADO" | "RECHAZADO" | "EXPIRADO" | "COBRO" | "FINALIZADO";
             plazoPagoHasta: string | null;
+            aprobadoEn: string | null;
             motivoRechazo: string | null;
             /** Format: uuid */
             creadoPorId: string;
@@ -4444,6 +4448,7 @@ export interface components {
             /** @enum {string} */
             estado: "CAPTURA" | "EN_VALIDACION" | "APROBADO" | "RECHAZADO" | "EXPIRADO" | "COBRO" | "FINALIZADO";
             plazoPagoHasta: string | null;
+            aprobadoEn: string | null;
             motivoRechazo: string | null;
             /** Format: uuid */
             creadoPorId: string;
@@ -4588,6 +4593,7 @@ export interface components {
                 anulada: boolean;
                 urlVerificacion: string | null;
             } | null;
+            requiereRevalidacionCobro: boolean;
         };
         Evidencia: {
             /** Format: uuid */

@@ -379,7 +379,7 @@ $$ LANGUAGE sql STABLE;
 
 CREATE OR REPLACE FUNCTION fn_tramite_transicion_valida()
 RETURNS trigger AS $$
-DECLARE v_plazo_pago_dias integer;
+DECLARE v_plazo_pago_dias integer; v_gracia_minutos integer;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.estado <> 'CAPTURA' THEN RAISE EXCEPTION 'Un tramite nuevo debe iniciar en CAPTURA'; END IF;
@@ -413,15 +413,26 @@ BEGIN
       RAISE EXCEPTION 'No se puede aprobar sin configuracion activa de plazo de pago';
     END IF;
     NEW.plazo_pago_hasta := now() + make_interval(days => v_plazo_pago_dias);
+    NEW.aprobado_en := now();
   END IF;
   IF OLD.estado = 'APROBADO' AND NEW.estado = 'COBRO' THEN
     IF NEW.plazo_pago_hasta IS NULL OR now() > NEW.plazo_pago_hasta THEN
       RAISE EXCEPTION 'No se puede cobrar despues del plazo de pago';
     END IF;
     -- El hecho se vuelve a comprobar antes de cobrar: entre la aprobacion y el
-    -- pago pudo aparecer un adeudo, o darse de alta el predio en el padron.
-    IF NEW.tipo_constancia = 'NO_ADEUDO' AND NOT EXISTS (SELECT 1 FROM validacion_no_adeudo WHERE tramite_id = NEW.id AND momento = 'REVALIDACION_COBRO' AND resultado = 'SIN_ADEUDO') THEN RAISE EXCEPTION 'No se puede cobrar sin revalidacion SIN_ADEUDO'; END IF;
-    IF NEW.tipo_constancia = 'NO_REGISTRO' AND NOT EXISTS (SELECT 1 FROM validacion_no_registro WHERE tramite_id = NEW.id AND momento = 'REVALIDACION_COBRO' AND resultado = 'SIN_REGISTRO') THEN RAISE EXCEPTION 'No se puede cobrar sin revalidacion SIN_REGISTRO'; END IF;
+    -- pago pudo aparecer un adeudo, o darse de alta el predio en el padron. Si
+    -- el cobro ocurre dentro de la ventana de gracia desde la aprobacion, la
+    -- validacion inicial sigue vigente y no se exige revalidar; sin ancla
+    -- confiable (aprobado_en nulo, tramites previos a esta regla) se exige
+    -- siempre, por conservador. La ventana es [aprobado_en, aprobado_en+gracia):
+    -- con gracia en 0 minutos se exige siempre, incluso en un empate exacto
+    -- (>= , no >): now() sólo avanza entre transacciones, no dentro de una.
+    SELECT COALESCE(revalidacion_gracia_minutos, 0) INTO v_gracia_minutos
+    FROM configuracion_plazos WHERE id = 'PLAZOS_OPERATIVOS' AND activa;
+    IF NEW.aprobado_en IS NULL OR now() >= NEW.aprobado_en + make_interval(mins => COALESCE(v_gracia_minutos, 0)) THEN
+      IF NEW.tipo_constancia = 'NO_ADEUDO' AND NOT EXISTS (SELECT 1 FROM validacion_no_adeudo WHERE tramite_id = NEW.id AND momento = 'REVALIDACION_COBRO' AND resultado = 'SIN_ADEUDO') THEN RAISE EXCEPTION 'No se puede cobrar sin revalidacion SIN_ADEUDO'; END IF;
+      IF NEW.tipo_constancia = 'NO_REGISTRO' AND NOT EXISTS (SELECT 1 FROM validacion_no_registro WHERE tramite_id = NEW.id AND momento = 'REVALIDACION_COBRO' AND resultado = 'SIN_REGISTRO') THEN RAISE EXCEPTION 'No se puede cobrar sin revalidacion SIN_REGISTRO'; END IF;
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM cobro c JOIN tarifa ta ON ta.id = c.tarifa_id WHERE c.tramite_id = NEW.id AND ta.publicada AND ta.activa AND ta.tipo_constancia = NEW.tipo_constancia) THEN RAISE EXCEPTION 'No existe un cobro valido con tarifa activa compatible'; END IF;
   END IF;
   IF OLD.estado = 'APROBADO' AND NEW.estado = 'EXPIRADO' THEN

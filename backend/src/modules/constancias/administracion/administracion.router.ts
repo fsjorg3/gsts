@@ -7,7 +7,7 @@ import { requireRoles } from '../../auth/middleware.js';
 import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 
-const plazosSchema = z.object({ plazoPagoDias: z.number().int().positive(), activa: z.boolean().default(true) });
+const plazosSchema = z.object({ plazoPagoDias: z.number().int().positive(), revalidacionGraciaMinutos: z.number().int().min(0), activa: z.boolean().default(true) });
 
 // ConfiguracionPlazos es un singleton con id de texto fijo ('PLAZOS_OPERATIVOS'),
 // no UUID como el resto de las entidades. bitacora.entidad_id sí es UUID estricto,

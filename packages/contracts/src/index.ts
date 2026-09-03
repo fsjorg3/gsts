@@ -378,6 +378,7 @@ export const bitacoraDto = z.object({
 export const configuracionPlazosDto = z.object({
   id: z.literal('PLAZOS_OPERATIVOS'),
   plazoPagoDias: z.number().int(),
+  revalidacionGraciaMinutos: z.number().int(),
   activa: z.boolean(),
   actualizadoPorId: z.string().uuid(),
   createdAt: z.string(),
@@ -557,6 +558,7 @@ export const tramiteDto = z.object({
   versionCatalogoId: z.string().uuid(),
   estado: estadoTramiteSchema,
   plazoPagoHasta: z.string().nullable(),
+  aprobadoEn: z.string().nullable(),
   motivoRechazo: z.string().nullable(),
   creadoPorId: z.string().uuid(),
   createdAt: z.string(),
@@ -574,6 +576,11 @@ export const tramiteDetalleDto = tramiteDto.extend({
   confirmaciones: z.array(confirmacionManualDto),
   cobro: cobroDto.nullable(),
   constancia: constanciaDto.nullable(),
+  // Calculado por el backend con la misma fórmula del trigger de base de
+  // datos: sólo relevante en APROBADO, evita que el frontend haga su propia
+  // aritmética de fechas (desfase de reloj) o conozca la ventana de gracia
+  // configurada por `ti`.
+  requiereRevalidacionCobro: z.boolean(),
 });
 
 // ===================== DTOs de respuestas compuestas y de rutas públicas =====================

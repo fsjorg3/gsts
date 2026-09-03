@@ -268,6 +268,7 @@ model Tramite {
   versionCatalogoId         String         @map("version_catalogo_id") @db.Uuid
   estado                    EstadoTramite  @default(CAPTURA)
   plazoPagoHasta            DateTime?      @map("plazo_pago_hasta") @db.Timestamptz(3) // snapshot calculado desde ConfiguracionPlazos al aprobar
+  aprobadoEn                DateTime?      @map("aprobado_en") @db.Timestamptz(3) // instante en que pasó a APROBADO; ancla de la ventana de gracia de revalidación
   motivoRechazo             String?        @map("motivo_rechazo")
   creadoPorId               String         @map("creado_por_id") @db.Uuid
   createdAt                 DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -428,15 +429,18 @@ model Tarifa {
 /// Configuración singleton de los plazos operativos. Sólo un token con claim
 /// literal `ti` puede crearla o modificarla; el plazo se estampa en el evento
 /// aplicable: `plazoPagoDias` se copia a `Tramite.plazoPagoHasta` al aprobar.
+/// `revalidacionGraciaMinutos` es la ventana, contada desde `Tramite.aprobadoEn`,
+/// durante la cual el cobro no exige revalidación (0 = exigirla siempre).
 /// El plazo fiscal para solicitar factura ya no vive aquí: lo calcula el
 /// sistema Finanzas desde la fecha de pago.
 model ConfiguracionPlazos {
-  id               String   @id @default("PLAZOS_OPERATIVOS")
-  plazoPagoDias    Int      @default(0) @map("plazo_pago_dias")
-  activa           Boolean  @default(false)
-  actualizadoPorId String   @map("actualizado_por_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                        String   @id @default("PLAZOS_OPERATIVOS")
+  plazoPagoDias             Int      @default(0) @map("plazo_pago_dias")
+  revalidacionGraciaMinutos Int      @default(0) @map("revalidacion_gracia_minutos")
+  activa                    Boolean  @default(false)
+  actualizadoPorId          String   @map("actualizado_por_id") @db.Uuid
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   actualizadoPorActor Actor @relation("ConfiguracionPlazosActualizadoPor", fields: [actualizadoPorId], references: [id])
 

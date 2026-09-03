@@ -20,7 +20,7 @@ export const plazosOptions = queryOptions({
 export function useGuardarPlazos() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { plazoPagoDias: number }) => {
+    mutationFn: async (input: { plazoPagoDias: number; revalidacionGraciaMinutos: number }) => {
       const { data } = await api.PUT('/administracion/plazos', { body: { ...input, activa: true } });
       return data!.data as ConfiguracionPlazos;
     },

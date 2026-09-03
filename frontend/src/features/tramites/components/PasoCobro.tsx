@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNotificar } from '@/store/useNotificar';
 import { esApiError } from '@/api/errors';
 import { formatMxn } from '@/api/serializers';
-import { MsIcon } from '@/shared/components';
+import { Card, MsIcon } from '@/shared/components';
 import { tieneRevalidacion, tieneRevalidacionNegativa, useRegistrarValidacion, useRegistrarValidacionNoRegistro } from '@/features/validaciones/api';
 import { borradoresOptions, tarifasActivasOptions, useAplicarBorrador, useCobroDirecto, useGuardarBorrador } from '@/features/cobros/api';
 import { useEmitirConstancia } from '@/features/constancias/api';
@@ -26,24 +26,6 @@ const FORMAS_PAGO_SAT = [
   { valor: '04', etiqueta: '04 · Tarjeta de crédito' },
   { valor: '28', etiqueta: '28 · Tarjeta de débito' },
 ] as const;
-
-function Card({ children, deshabilitada = false }: { children: React.ReactNode; deshabilitada?: boolean }) {
-  return (
-    <Box
-      sx={{
-        bgcolor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 1,
-        p: 2.5,
-        opacity: deshabilitada ? 0.55 : 1,
-        pointerEvents: deshabilitada ? 'none' : 'auto',
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
 
 // Paso 3 · Cobro y emisión. Estado APROBADO: revalidación OUC + captura del
 // cobro (directo o vía borrador compartido entre ventanillas). Estado COBRO:
@@ -61,8 +43,11 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
   const revalidando = registrarValidacion.isPending || registrarNoRegistro.isPending;
   const revalidada = tieneRevalidacion(tramite);
   const revalidadaConHallazgo = tieneRevalidacionNegativa(tramite);
-  const requiereRevalidacion = !enCobro;
-  const puedeCobrar = enCobro ? false : revalidada;
+  // El backend decide si hace falta revalidar (ventana de gracia desde la
+  // aprobación, configurada por ti) — el frontend sólo refleja ese booleano,
+  // sin calcular fechas por su cuenta (evita desfases de reloj).
+  const requiereRevalidacion = !enCobro && tramite.requiereRevalidacionCobro;
+  const puedeCobrar = enCobro ? false : (requiereRevalidacion ? revalidada : true);
   const [evidenciaRevalidacion, setEvidenciaRevalidacion] = useState<File | null>(null);
   const evidenciaRevalidacionRef = useRef<HTMLInputElement>(null);
 

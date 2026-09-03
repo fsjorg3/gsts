@@ -8,9 +8,10 @@ import { theme } from '@/app/theme';
 import type { TramiteDetalle } from '../api';
 import { PasoCobro } from './PasoCobro';
 
-// Fixture mínimo en APROBADO: sin revalidación aún, así que PasoCobro dibuja
-// la tarjeta de revalidación (evidencia obligatoria) antes que la de cobro.
-function construirTramite(): TramiteDetalle {
+// Fixture mínimo en APROBADO. requiereRevalidacionCobro lo calcula el backend
+// (ventana de gracia desde la aprobación); por defecto true, así que PasoCobro
+// dibuja la tarjeta de revalidación (evidencia obligatoria) antes que la de cobro.
+function construirTramite(requiereRevalidacionCobro = true): TramiteDetalle {
   return {
     id: '11111111-1111-1111-1111-111111111111',
     numeroTramite: 42,
@@ -20,6 +21,8 @@ function construirTramite(): TramiteDetalle {
     nis: '10234567',
     versionCatalogoId: '22222222-2222-2222-2222-222222222222',
     estado: 'APROBADO',
+    aprobadoEn: '2026-01-01T12:00:00.000Z',
+    requiereRevalidacionCobro,
     evidencias: [],
     validacionesNoAdeudo: [],
     validacionesNoRegistro: [],
@@ -29,12 +32,12 @@ function construirTramite(): TramiteDetalle {
   } as unknown as TramiteDetalle;
 }
 
-const renderizar = () =>
+const renderizar = (requiereRevalidacionCobro = true) =>
   render(
     <Provider store={store}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
         <ThemeProvider theme={theme}>
-          <PasoCobro tramite={construirTramite()} />
+          <PasoCobro tramite={construirTramite(requiereRevalidacionCobro)} />
         </ThemeProvider>
       </QueryClientProvider>
     </Provider>,
@@ -57,5 +60,12 @@ describe('PasoCobro — revalidación', () => {
 
     expect(confirmar).toBeEnabled();
     expect(sobrevenido).toBeEnabled();
+  });
+
+  it('no exige revalidación cuando el backend indica que no hace falta (dentro de la ventana de gracia)', () => {
+    renderizar(false);
+    expect(screen.queryByText(/revalidación de no adeudo/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirmar sin adeudo en ouc/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^cobrar$/i })).toBeInTheDocument();
   });
 });

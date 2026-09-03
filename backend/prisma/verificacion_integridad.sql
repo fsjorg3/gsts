@@ -577,6 +577,86 @@ SELECT pg_temp.debe_fallar('D2.6 · un momento no se duplica para el mismo trám
 
 
 -- =====================================================================
+-- D3 · Ventana de gracia de revalidación (aprobado_en + revalidacion_gracia_minutos)
+-- =====================================================================
+-- Cobrar dentro de la ventana de gracia configurada no exige revalidación: la
+-- validación inicial recién hecha sigue vigente. Sin ancla de aprobación
+-- (aprobado_en NULL, simulando una fila de antes de esta migración) se exige
+-- revalidación siempre, sin importar la gracia configurada.
+
+-- fn_configuracion_plazos_integridad exige rol 'ti' y que app.actor_id
+-- coincida con actualizado_por_id: se cambia de contexto sólo para este
+-- UPDATE y se regresa a 'ventanilla' para el resto de la sección.
+SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');
+UPDATE configuracion_plazos SET revalidacion_gracia_minutos = 60 WHERE id = 'PLAZOS_OPERATIVOS';
+SELECT pg_temp.contexto('22222222-2222-2222-2222-222222222222', '["ventanilla"]');
+
+INSERT INTO tramite (id, tipo_constancia, personalidad, representacion, version_catalogo_id, creado_por_id, updated_at)
+  VALUES ('66666666-6666-6666-6666-666666660da1','NO_ADEUDO','MORAL','REPRESENTANTE',
+          '33333333-3333-3333-3333-333333333333','22222222-2222-2222-2222-222222222222', now());
+INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre_original,
+                       hash_sha256, mime_type, tamano_bytes, estado, creado_por_id)
+  VALUES ('66666666-3000-0000-0000-000000000da1','66666666-6666-6666-6666-666666660da1',
+          '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
+          repeat('1',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
+UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666660da1';
+INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                  evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                  evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
+  VALUES ('66666666-4000-0000-0000-000000000da1','66666666-6666-6666-6666-666666660da1',
+          'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
+UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666660da1';
+
+INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
+                   forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
+  VALUES ('88888888-8888-8888-8888-888888880da1','66666666-6666-6666-6666-666666660da1',
+          '44444444-4444-4444-4444-444444444442', 420.00, 0, 420.00,
+          '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
+
+SELECT pg_temp.debe_pasar('D3.1 · dentro de la ventana de gracia cobra sin revalidación', $q$
+  UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666660da1';
+  $q$);
+
+-- Fila "legada": se anula aprobado_en con un UPDATE que no toca estado (no
+-- dispara el trigger, que sólo escucha UPDATE OF estado) para simular un
+-- trámite aprobado antes de que esta columna existiera.
+INSERT INTO tramite (id, tipo_constancia, personalidad, representacion, version_catalogo_id, creado_por_id, updated_at)
+  VALUES ('66666666-6666-6666-6666-666666660da2','NO_ADEUDO','MORAL','REPRESENTANTE',
+          '33333333-3333-3333-3333-333333333333','22222222-2222-2222-2222-222222222222', now());
+INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre_original,
+                       hash_sha256, mime_type, tamano_bytes, estado, creado_por_id)
+  VALUES ('66666666-3000-0000-0000-000000000da2','66666666-6666-6666-6666-666666660da2',
+          '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
+          repeat('2',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
+UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666660da2';
+INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                  evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                  evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
+  VALUES ('66666666-4000-0000-0000-000000000da2','66666666-6666-6666-6666-666666660da2',
+          'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
+UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666660da2';
+UPDATE tramite SET aprobado_en = NULL WHERE id = '66666666-6666-6666-6666-666666660da2';
+
+INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
+                   forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
+  VALUES ('88888888-8888-8888-8888-888888880da2','66666666-6666-6666-6666-666666660da2',
+          '44444444-4444-4444-4444-444444444442', 420.00, 0, 420.00,
+          '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
+
+SELECT pg_temp.debe_fallar('D3.2 · sin aprobado_en (fila legada) exige revalidación aunque haya gracia activa', $q$
+  UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666660da2';
+  $q$);
+
+-- Se restaura la gracia a 0 (comportamiento por defecto) para no afectar las
+-- secciones siguientes, que asumen revalidación siempre exigida.
+SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');
+UPDATE configuracion_plazos SET revalidacion_gracia_minutos = 0 WHERE id = 'PLAZOS_OPERATIVOS';
+SELECT pg_temp.contexto('22222222-2222-2222-2222-222222222222', '["ventanilla"]');
+
+
+-- =====================================================================
 -- E · Plazo vencido: cobro tardío, expiración y cascadas
 -- =====================================================================
 

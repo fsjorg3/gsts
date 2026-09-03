@@ -14,3 +14,4 @@ export {
 export { DataTable, type DataTableColumn, type DataTablePaginacion } from './DataTable';
 export { StatCard } from './StatCard';
 export { ConfirmDialog } from './ConfirmDialog';
+export { Card, type CardProps } from './Card';

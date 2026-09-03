@@ -27,6 +27,8 @@ function construirTramite(constancia: TramiteDetalle['constancia']): TramiteDeta
     versionCatalogoId: '22222222-2222-2222-2222-222222222222',
     estado: 'COBRO',
     plazoPagoHasta: null,
+    aprobadoEn: '2026-07-24T18:00:00.000Z',
+    requiereRevalidacionCobro: false,
     motivoRechazo: null,
     creadoPorId: '33333333-3333-3333-3333-333333333333',
     createdAt: '2026-07-24T18:00:00.000Z',

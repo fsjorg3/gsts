@@ -11,6 +11,7 @@ import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
 import { whereDeFolio } from './folio.js';
 import { generarExportTramites } from './export.js';
+import { calcularRequiereRevalidacionCobro } from './revalidacion-cobro.js';
 
 const isTramiteState = new Set(['EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'FINALIZADO']);
 
@@ -146,7 +147,13 @@ export function createTramitesRouter(internal: RequestHandler[], env: Env): Rout
   router.get('/:id', async (request, response, next) => {
     // urlVerificacion es derivada, no columna: se reconstruye con la versión de
     // clave con la que nació la constancia para que coincida con el QR impreso.
-    try { const data = await prisma.tramite.findUnique({ where: { id: routeParam(request.params.id, 'id') }, include: { personas: { include: { persona: true } }, evidencias: true, validacionesNoAdeudo: true, validacionesNoRegistro: true, confirmaciones: true, cobro: true, constancia: true } }); if (!data) throw new AppError(404, 'NOT_FOUND', 'Trámite no encontrado'); response.json({ data: { ...data, constancia: data.constancia ? { ...data.constancia, urlVerificacion: verificador.urlVerificacion(data.constancia.folioUnico, data.constancia.versionToken) } : null }, requestId: request.id }); } catch (error) { next(error); }
+    try {
+      const data = await prisma.tramite.findUnique({ where: { id: routeParam(request.params.id, 'id') }, include: { personas: { include: { persona: true } }, evidencias: true, validacionesNoAdeudo: true, validacionesNoRegistro: true, confirmaciones: true, cobro: true, constancia: true } });
+      if (!data) throw new AppError(404, 'NOT_FOUND', 'Trámite no encontrado');
+      const plazos = await prisma.configuracionPlazos.findUnique({ where: { id: 'PLAZOS_OPERATIVOS' } });
+      const requiereRevalidacionCobro = calcularRequiereRevalidacionCobro({ estado: data.estado, aprobadoEn: data.aprobadoEn, graciaMinutos: plazos?.revalidacionGraciaMinutos ?? 0, configuracionActiva: plazos?.activa ?? false });
+      response.json({ data: { ...data, requiereRevalidacionCobro, constancia: data.constancia ? { ...data.constancia, urlVerificacion: verificador.urlVerificacion(data.constancia.folioUnico, data.constancia.versionToken) } : null }, requestId: request.id });
+    } catch (error) { next(error); }
   });
   router.post('/:id/:accion', requireRoles('ventanilla'), async (request, response, next) => {
     try { const stateByAction: Record<string, string> = { 'iniciar-validacion': 'EN_VALIDACION', aprobar: 'APROBADO', rechazar: 'RECHAZADO', expirar: 'EXPIRADO', finalizar: 'FINALIZADO' }; const tramiteId = routeParam(request.params.id, 'id'); const nextState = stateByAction[routeParam(request.params.accion, 'accion')]; if (!nextState || !isTramiteState.has(nextState)) throw new AppError(404, 'NOT_FOUND', 'Acción no encontrada'); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const previous = await tx.tramite.findUniqueOrThrow({ where: { id: tramiteId }, select: { estado: true } }); const tramite = await tx.tramite.update({ where: { id: tramiteId }, data: { estado: nextState as never, motivoRechazo: nextState === 'RECHAZADO' ? String(request.body?.motivo ?? '') : undefined } }); await auditarUsuario(tx, context, { entidad: 'tramite', entidadId: tramite.id, accion: 'TRANSICION_ESTADO', estadoAnterior: previous.estado, estadoNuevo: tramite.estado }); return tramite; }); response.json({ data, requestId: request.id }); } catch (error) { next(error); }

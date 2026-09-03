@@ -1,7 +1,7 @@
 // Verifica el tipo real de un archivo por sus primeros bytes (magic numbers), sin
-// depender de una librería externa. El comprobante de pago ahora se reenvía a GAF,
-// que sí valida la firma del archivo contra el MIME declarado y lo rechaza si no
-// coincide: un dato mentido aquí explotaría después, con la constancia ya emitida.
+// depender de una librería externa. Usado por cualquier módulo que reciba un
+// archivo en base64 (comprobantes de pago, evidencias de validación): un MIME
+// mentido aquí explotaría después, con el trámite ya resuelto.
 const FIRMAS: Record<string, number[]> = {
   'application/pdf': [0x25, 0x50, 0x44, 0x46],
   'image/jpeg': [0xff, 0xd8, 0xff],

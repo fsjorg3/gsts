@@ -20,7 +20,8 @@ describe('contrato de la consulta de cobro por folio', () => {
 
   it('se llavea por el folio de la constancia, no por la referencia de pago', () => {
     // El folio es único e impreso en el documento; referenciaPago es texto
-    // libre, opcional y sin unicidad — viaja como dato, nunca como llave.
+    // libre y sin unicidad (aunque ya obligatorio) — viaja como dato, nunca
+    // como llave.
     expect(campos).toContain('folioConstancia');
   });
 

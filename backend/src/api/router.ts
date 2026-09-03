@@ -46,8 +46,8 @@ export function createApiRouter(env: Env): Router {
   // Las rutas especializadas se montan antes de /tramites/:id/:accion y sólo
   // ejecutan autenticación para su propio caso de uso.
   router.use('/tramites/:tramiteId/evidencias', ...internal, createEvidenciasRouter(storage, env.MAX_EVIDENCIA_TOTAL_BYTES));
-  router.use('/tramites/:tramiteId/validaciones/no-adeudo', ...internal, requireRoles('ventanilla'), createValidacionesRouter());
-  router.use('/tramites/:tramiteId/validaciones/no-registro', ...internal, requireRoles('ventanilla'), createValidacionesNoRegistroRouter());
+  router.use('/tramites/:tramiteId/validaciones/no-adeudo', ...internal, createValidacionesRouter(storage));
+  router.use('/tramites/:tramiteId/validaciones/no-registro', ...internal, createValidacionesNoRegistroRouter(storage));
   router.use('/tramites/:tramiteId/borradores-cobro', ...internal, requireRoles('ventanilla'), createBorradoresCobroRouter(storage));
   router.use('/tramites/:tramiteId/cobros', ...internal, requireRoles('ventanilla'), createCobrosRouter(storage));
   router.use('/tramites/:tramiteId/constancias', ...internal, requireRoles('ventanilla'), createConstanciasRouter(storage, env));

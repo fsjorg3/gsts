@@ -1,27 +1,34 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import type { components } from '@/api/schema';
+import { archivoABase64 } from '@/features/evidencias/api';
 import type { TramiteDetalle } from '@/features/tramites/api';
 
 export type ValidacionNoAdeudo = components['schemas']['ValidacionNoAdeudo'];
 export type ValidacionNoRegistro = components['schemas']['ValidacionNoRegistro'];
 
+async function evidenciaOucAJson(archivo: File) {
+  return { base64: await archivoABase64(archivo), nombreOriginal: archivo.name, mimeType: archivo.type };
+}
+
 export interface RegistrarValidacion {
   momento: 'VALIDACION_INICIAL' | 'REVALIDACION_COBRO';
   resultado: 'SIN_ADEUDO' | 'CON_ADEUDO';
   adeudoMonto?: number;
-  referenciaOuc?: string;
+  evidenciaOuc: File;
 }
 
 // Registro manual del cruce con el OUC (no hay integración automática: el
-// puerto OUC no tiene implementación). metodo siempre MANUAL.
+// puerto OUC no tiene implementación). metodo siempre MANUAL. La evidencia
+// (foto/captura de la consulta) es obligatoria: un folio de texto libre no
+// era verificable.
 export function useRegistrarValidacion(tramiteId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: RegistrarValidacion) => {
+    mutationFn: async ({ evidenciaOuc, ...resto }: RegistrarValidacion) => {
       const { data } = await api.POST('/tramites/{id}/validaciones/no-adeudo', {
         params: { path: { id: tramiteId } },
-        body: { metodo: 'MANUAL', ...input },
+        body: { metodo: 'MANUAL', ...resto, evidenciaOuc: await evidenciaOucAJson(evidenciaOuc) },
       });
       return data!.data as ValidacionNoAdeudo;
     },
@@ -32,7 +39,7 @@ export function useRegistrarValidacion(tramiteId: string) {
 export interface RegistrarValidacionNoRegistro {
   momento: 'VALIDACION_INICIAL' | 'REVALIDACION_COBRO';
   resultado: 'SIN_REGISTRO' | 'CON_REGISTRO';
-  referenciaOuc?: string;
+  evidenciaOuc: File;
 }
 
 // Gemelo de useRegistrarValidacion para No Registro: path y resultado propios.
@@ -41,14 +48,40 @@ export interface RegistrarValidacionNoRegistro {
 export function useRegistrarValidacionNoRegistro(tramiteId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: RegistrarValidacionNoRegistro) => {
+    mutationFn: async ({ evidenciaOuc, ...resto }: RegistrarValidacionNoRegistro) => {
       const { data } = await api.POST('/tramites/{id}/validaciones/no-registro', {
         params: { path: { id: tramiteId } },
-        body: { metodo: 'MANUAL', ...input },
+        body: { metodo: 'MANUAL', ...resto, evidenciaOuc: await evidenciaOucAJson(evidenciaOuc) },
       });
       return data!.data as ValidacionNoRegistro;
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['tramites', tramiteId] }),
+  });
+}
+
+// Descarga de la evidencia OUC ya adjuntada a una validación. Mismo patrón que
+// useDescargarEvidencia/useDescargarComprobante: cliente tipado + parseAs 'blob'.
+export function useDescargarEvidenciaValidacion(tramiteId: string) {
+  return useMutation({
+    mutationFn: async (momento: 'VALIDACION_INICIAL' | 'REVALIDACION_COBRO') => {
+      const { data } = await api.GET('/tramites/{id}/validaciones/no-adeudo/archivo', {
+        params: { path: { id: tramiteId }, query: { momento } },
+        parseAs: 'blob',
+      });
+      return data as Blob;
+    },
+  });
+}
+
+export function useDescargarEvidenciaValidacionNoRegistro(tramiteId: string) {
+  return useMutation({
+    mutationFn: async (momento: 'VALIDACION_INICIAL' | 'REVALIDACION_COBRO') => {
+      const { data } = await api.GET('/tramites/{id}/validaciones/no-registro/archivo', {
+        params: { path: { id: tramiteId }, query: { momento } },
+        parseAs: 'blob',
+      });
+      return data as Blob;
+    },
   });
 }
 

@@ -6,7 +6,7 @@ import { auditarUsuario } from '../../auditoria/service.js';
 import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
-import { mimeRealCoincide } from './mime-real.js';
+import { mimeRealCoincide } from '../../../shared/mime-real.js';
 import { resolverMotivoReduccion } from './motivo-reduccion.js';
 
 function validarComprobante(comprobante: { base64: string; mimeType: string }): Buffer {
@@ -85,8 +85,8 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
         const borrador = await tx.borradorCobro.findUniqueOrThrow({ where: { id: borradorId } });
         if (borrador.estado !== 'ABIERTO') throw new AppError(409, 'DRAFT_NOT_OPEN', 'Sólo un borrador ABIERTO puede aplicarse');
         if (borrador.tramiteId !== tramiteId) throw new AppError(404, 'NOT_FOUND', 'El borrador no pertenece al trámite');
-        if (!borrador.tarifaId || !borrador.formaPago || !borrador.metodoPago || borrador.facturaSolicitadaEnVentanilla === null || !borrador.comprobanteArchivoUuid) {
-          throw new AppError(422, 'DRAFT_INCOMPLETE', 'El borrador requiere tarifa, forma de pago, método de pago, facturaSolicitadaEnVentanilla y comprobante antes de aplicarse');
+        if (!borrador.tarifaId || !borrador.formaPago || !borrador.metodoPago || borrador.facturaSolicitadaEnVentanilla === null || !borrador.referenciaPago || !borrador.comprobanteArchivoUuid) {
+          throw new AppError(422, 'DRAFT_INCOMPLETE', 'El borrador requiere tarifa, forma de pago, método de pago, facturaSolicitadaEnVentanilla, referencia de pago y comprobante antes de aplicarse');
         }
         const tarifa = await tx.tarifa.findUniqueOrThrow({ where: { id: borrador.tarifaId } });
         // Un único origen de valores para garantizar la coincidencia exacta que exige el trigger.

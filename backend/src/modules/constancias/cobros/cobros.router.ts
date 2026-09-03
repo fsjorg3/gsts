@@ -6,11 +6,11 @@ import { auditarUsuario } from '../../auditoria/service.js';
 import { requestContext } from '../../../shared/request-context.js';
 import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
-import { mimeRealCoincide } from './mime-real.js';
+import { mimeRealCoincide } from '../../../shared/mime-real.js';
 import { resolverMotivoReduccion } from './motivo-reduccion.js';
 
 const comprobanteSchema = z.object({ base64: z.string().min(1), nombreOriginal: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(100) });
-const schema = z.object({ tarifaId: z.string().uuid(), motivoReduccionId: z.string().uuid().nullable().optional(), formaPago: z.string().trim().min(1).max(10), metodoPago: z.enum(['PUE', 'PPD']), moneda: z.literal('MXN').default('MXN'), facturaSolicitadaEnVentanilla: z.boolean().default(false), referenciaPago: z.string().trim().min(1).max(255).optional(), comprobante: comprobanteSchema });
+const schema = z.object({ tarifaId: z.string().uuid(), motivoReduccionId: z.string().uuid().nullable().optional(), formaPago: z.string().trim().min(1).max(10), metodoPago: z.enum(['PUE', 'PPD']), moneda: z.literal('MXN').default('MXN'), facturaSolicitadaEnVentanilla: z.boolean().default(false), referenciaPago: z.string().trim().min(1).max(255), comprobante: comprobanteSchema });
 
 export function createCobrosRouter(storage: NfsStorage): Router {
   const router = Router({ mergeParams: true });

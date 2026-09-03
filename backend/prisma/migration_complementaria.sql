@@ -1,4 +1,4 @@
--- SICEF: reglas de integridad no expresables en Prisma.
+-- GSTS: reglas de integridad no expresables en Prisma.
 -- Debe ejecutarse al final de una migracion correctiva, despues de aplicar
 -- schema.prisma. Las sentencias DROP permiten sustituir las reglas v1.
 
@@ -48,6 +48,18 @@ ALTER TABLE evidencia ADD CONSTRAINT chk_evidencia_archivo CHECK (
   tamano_bytes > 0
   AND hash_sha256 ~ '^[0-9a-fA-F]{64}$'
   AND mime_type IN ('application/pdf', 'image/jpeg', 'image/png')
+);
+ALTER TABLE validacion_no_adeudo DROP CONSTRAINT IF EXISTS chk_validacion_no_adeudo_evidencia_ouc;
+ALTER TABLE validacion_no_adeudo ADD CONSTRAINT chk_validacion_no_adeudo_evidencia_ouc CHECK (
+  evidencia_ouc_tamano_bytes > 0
+  AND evidencia_ouc_hash_sha256 ~ '^[0-9a-fA-F]{64}$'
+  AND evidencia_ouc_mime_type IN ('application/pdf', 'image/jpeg', 'image/png')
+);
+ALTER TABLE validacion_no_registro DROP CONSTRAINT IF EXISTS chk_validacion_no_registro_evidencia_ouc;
+ALTER TABLE validacion_no_registro ADD CONSTRAINT chk_validacion_no_registro_evidencia_ouc CHECK (
+  evidencia_ouc_tamano_bytes > 0
+  AND evidencia_ouc_hash_sha256 ~ '^[0-9a-fA-F]{64}$'
+  AND evidencia_ouc_mime_type IN ('application/pdf', 'image/jpeg', 'image/png')
 );
 ALTER TABLE archivo_generado DROP CONSTRAINT IF EXISTS chk_archivo_generado_ref;
 ALTER TABLE archivo_generado ADD CONSTRAINT chk_archivo_generado_ref CHECK (

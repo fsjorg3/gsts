@@ -317,15 +317,19 @@ model Evidencia {
 /// Validación de no adeudo. Puede haber dos por trámite: la inicial (EN_VALIDACION)
 /// y la revalidación al emitir (COBRO).
 model ValidacionNoAdeudo {
-  id            String              @id @default(uuid()) @db.Uuid
-  tramiteId     String              @map("tramite_id") @db.Uuid
-  metodo        MetodoValidacion
-  momento       MomentoValidacion
-  resultado     ResultadoValidacion
-  adeudoMonto   Decimal?            @map("adeudo_monto") @db.Decimal(12, 2)
-  referenciaOuc String?             @map("referencia_ouc")
-  validadoPorId String?             @map("validado_por_id") @db.Uuid
-  validadoAt    DateTime            @default(now()) @map("validado_at") @db.Timestamptz(3)
+  id                         String              @id @default(uuid()) @db.Uuid
+  tramiteId                  String              @map("tramite_id") @db.Uuid
+  metodo                     MetodoValidacion
+  momento                    MomentoValidacion
+  resultado                  ResultadoValidacion
+  adeudoMonto                Decimal?            @map("adeudo_monto") @db.Decimal(12, 2)
+  evidenciaOucArchivoUuid    String              @unique @map("evidencia_ouc_archivo_uuid") @db.Uuid
+  evidenciaOucNombreOriginal String              @map("evidencia_ouc_nombre_original")
+  evidenciaOucHashSha256     String              @map("evidencia_ouc_hash_sha256")
+  evidenciaOucMimeType       String              @map("evidencia_ouc_mime_type")
+  evidenciaOucTamanoBytes    Int                 @map("evidencia_ouc_tamano_bytes")
+  validadoPorId              String?             @map("validado_por_id") @db.Uuid
+  validadoAt                 DateTime            @default(now()) @map("validado_at") @db.Timestamptz(3)
 
   tramite          Tramite @relation(fields: [tramiteId], references: [id])
   validadoPorActor Actor?  @relation("ValidacionValidadoPor", fields: [validadoPorId], references: [id])
@@ -341,17 +345,22 @@ model ValidacionNoAdeudo {
 /// cobro—, y la regla dura de fn_tramite_transicion_valida exige SIN_REGISTRO en
 /// ambos momentos.
 ///
-/// Sin adeudoMonto: no hay monto que registrar cuando no hay cuenta. Conserva
-/// referenciaOuc para anotar el folio de la consulta.
+/// Sin adeudoMonto: no hay monto que registrar cuando no hay cuenta. Exige
+/// evidenciaOuc (foto/captura de la consulta) en vez de un folio de texto
+/// libre, para que la validación sea verificable.
 model ValidacionNoRegistro {
-  id            String                      @id @default(uuid()) @db.Uuid
-  tramiteId     String                      @map("tramite_id") @db.Uuid
-  metodo        MetodoValidacion
-  momento       MomentoValidacion
-  resultado     ResultadoValidacionRegistro
-  referenciaOuc String?                     @map("referencia_ouc")
-  validadoPorId String?                     @map("validado_por_id") @db.Uuid
-  validadoAt    DateTime                    @default(now()) @map("validado_at") @db.Timestamptz(3)
+  id                         String                      @id @default(uuid()) @db.Uuid
+  tramiteId                  String                      @map("tramite_id") @db.Uuid
+  metodo                     MetodoValidacion
+  momento                    MomentoValidacion
+  resultado                  ResultadoValidacionRegistro
+  evidenciaOucArchivoUuid    String                      @unique @map("evidencia_ouc_archivo_uuid") @db.Uuid
+  evidenciaOucNombreOriginal String                      @map("evidencia_ouc_nombre_original")
+  evidenciaOucHashSha256     String                      @map("evidencia_ouc_hash_sha256")
+  evidenciaOucMimeType       String                      @map("evidencia_ouc_mime_type")
+  evidenciaOucTamanoBytes    Int                         @map("evidencia_ouc_tamano_bytes")
+  validadoPorId              String?                     @map("validado_por_id") @db.Uuid
+  validadoAt                 DateTime                    @default(now()) @map("validado_at") @db.Timestamptz(3)
 
   tramite          Tramite @relation(fields: [tramiteId], references: [id])
   validadoPorActor Actor?  @relation("ValidacionRegistroValidadoPor", fields: [validadoPorId], references: [id])
@@ -514,7 +523,7 @@ model Cobro {
   /// sistema Finanzas, y la solicitud puede llegar semanas después por el
   /// portal. Nadie debe leer esta columna como fuente de verdad fiscal.
   facturaSolicitadaEnVentanilla Boolean    @default(false) @map("factura_solicitada_en_ventanilla")
-  referenciaPago                String?    @map("referencia_pago")
+  referenciaPago                String     @map("referencia_pago")
   comprobanteArchivoUuid        String?    @unique @map("comprobante_archivo_uuid") @db.Uuid
   comprobanteNombreOriginal     String?    @map("comprobante_nombre_original")
   comprobanteHashSha256         String?    @map("comprobante_hash_sha256")

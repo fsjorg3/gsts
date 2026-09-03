@@ -79,7 +79,7 @@ const cobroRequestSchema = z.object({
   metodoPago: metodoPagoSchema,
   moneda: z.literal('MXN').default('MXN'),
   facturaSolicitadaEnVentanilla: z.boolean().default(false).describe('Dato informativo de la ventanilla; la factura vive en el sistema Finanzas'),
-  referenciaPago: z.string().trim().min(1).max(255).optional(),
+  referenciaPago: z.string().trim().min(1).max(255),
   comprobante: z.object({
     base64: z.string().min(1).describe('Comprobante de pago (voucher) codificado en Base64'),
     nombreOriginal: z.string().trim().min(1).max(255),
@@ -453,8 +453,40 @@ export const openApiDocument = {
         },
       },
     },
-    '/tramites/{id}/validaciones/no-adeudo': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar el cruce con el OUC de un trámite de No Adeudo (rol ventanilla). Upsert por momento: repetirlo corrige el resultado. Aprobar exige VALIDACION_INICIAL con SIN_ADEUDO; cobrar exige REVALIDACION_COBRO con SIN_ADEUDO', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionRequest), responses: { '200': envelope(ValidacionNoAdeudo, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
-    '/tramites/{id}/validaciones/no-registro': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar la consulta al padrón de un trámite de No Registro (rol ventanilla). Upsert por momento. Aprobar exige VALIDACION_INICIAL con SIN_REGISTRO; cobrar exige REVALIDACION_COBRO con SIN_REGISTRO. Registrar CON_REGISTRO es válido y deja el trámite bloqueado a propósito', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionNoRegistroRequest), responses: { '200': envelope(ValidacionNoRegistro, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
+    '/tramites/{id}/validaciones/no-adeudo': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar el cruce con el OUC de un trámite de No Adeudo (rol ventanilla). Exige evidenciaOuc (foto/captura de la consulta, Base64). Upsert por momento: repetirlo corrige el resultado y reemplaza la evidencia. Aprobar exige VALIDACION_INICIAL con SIN_ADEUDO; cobrar exige REVALIDACION_COBRO con SIN_ADEUDO', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionRequest), responses: { '200': envelope(ValidacionNoAdeudo, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
+    '/tramites/{id}/validaciones/no-adeudo/archivo': {
+      get: {
+        tags: ['Trámites'], security: bearer,
+        summary: 'Descargar la evidencia OUC de una validación de No Adeudo (roles ventanilla o direccion)',
+        description: 'Devuelve el archivo binario tal como se cargó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'momento', in: 'query', required: true, schema: { type: 'string', enum: ['VALIDACION_INICIAL', 'REVALIDACION_COBRO'] } },
+        ],
+        responses: {
+          '200': { description: 'Contenido de la evidencia', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } },
+          ...ERRORES_AUTENTICACION,
+          ...ERRORES_NO_ENCONTRADO,
+        },
+      },
+    },
+    '/tramites/{id}/validaciones/no-registro': { post: { tags: ['Trámites'], security: bearer, summary: 'Registrar la consulta al padrón de un trámite de No Registro (rol ventanilla). Exige evidenciaOuc (foto/captura de la consulta, Base64). Upsert por momento; repetirlo reemplaza la evidencia. Aprobar exige VALIDACION_INICIAL con SIN_REGISTRO; cobrar exige REVALIDACION_COBRO con SIN_REGISTRO. Registrar CON_REGISTRO es válido y deja el trámite bloqueado a propósito', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }], requestBody: body(ValidacionNoRegistroRequest), responses: { '200': envelope(ValidacionNoRegistro, { description: 'Validación registrada' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION } } },
+    '/tramites/{id}/validaciones/no-registro/archivo': {
+      get: {
+        tags: ['Trámites'], security: bearer,
+        summary: 'Descargar la evidencia OUC de una validación de No Registro (roles ventanilla o direccion)',
+        description: 'Devuelve el archivo binario tal como se cargó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'momento', in: 'query', required: true, schema: { type: 'string', enum: ['VALIDACION_INICIAL', 'REVALIDACION_COBRO'] } },
+        ],
+        responses: {
+          '200': { description: 'Contenido de la evidencia', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } },
+          ...ERRORES_AUTENTICACION,
+          ...ERRORES_NO_ENCONTRADO,
+        },
+      },
+    },
 
     // ---------- Borradores de cobro ----------
     '/tramites/{id}/borradores-cobro': {

@@ -63,20 +63,25 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
   const revalidadaConHallazgo = tieneRevalidacionNegativa(tramite);
   const requiereRevalidacion = !enCobro;
   const puedeCobrar = enCobro ? false : revalidada;
+  const [evidenciaRevalidacion, setEvidenciaRevalidacion] = useState<File | null>(null);
+  const evidenciaRevalidacionRef = useRef<HTMLInputElement>(null);
 
   // Registra la revalidación al cobro en el endpoint correcto según el tipo.
   const registrarRevalidacion = (positivo: boolean) => {
+    if (!evidenciaRevalidacion) return;
     const alTerminar = {
-      onSuccess: () =>
+      onSuccess: () => {
+        setEvidenciaRevalidacion(null);
         positivo
           ? notificar.exito(esNoAdeudo ? 'Revalidación registrada: sin adeudo.' : 'Revalidación registrada: sin registro.')
-          : notificar.info(esNoAdeudo ? 'Adeudo sobrevenido registrado.' : 'Registro sobrevenido registrado.'),
+          : notificar.info(esNoAdeudo ? 'Adeudo sobrevenido registrado.' : 'Registro sobrevenido registrado.');
+      },
       onError: (error: unknown) => notificar.error(error),
     };
     if (esNoAdeudo) {
-      registrarValidacion.mutate({ momento: 'REVALIDACION_COBRO', resultado: positivo ? 'SIN_ADEUDO' : 'CON_ADEUDO' }, alTerminar);
+      registrarValidacion.mutate({ momento: 'REVALIDACION_COBRO', resultado: positivo ? 'SIN_ADEUDO' : 'CON_ADEUDO', evidenciaOuc: evidenciaRevalidacion }, alTerminar);
     } else {
-      registrarNoRegistro.mutate({ momento: 'REVALIDACION_COBRO', resultado: positivo ? 'SIN_REGISTRO' : 'CON_REGISTRO' }, alTerminar);
+      registrarNoRegistro.mutate({ momento: 'REVALIDACION_COBRO', resultado: positivo ? 'SIN_REGISTRO' : 'CON_REGISTRO', evidenciaOuc: evidenciaRevalidacion }, alTerminar);
     }
   };
 
@@ -167,7 +172,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
       );
     } else if (comprobante) {
       cobroDirecto.mutate(
-        { tarifaId, motivoReduccionId: motivoReduccionId || null, formaPago, metodoPago, moneda: 'MXN', facturaSolicitadaEnVentanilla, ...(referenciaPago.trim() ? { referenciaPago: referenciaPago.trim() } : {}), comprobante },
+        { tarifaId, motivoReduccionId: motivoReduccionId || null, formaPago, metodoPago, moneda: 'MXN', facturaSolicitadaEnVentanilla, referenciaPago: referenciaPago.trim(), comprobante },
         alTerminar,
       );
     }
@@ -223,24 +228,45 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
                 : 'Registro sobrevenido detectado: no procede el cobro. Rechaza el trámite.'}
             </Alert>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                disabled={revalidando}
-                onClick={() => registrarRevalidacion(true)}
-                startIcon={<MsIcon name={esNoAdeudo ? 'plumbing' : 'map'} size={17} />}
-              >
-                {esNoAdeudo ? 'Confirmar sin adeudo en OUC' : 'Confirmar sin registro en padrón'}
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                disabled={revalidando}
-                onClick={() => registrarRevalidacion(false)}
-                sx={{ borderColor: '#BA1A1A', color: '#BA1A1A' }}
-              >
-                {esNoAdeudo ? 'Registrar adeudo sobrevenido' : 'Registrar registro sobrevenido'}
-              </Button>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                <input
+                  ref={evidenciaRevalidacionRef}
+                  type="file"
+                  hidden
+                  accept={MIME_PERMITIDOS.join(',')}
+                  onChange={(evento) => setEvidenciaRevalidacion(evento.target.files?.[0] ?? null)}
+                />
+                <Button variant="outlined" size="small" onClick={() => evidenciaRevalidacionRef.current?.click()} startIcon={<MsIcon name="upload" size={17} />}>
+                  {evidenciaRevalidacion ? 'Cambiar evidencia' : 'Adjuntar evidencia de la revalidación'}
+                </Button>
+                {evidenciaRevalidacion ? (
+                  <Typography noWrap sx={{ fontSize: 12, color: 'success.main' }}>{evidenciaRevalidacion.name}</Typography>
+                ) : (
+                  <Typography noWrap sx={{ fontSize: 12, color: 'text.disabled' }}>
+                    Obligatoria: foto o captura de la revalidación hecha en {esNoAdeudo ? 'OUC' : 'el padrón'}.
+                  </Typography>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  disabled={revalidando || !evidenciaRevalidacion}
+                  onClick={() => registrarRevalidacion(true)}
+                  startIcon={<MsIcon name={esNoAdeudo ? 'plumbing' : 'map'} size={17} />}
+                >
+                  {esNoAdeudo ? 'Confirmar sin adeudo en OUC' : 'Confirmar sin registro en padrón'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  disabled={revalidando || !evidenciaRevalidacion}
+                  onClick={() => registrarRevalidacion(false)}
+                  sx={{ borderColor: '#BA1A1A', color: '#BA1A1A' }}
+                >
+                  {esNoAdeudo ? 'Registrar adeudo sobrevenido' : 'Registrar registro sobrevenido'}
+                </Button>
+              </Box>
             </Box>
           )}
         </Card>
@@ -305,7 +331,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
                 <FormControlLabel value="PPD" control={<Radio size="small" />} label="PPD · Parcialidades" />
               </RadioGroup>
             </Box>
-            <TextField label="Referencia de pago (opcional)" value={referenciaPago} onChange={(evento) => setReferenciaPago(evento.target.value)} />
+            <TextField label="Referencia de pago" value={referenciaPago} onChange={(evento) => setReferenciaPago(evento.target.value)} />
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
@@ -357,7 +383,7 @@ export function PasoCobro({ tramite }: { tramite: TramiteDetalle }) {
             <Button variant="outlined" disabled={ocupado} onClick={guardar} startIcon={<MsIcon name="save" size={17} />}>
               Guardar borrador
             </Button>
-            <Button variant="contained" disabled={ocupado || !tarifaId || !comprobanteListo} onClick={cobrar} startIcon={<MsIcon name="payments" size={18} />}>
+            <Button variant="contained" disabled={ocupado || !tarifaId || !referenciaPago.trim() || !comprobanteListo} onClick={cobrar} startIcon={<MsIcon name="payments" size={18} />}>
               Cobrar
             </Button>
           </Box>

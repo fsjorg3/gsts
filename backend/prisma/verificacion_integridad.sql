@@ -310,9 +310,12 @@ SELECT pg_temp.debe_pasar('B.9 · CAPTURA → EN_VALIDACION', $q$
 
 -- NO_REGISTRO también exige un hecho verificado para aprobar. El caso que
 -- comprueba que la guardia dispara está en la sección D2; aquí sólo se cumple.
-INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-7000-0000-0000-000000000001','66666666-6666-6666-6666-666666666661',
-          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 
 SELECT pg_temp.debe_pasar('B.10 · EN_VALIDACION → APROBADO', $q$
   UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666661';
@@ -392,10 +395,10 @@ SELECT pg_temp.debe_fallar('C.8 · un borrador APLICADO ya no se modifica', $q$
 
 SELECT pg_temp.debe_fallar('C.9 · cobro con monto_final inconsistente', $q$
   INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                     forma_pago, metodo_pago, cobrado_por_id)
+                     forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
     VALUES ('88888888-8888-8888-8888-8888888888ff','66666666-6666-6666-6666-666666666661',
             '44444444-4444-4444-4444-444444444441', 350.00, 50, 350.00,
-            '04','PUE','22222222-2222-2222-2222-222222222222');
+            '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
   $q$);
 
 
@@ -404,9 +407,12 @@ SELECT pg_temp.debe_fallar('C.9 · cobro con monto_final inconsistente', $q$
 -- =====================================================================
 
 -- Revalidación previa al cobro, igual que en NO_ADEUDO.
-INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-7000-0000-0000-000000000002','66666666-6666-6666-6666-666666666661',
-          'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 
 SELECT pg_temp.debe_pasar('B.12 · APROBADO → COBRO', $q$
   UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666661';
@@ -453,27 +459,33 @@ SELECT pg_temp.debe_fallar('D.1 · NO_ADEUDO no se aprueba sin validación inici
   UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666663';
   $q$);
 
-INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                  evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                  evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-4000-0000-0000-000000000001','66666666-6666-6666-6666-666666666663',
-          'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 
 SELECT pg_temp.debe_pasar('D.2 · con validación inicial sí aprueba', $q$
   UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666663';
   $q$);
 
 INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                   forma_pago, metodo_pago, cobrado_por_id)
+                   forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
   VALUES ('88888888-8888-8888-8888-888888888883','66666666-6666-6666-6666-666666666663',
           '44444444-4444-4444-4444-444444444442', 420.00, 0, 420.00,
-          '04','PUE','22222222-2222-2222-2222-222222222222');
+          '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
 
 SELECT pg_temp.debe_fallar('D.3 · NO_ADEUDO no se cobra sin revalidación', $q$
   UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666663';
   $q$);
 
-INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                  evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                  evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-4000-0000-0000-000000000002','66666666-6666-6666-6666-666666666663',
-          'MANUAL','REVALIDACION_COBRO','SIN_ADEUDO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','REVALIDACION_COBRO','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 
 SELECT pg_temp.debe_pasar('D.4 · con revalidación sí cobra', $q$
   UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666663';
@@ -513,9 +525,12 @@ SELECT pg_temp.debe_fallar('D2.1 · NO_REGISTRO no se aprueba sin validación in
 
 -- El hallazgo de que el predio SÍ está en el padrón se registra y bloquea el
 -- trámite: es el caso que le da sentido a toda la regla.
-INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-7000-0000-0000-000000000009','66666666-6666-6666-6666-666666666669',
-          'MANUAL','VALIDACION_INICIAL','CON_REGISTRO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','VALIDACION_INICIAL','CON_REGISTRO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 
 SELECT pg_temp.debe_fallar('D2.2 · CON_REGISTRO no habilita la aprobación', $q$
   UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-666666666669';
@@ -531,27 +546,33 @@ SELECT pg_temp.debe_pasar('D2.3 · con validación inicial SIN_REGISTRO sí apru
   $q$);
 
 INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                   forma_pago, metodo_pago, cobrado_por_id)
+                   forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
   VALUES ('88888888-8888-8888-8888-888888888889','66666666-6666-6666-6666-666666666669',
           '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
-          '04','PUE','22222222-2222-2222-2222-222222222222');
+          '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
 
 SELECT pg_temp.debe_fallar('D2.4 · NO_REGISTRO no se cobra sin revalidación', $q$
   UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666669';
   $q$);
 
-INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-7000-0000-0000-00000000000a','66666666-6666-6666-6666-666666666669',
-          'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 
 SELECT pg_temp.debe_pasar('D2.5 · con revalidación sí cobra', $q$
   UPDATE tramite SET estado = 'COBRO' WHERE id = '66666666-6666-6666-6666-666666666669';
   $q$);
 
 SELECT pg_temp.debe_fallar('D2.6 · un momento no se duplica para el mismo trámite', $q$
-  INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+  INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                      evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                      evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
     VALUES ('66666666-7000-0000-0000-0000000000ff','66666666-6666-6666-6666-666666666669',
-            'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+            'MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+            gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
   $q$);
 
 
@@ -571,9 +592,13 @@ INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre
 -- Las DOS validaciones se registran aquí, aunque este trámite nunca llegue a
 -- cobrar: sin la revalidación, E.1 seguiría «pasando» pero rechazado por falta
 -- de validación en vez de por el plazo vencido, que es lo que dice probar.
-INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id) VALUES
-  ('66666666-7000-0000-0000-000000000004','66666666-6666-6666-6666-666666666664','MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222'),
-  ('66666666-7000-0000-0000-000000000005','66666666-6666-6666-6666-666666666664','MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes) VALUES
+  ('66666666-7000-0000-0000-000000000004','66666666-6666-6666-6666-666666666664','MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+    gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048),
+  ('66666666-7000-0000-0000-000000000005','66666666-6666-6666-6666-666666666664','MANUAL','REVALIDACION_COBRO','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+    gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666664';
 UPDATE tramite SET estado = 'APROBADO'      WHERE id = '66666666-6666-6666-6666-666666666664';
 -- El borrador va antes que el cobro: un borrador ABIERTO no puede nacer en un
@@ -582,10 +607,10 @@ INSERT INTO borrador_cobro (id, tramite_id, creado_por_id, actualizado_por_id, u
   VALUES ('77777777-7777-7777-7777-777777777774','66666666-6666-6666-6666-666666666664',
           '22222222-2222-2222-2222-222222222222','22222222-2222-2222-2222-222222222222', now());
 INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                   forma_pago, metodo_pago, cobrado_por_id)
+                   forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
   VALUES ('88888888-8888-8888-8888-888888888884','66666666-6666-6666-6666-666666666664',
           '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
-          '04','PUE','22222222-2222-2222-2222-222222222222');
+          '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
 
 -- Mover el plazo no dispara trg_tramite_transicion_valida: es BEFORE UPDATE OF estado.
 UPDATE tramite SET plazo_pago_hasta = now() - interval '1 day'
@@ -597,10 +622,10 @@ SELECT pg_temp.debe_fallar('E.1 · no se cobra después del plazo de pago', $q$
 
 SELECT pg_temp.debe_fallar('E.2 · no se registra un cobro fuera de plazo', $q$
   INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                     forma_pago, metodo_pago, cobrado_por_id)
+                     forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
     VALUES ('88888888-8888-8888-8888-88888888ff84','66666666-6666-6666-6666-666666666664',
             '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
-            '04','PUE','22222222-2222-2222-2222-222222222222');
+            '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
   $q$);
 
 SELECT pg_temp.debe_pasar('E.3 · APROBADO → EXPIRADO tras el vencimiento', $q$
@@ -621,9 +646,12 @@ INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre
   VALUES ('66666666-3000-0000-0000-000000000003','66666666-6666-6666-6666-666666666665',
           '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
           repeat('3',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
-INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-7000-0000-0000-000000000006','66666666-6666-6666-6666-666666666665',
-          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666665';
 UPDATE tramite SET estado = 'APROBADO'      WHERE id = '66666666-6666-6666-6666-666666666665';
 INSERT INTO borrador_cobro (id, tramite_id, creado_por_id, actualizado_por_id, updated_at)
@@ -655,9 +683,12 @@ INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre
           repeat('4',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
 -- La validación se registra ANTES de desactivar los plazos, para que el fallo
 -- de F.1 sea inequívocamente por la configuración ausente y no por validación.
-INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id)
+INSERT INTO validacion_no_registro (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
   VALUES ('66666666-7000-0000-0000-000000000007','66666666-6666-6666-6666-666666666667',
-          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222');
+          'MANUAL','VALIDACION_INICIAL','SIN_REGISTRO','22222222-2222-2222-2222-222222222222',
+          gen_random_uuid(), 'ouc.png', repeat('e',64), 'image/png', 2048);
 UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-666666666667';
 
 SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');
@@ -693,37 +724,37 @@ SELECT pg_temp.debe_pasar('F.4 · con la configuración reactivada sí aprueba',
 
 SELECT pg_temp.debe_fallar_ctx('G.1 · cobro sin app.actor_id', '', '["ventanilla"]', $q$
   INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                     forma_pago, metodo_pago, cobrado_por_id)
+                     forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
     VALUES ('88888888-8888-8888-8888-8888888888f1','66666666-6666-6666-6666-666666666667',
             '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
-            '04','PUE','22222222-2222-2222-2222-222222222222');
+            '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
   $q$);
 
 SELECT pg_temp.debe_fallar_ctx('G.2 · cobro con rol distinto de ventanilla',
   '22222222-2222-2222-2222-222222222222', '["ti"]', $q$
   INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                     forma_pago, metodo_pago, cobrado_por_id)
+                     forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
     VALUES ('88888888-8888-8888-8888-8888888888f2','66666666-6666-6666-6666-666666666667',
             '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
-            '04','PUE','22222222-2222-2222-2222-222222222222');
+            '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
   $q$);
 
 SELECT pg_temp.debe_fallar_ctx('G.3 · app.roles mal formado',
   '22222222-2222-2222-2222-222222222222', 'ventanilla', $q$
   INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                     forma_pago, metodo_pago, cobrado_por_id)
+                     forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
     VALUES ('88888888-8888-8888-8888-8888888888f3','66666666-6666-6666-6666-666666666667',
             '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
-            '04','PUE','22222222-2222-2222-2222-222222222222');
+            '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
   $q$);
 
 SELECT pg_temp.debe_fallar_ctx('G.4 · cobro atribuido a otro actor',
   '11111111-1111-1111-1111-111111111111', '["ventanilla"]', $q$
   INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
-                     forma_pago, metodo_pago, cobrado_por_id)
+                     forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
     VALUES ('88888888-8888-8888-8888-8888888888f4','66666666-6666-6666-6666-666666666667',
             '44444444-4444-4444-4444-444444444441', 350.00, 0, 350.00,
-            '04','PUE','22222222-2222-2222-2222-222222222222');
+            '04','PUE','VERIFICACION','22222222-2222-2222-2222-222222222222');
   $q$);
 
 SELECT pg_temp.contexto('22222222-2222-2222-2222-222222222222', '["ventanilla"]');
@@ -888,6 +919,88 @@ SELECT pg_temp.debe_fallar('I.6 · tramite_persona con rol RECEPTOR_FISCAL', $q$
   INSERT INTO tramite_persona (id, tramite_id, persona_id, rol)
     VALUES ('66666666-0000-0000-0000-0000000000ff','66666666-6666-6666-6666-666666666661',
             '55555555-5555-5555-5555-555555555555','RECEPTOR_FISCAL');
+  $q$);
+
+
+-- =====================================================================
+-- L · Evidencia OUC obligatoria y referencia de pago obligatoria
+-- =====================================================================
+-- referencia_ouc (texto libre, no verificable) se sustituyó por una foto/
+-- captura obligatoria de la consulta; referencia_pago dejó de ser opcional en
+-- cobro. Trámite propio para no chocar con los momentos ya usados arriba.
+
+INSERT INTO tramite (id, tipo_constancia, personalidad, representacion, version_catalogo_id, creado_por_id, updated_at)
+  VALUES ('66666666-6666-6666-6666-66666666666a','NO_ADEUDO','FISICA','TITULAR',
+          '33333333-3333-3333-3333-333333333333','22222222-2222-2222-2222-222222222222', now());
+
+SELECT pg_temp.debe_fallar('L.1 · validacion_no_adeudo sin evidencia OUC', $q$
+  INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id)
+    VALUES ('66666666-6000-0000-0000-000000000001','66666666-6666-6666-6666-66666666666a',
+            'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222');
+  $q$);
+
+SELECT pg_temp.debe_fallar('L.2 · evidencia OUC con MIME fuera del allow-list', $q$
+  INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
+    VALUES ('66666666-6000-0000-0000-000000000002','66666666-6666-6666-6666-66666666666a',
+            'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+            gen_random_uuid(), 'consulta.docx', repeat('7',64), 'application/msword', 2048);
+  $q$);
+
+SELECT pg_temp.debe_fallar('L.3 · evidencia OUC con tamaño cero', $q$
+  INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
+    VALUES ('66666666-6000-0000-0000-000000000003','66666666-6666-6666-6666-66666666666a',
+            'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+            gen_random_uuid(), 'consulta.png', repeat('7',64), 'image/png', 0);
+  $q$);
+
+SELECT pg_temp.debe_fallar('L.4 · evidencia OUC con hash mal formado', $q$
+  INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
+    VALUES ('66666666-6000-0000-0000-000000000004','66666666-6666-6666-6666-66666666666a',
+            'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+            gen_random_uuid(), 'consulta.png', 'no-es-un-hash', 'image/png', 2048);
+  $q$);
+
+SELECT pg_temp.debe_pasar('L.5 · validacion_no_adeudo con evidencia OUC completa', $q$
+  INSERT INTO validacion_no_adeudo (id, tramite_id, metodo, momento, resultado, validado_por_id,
+                                    evidencia_ouc_archivo_uuid, evidencia_ouc_nombre_original,
+                                    evidencia_ouc_hash_sha256, evidencia_ouc_mime_type, evidencia_ouc_tamano_bytes)
+    VALUES ('66666666-6000-0000-0000-000000000005','66666666-6666-6666-6666-66666666666a',
+            'MANUAL','VALIDACION_INICIAL','SIN_ADEUDO','22222222-2222-2222-2222-222222222222',
+            gen_random_uuid(), 'consulta.png', repeat('7',64), 'image/png', 2048);
+  $q$);
+
+-- L.6/L.7 ejercitan fn_cobro_integridad, que exige tramite APROBADO vigente y
+-- tarifa activa compatible — sin esto, cualquier INSERT INTO cobro se
+-- rechazaría por esa razón y no por referencia_pago, que es lo que se quiere
+-- probar aquí.
+INSERT INTO evidencia (id, tramite_id, opcion_documento_id, archivo_uuid, nombre_original,
+                       hash_sha256, mime_type, tamano_bytes, estado, creado_por_id)
+  VALUES ('66666666-6000-0000-0000-000000000006','66666666-6666-6666-6666-66666666666a',
+          '33333333-0000-0000-0000-000000000003', gen_random_uuid(), 'acta.pdf',
+          repeat('7',64), 'application/pdf', 2048, 'VALIDADO', '22222222-2222-2222-2222-222222222222');
+UPDATE tramite SET estado = 'EN_VALIDACION' WHERE id = '66666666-6666-6666-6666-66666666666a';
+UPDATE tramite SET estado = 'APROBADO' WHERE id = '66666666-6666-6666-6666-66666666666a';
+
+SELECT pg_temp.debe_fallar('L.6 · cobro sin referencia de pago', $q$
+  INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
+                     forma_pago, metodo_pago, cobrado_por_id)
+    VALUES ('88888888-8888-8888-8888-88888888888a','66666666-6666-6666-6666-66666666666a',
+            '44444444-4444-4444-4444-444444444442', 420.00, 0, 420.00,
+            '04','PUE','22222222-2222-2222-2222-222222222222');
+  $q$);
+
+SELECT pg_temp.debe_pasar('L.7 · cobro con referencia de pago', $q$
+  INSERT INTO cobro (id, tramite_id, tarifa_id, monto_base, porcentaje_reduccion, monto_final,
+                     forma_pago, metodo_pago, referencia_pago, cobrado_por_id)
+    VALUES ('88888888-8888-8888-8888-88888888888a','66666666-6666-6666-6666-66666666666a',
+            '44444444-4444-4444-4444-444444444442', 420.00, 0, 420.00,
+            '04','PUE','AUTH-VERIFICACION-L7','22222222-2222-2222-2222-222222222222');
   $q$);
 
 

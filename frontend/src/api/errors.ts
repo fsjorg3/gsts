@@ -45,7 +45,7 @@ const COPY_POR_CODIGO: Record<string, string> = {
   TARIFF_INCOMPLETE: 'Faltan tipo de constancia, concepto o monto para crear la tarifa.',
   DRAFT_ALREADY_OPEN: 'Este trámite ya tiene un borrador de cobro abierto. Continúa con el existente.',
   DRAFT_NOT_OPEN: 'El borrador ya no está abierto; no se puede aplicar.',
-  DRAFT_INCOMPLETE: 'Completa tarifa, forma y método de pago antes de aplicar el borrador.',
+  DRAFT_INCOMPLETE: 'Completa tarifa, forma y método de pago, referencia de pago y comprobante antes de aplicar el borrador.',
   INVALID_STATE: 'La acción no procede en el estado actual del trámite.',
   INVALID_VALIDITY: 'La vigencia de la constancia debe ser una fecha futura.',
   FILE_TOO_LARGE: 'El archivo excede el límite de 30 MB acumulados por trámite.',

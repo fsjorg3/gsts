@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -7,9 +7,16 @@ import Typography from '@mui/material/Typography';
 import { useQuery } from '@tanstack/react-query';
 import { useNotificar } from '@/store/useNotificar';
 import { formatMxn } from '@/api/serializers';
+import { abrirBlobEnPestana } from '@/shared/descargarArchivo';
 import { EstadoBadge, MsIcon } from '@/shared/components';
 import { catalogoVistaPreviaOptions, gruposAplicables } from '@/features/catalogos/api';
-import { useRegistrarValidacion, useRegistrarValidacionNoRegistro } from '@/features/validaciones/api';
+import { MIME_PERMITIDOS } from '@/features/evidencias/api';
+import {
+  useDescargarEvidenciaValidacion,
+  useDescargarEvidenciaValidacionNoRegistro,
+  useRegistrarValidacion,
+  useRegistrarValidacionNoRegistro,
+} from '@/features/validaciones/api';
 import type { TramiteDetalle } from '../api';
 
 // Paso 1 · Validación: resumen del checklist + cruce manual con el OUC (sólo
@@ -19,9 +26,12 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
   const catalogo = useQuery(catalogoVistaPreviaOptions(tramite.versionCatalogoId));
   const registrar = useRegistrarValidacion(tramite.id);
   const registrarNoRegistro = useRegistrarValidacionNoRegistro(tramite.id);
+  const descargarEvidencia = useDescargarEvidenciaValidacion(tramite.id);
+  const descargarEvidenciaRegistro = useDescargarEvidenciaValidacionNoRegistro(tramite.id);
   const [capturandoAdeudo, setCapturandoAdeudo] = useState(false);
   const [montoAdeudo, setMontoAdeudo] = useState('');
-  const [referencia, setReferencia] = useState('');
+  const [evidenciaOuc, setEvidenciaOuc] = useState<File | null>(null);
+  const evidenciaRef = useRef<HTMLInputElement>(null);
 
   const grupos = catalogo.data
     ? gruposAplicables(catalogo.data, {
@@ -35,16 +45,18 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
   const validacionInicialRegistro = tramite.validacionesNoRegistro.find((v) => v.momento === 'VALIDACION_INICIAL');
 
   const registrarResultado = (resultado: 'SIN_ADEUDO' | 'CON_ADEUDO') => {
+    if (!evidenciaOuc) return;
     registrar.mutate(
       {
         momento: 'VALIDACION_INICIAL',
         resultado,
         ...(resultado === 'CON_ADEUDO' && montoAdeudo ? { adeudoMonto: Number(montoAdeudo) } : {}),
-        ...(referencia.trim() ? { referenciaOuc: referencia.trim() } : {}),
+        evidenciaOuc,
       },
       {
         onSuccess: () => {
           setCapturandoAdeudo(false);
+          setEvidenciaOuc(null);
           notificar.exito(resultado === 'SIN_ADEUDO' ? 'Sin adeudo registrado.' : 'Adeudo registrado. El trámite no puede aprobarse.');
         },
         onError: (error) => notificar.error(error),
@@ -53,14 +65,14 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
   };
 
   const registrarResultadoRegistro = (resultado: 'SIN_REGISTRO' | 'CON_REGISTRO') => {
+    if (!evidenciaOuc) return;
     registrarNoRegistro.mutate(
+      { momento: 'VALIDACION_INICIAL', resultado, evidenciaOuc },
       {
-        momento: 'VALIDACION_INICIAL',
-        resultado,
-        ...(referencia.trim() ? { referenciaOuc: referencia.trim() } : {}),
-      },
-      {
-        onSuccess: () => notificar.exito(resultado === 'SIN_REGISTRO' ? 'Sin registro en el padrón.' : 'Predio registrado. El trámite no puede aprobarse.'),
+        onSuccess: () => {
+          setEvidenciaOuc(null);
+          notificar.exito(resultado === 'SIN_REGISTRO' ? 'Sin registro en el padrón.' : 'Predio registrado. El trámite no puede aprobarse.');
+        },
         onError: (error) => notificar.error(error),
       },
     );
@@ -109,20 +121,46 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                   ? 'Sin adeudo confirmado ($0.00)'
                   : `Adeudo detectado${validacionInicial.adeudoMonto ? ` · ${formatMxn(validacionInicial.adeudoMonto)}` : ''}`}
               </Typography>
-              <Typography sx={{ fontSize: 12 }}>
-                {validacionInicial.referenciaOuc ? `Folio OUC ${validacionInicial.referenciaOuc} · ` : ''}
+              <Typography sx={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                 validación manual
                 {validacionInicial.resultado === 'CON_ADEUDO' ? ' — procede el rechazo del trámite.' : '.'}
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={descargarEvidencia.isPending}
+                  onClick={() =>
+                    descargarEvidencia.mutate('VALIDACION_INICIAL', {
+                      onSuccess: (blob) => abrirBlobEnPestana(blob),
+                      onError: (error) => notificar.error(error),
+                    })
+                  }
+                  startIcon={<MsIcon name="visibility" size={16} />}
+                >
+                  Ver evidencia
+                </Button>
               </Typography>
             </Alert>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <TextField
-                label="Referencia / Observaciones (opcional)"
-                value={referencia}
-                onChange={(evento) => setReferencia(evento.target.value)}
-                sx={{ maxWidth: 420 }}
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                <input
+                  ref={evidenciaRef}
+                  type="file"
+                  hidden
+                  accept={MIME_PERMITIDOS.join(',')}
+                  onChange={(evento) => setEvidenciaOuc(evento.target.files?.[0] ?? null)}
+                />
+                <Button variant="outlined" size="small" onClick={() => evidenciaRef.current?.click()} startIcon={<MsIcon name="upload" size={17} />}>
+                  {evidenciaOuc ? 'Cambiar evidencia' : 'Adjuntar evidencia de la consulta OUC'}
+                </Button>
+                {evidenciaOuc ? (
+                  <Typography noWrap sx={{ fontSize: 12, color: 'success.main' }}>{evidenciaOuc.name}</Typography>
+                ) : (
+                  <Typography noWrap sx={{ fontSize: 12, color: 'text.disabled' }}>
+                    Obligatoria: foto o captura de la consulta hecha en OUC.
+                  </Typography>
+                )}
+              </Box>
               {capturandoAdeudo ? (
                 <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
                   <TextField
@@ -131,7 +169,7 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                     onChange={(evento) => setMontoAdeudo(evento.target.value.replace(/[^0-9.]/g, ''))}
                     sx={{ width: 220 }}
                   />
-                  <Button color="error" variant="contained" disabled={registrar.isPending || !montoAdeudo} onClick={() => registrarResultado('CON_ADEUDO')}>
+                  <Button color="error" variant="contained" disabled={registrar.isPending || !montoAdeudo || !evidenciaOuc} onClick={() => registrarResultado('CON_ADEUDO')}>
                     Confirmar adeudo
                   </Button>
                   <Button variant="text" onClick={() => setCapturandoAdeudo(false)}>Cancelar</Button>
@@ -142,7 +180,7 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                     fullWidth
                     variant="outlined"
                     color="success"
-                    disabled={registrar.isPending}
+                    disabled={registrar.isPending || !evidenciaOuc}
                     onClick={() => registrarResultado('SIN_ADEUDO')}
                     startIcon={<MsIcon name="check_circle" size={18} />}
                     sx={{ borderColor: '#2E7D32', color: '#2E7D32', '&:hover': { bgcolor: '#E8F5E9', borderColor: '#2E7D32' } }}
@@ -153,7 +191,7 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                     fullWidth
                     variant="outlined"
                     color="error"
-                    disabled={registrar.isPending}
+                    disabled={registrar.isPending || !evidenciaOuc}
                     onClick={() => setCapturandoAdeudo(true)}
                     startIcon={<MsIcon name="error" size={18} />}
                     sx={{ borderColor: '#BA1A1A', color: '#BA1A1A', '&:hover': { bgcolor: '#FFEBEE', borderColor: '#BA1A1A' } }}
@@ -185,26 +223,52 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                   ? 'Sin registro en el padrón'
                   : 'El predio sí está registrado'}
               </Typography>
-              <Typography sx={{ fontSize: 12 }}>
-                {validacionInicialRegistro.referenciaOuc ? `Folio ${validacionInicialRegistro.referenciaOuc} · ` : ''}
+              <Typography sx={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                 validación manual
                 {validacionInicialRegistro.resultado === 'CON_REGISTRO' ? ' — procede el rechazo del trámite.' : '.'}
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={descargarEvidenciaRegistro.isPending}
+                  onClick={() =>
+                    descargarEvidenciaRegistro.mutate('VALIDACION_INICIAL', {
+                      onSuccess: (blob) => abrirBlobEnPestana(blob),
+                      onError: (error) => notificar.error(error),
+                    })
+                  }
+                  startIcon={<MsIcon name="visibility" size={16} />}
+                >
+                  Ver evidencia
+                </Button>
               </Typography>
             </Alert>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <TextField
-                label="Referencia / Folio de la consulta (opcional)"
-                value={referencia}
-                onChange={(evento) => setReferencia(evento.target.value)}
-                sx={{ maxWidth: 420 }}
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                <input
+                  ref={evidenciaRef}
+                  type="file"
+                  hidden
+                  accept={MIME_PERMITIDOS.join(',')}
+                  onChange={(evento) => setEvidenciaOuc(evento.target.files?.[0] ?? null)}
+                />
+                <Button variant="outlined" size="small" onClick={() => evidenciaRef.current?.click()} startIcon={<MsIcon name="upload" size={17} />}>
+                  {evidenciaOuc ? 'Cambiar evidencia' : 'Adjuntar evidencia de la consulta al padrón'}
+                </Button>
+                {evidenciaOuc ? (
+                  <Typography noWrap sx={{ fontSize: 12, color: 'success.main' }}>{evidenciaOuc.name}</Typography>
+                ) : (
+                  <Typography noWrap sx={{ fontSize: 12, color: 'text.disabled' }}>
+                    Obligatoria: foto o captura de la consulta hecha en el padrón.
+                  </Typography>
+                )}
+              </Box>
               <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
                 <Button
                   fullWidth
                   variant="outlined"
                   color="success"
-                  disabled={registrarNoRegistro.isPending}
+                  disabled={registrarNoRegistro.isPending || !evidenciaOuc}
                   onClick={() => registrarResultadoRegistro('SIN_REGISTRO')}
                   startIcon={<MsIcon name="check_circle" size={18} />}
                   sx={{ borderColor: '#2E7D32', color: '#2E7D32', '&:hover': { bgcolor: '#E8F5E9', borderColor: '#2E7D32' } }}
@@ -215,7 +279,7 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
                   fullWidth
                   variant="outlined"
                   color="error"
-                  disabled={registrarNoRegistro.isPending}
+                  disabled={registrarNoRegistro.isPending || !evidenciaOuc}
                   onClick={() => registrarResultadoRegistro('CON_REGISTRO')}
                   startIcon={<MsIcon name="error" size={18} />}
                   sx={{ borderColor: '#BA1A1A', color: '#BA1A1A', '&:hover': { bgcolor: '#FFEBEE', borderColor: '#BA1A1A' } }}

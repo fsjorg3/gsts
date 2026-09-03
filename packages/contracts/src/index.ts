@@ -21,6 +21,10 @@ export const paginationSchema = z.object({
   cursor: z.string().uuid().optional(),
 });
 
+// Referencia mínima a un archivo ya guardado en NFS: el contenido se pide en
+// su propia ruta binaria, esto sólo identifica cuál pedir.
+export const archivoRefDto = z.object({ archivoUuid: z.string().uuid(), mimeType: z.string() });
+
 // Alta de persona desde ventanilla. El RFC es opcional en captura (igual que
 // en el trámite); la unicidad no se impone: una persona puede repetirse y
 // reutilizarse vía búsqueda.
@@ -408,13 +412,21 @@ export const evidenciaDto = z.object({
 // La aprobación y el cobro de un trámite exigen una de estas filas con el
 // resultado favorable; la regla dura vive en fn_tramite_transicion_valida.
 // `metodo` es siempre MANUAL por ahora: el puerto OUC no tiene implementación.
+// La evidencia (foto/captura de la consulta a OUC) es obligatoria: un folio de
+// texto libre no era verificable.
+
+const evidenciaOucSchema = z.object({
+  base64: z.string().min(1),
+  nombreOriginal: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(100),
+});
 
 export const validacionRequestSchema = z.object({
   metodo: metodoValidacionSchema,
   momento: momentoValidacionSchema,
   resultado: resultadoValidacionSchema,
   adeudoMonto: z.coerce.number().nonnegative().optional(),
-  referenciaOuc: z.string().trim().min(1).max(255).optional(),
+  evidenciaOuc: evidenciaOucSchema,
 });
 
 // Sin adeudoMonto: no hay monto que registrar cuando el predio no tiene cuenta.
@@ -422,7 +434,7 @@ export const validacionNoRegistroRequestSchema = z.object({
   metodo: metodoValidacionSchema,
   momento: momentoValidacionSchema,
   resultado: resultadoValidacionRegistroSchema,
-  referenciaOuc: z.string().trim().min(1).max(255).optional(),
+  evidenciaOuc: evidenciaOucSchema,
 });
 
 export const validacionNoAdeudoDto = z.object({
@@ -432,7 +444,7 @@ export const validacionNoAdeudoDto = z.object({
   momento: momentoValidacionSchema,
   resultado: resultadoValidacionSchema,
   adeudoMonto: z.string().nullable(),
-  referenciaOuc: z.string().nullable(),
+  evidenciaOuc: archivoRefDto,
   validadoPorId: z.string().uuid().nullable(),
   validadoAt: z.string(),
 });
@@ -443,7 +455,7 @@ export const validacionNoRegistroDto = z.object({
   metodo: metodoValidacionSchema,
   momento: momentoValidacionSchema,
   resultado: resultadoValidacionRegistroSchema,
-  referenciaOuc: z.string().nullable(),
+  evidenciaOuc: archivoRefDto,
   validadoPorId: z.string().uuid().nullable(),
   validadoAt: z.string(),
 });
@@ -498,7 +510,7 @@ export const cobroDto = z.object({
   metodoPago: metodoPagoSchema,
   moneda: z.string(),
   facturaSolicitadaEnVentanilla: z.boolean(),
-  referenciaPago: z.string().nullable(),
+  referenciaPago: z.string(),
   comprobanteArchivoUuid: z.string().uuid().nullable(),
   comprobanteNombreOriginal: z.string().nullable(),
   comprobanteHashSha256: z.string().nullable(),
@@ -575,8 +587,6 @@ export const aplicarBorradorRespuestaDto = z.object({
 
 export const cobroRespuestaDto = z.object({ cobro: cobroDto });
 
-export const archivoRefDto = z.object({ archivoUuid: z.string().uuid(), mimeType: z.string() });
-
 // ===================== Superficie hacia el sistema Finanzas =====================
 // Sólo lectura, consumida por su service account. Nada de esto lleva datos
 // personales: sin RFC, sin nombres, sin nis, sin identificadores internos de
@@ -599,7 +609,7 @@ export const cobroPorFolioDto = z.object({
   cobradoAt: z.string(),
   formaPago: z.string(),
   metodoPago: metodoPagoSchema,
-  referenciaPago: z.string().nullable(),
+  referenciaPago: z.string(),
   /// Metadatos del ticket de la terminal (o del comprobante de transferencia)
   /// adjuntado al cobrar. Los bytes se piden en su propia ruta.
   comprobante: comprobantePagoRefDto.nullable(),

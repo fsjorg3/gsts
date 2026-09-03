@@ -192,6 +192,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/constancias/verificar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verificar una constancia sin escanear el QR (folio + código)
+         * @description Misma verificación que la ruta por QR, para cuando éste no se puede escanear ni fotografiar. `codigo` acepta el token completo del QR o el código corto impreso en texto bajo él (mismo HMAC, recortado). Folio inexistente y código inválido devuelven un 404 idéntico, por la misma razón que en la ruta por QR.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["VerificarConstanciaManual"];
+                };
+            };
+            responses: {
+                /** @description Constancia encontrada y código válido (incluye vencidas y anuladas) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["VerificacionConstanciaPublica"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description Folio inexistente o código inválido — indistinguibles a propósito */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Falta folio o código */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Límite de tasa excedido */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -2853,7 +2926,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Registrar el cruce con el OUC de un trámite de No Adeudo (rol ventanilla). Upsert por momento: repetirlo corrige el resultado. Aprobar exige VALIDACION_INICIAL con SIN_ADEUDO; cobrar exige REVALIDACION_COBRO con SIN_ADEUDO */
+        /** Registrar el cruce con el OUC de un trámite de No Adeudo (rol ventanilla). Exige evidenciaOuc (foto/captura de la consulta, Base64). Upsert por momento: repetirlo corrige el resultado y reemplaza la evidencia. Aprobar exige VALIDACION_INICIAL con SIN_ADEUDO; cobrar exige REVALIDACION_COBRO con SIN_ADEUDO */
         post: {
             parameters: {
                 query?: never;
@@ -2916,6 +2989,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tramites/{id}/validaciones/no-adeudo/archivo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Descargar la evidencia OUC de una validación de No Adeudo (roles ventanilla o direccion)
+         * @description Devuelve el archivo binario tal como se cargó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.
+         */
+        get: {
+            parameters: {
+                query: {
+                    momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Contenido de la evidencia */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/octet-stream": string;
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tramites/{id}/validaciones/no-registro": {
         parameters: {
             query?: never;
@@ -2925,7 +3068,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Registrar la consulta al padrón de un trámite de No Registro (rol ventanilla). Upsert por momento. Aprobar exige VALIDACION_INICIAL con SIN_REGISTRO; cobrar exige REVALIDACION_COBRO con SIN_REGISTRO. Registrar CON_REGISTRO es válido y deja el trámite bloqueado a propósito */
+        /** Registrar la consulta al padrón de un trámite de No Registro (rol ventanilla). Exige evidenciaOuc (foto/captura de la consulta, Base64). Upsert por momento; repetirlo reemplaza la evidencia. Aprobar exige VALIDACION_INICIAL con SIN_REGISTRO; cobrar exige REVALIDACION_COBRO con SIN_REGISTRO. Registrar CON_REGISTRO es válido y deja el trámite bloqueado a propósito */
         post: {
             parameters: {
                 query?: never;
@@ -2982,6 +3125,76 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tramites/{id}/validaciones/no-registro/archivo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Descargar la evidencia OUC de una validación de No Registro (roles ventanilla o direccion)
+         * @description Devuelve el archivo binario tal como se cargó, no la envolvente `{ data }` — es una descarga. Los errores sí conservan el formato `{ error }`.
+         */
+        get: {
+            parameters: {
+                query: {
+                    momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Contenido de la evidencia */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/octet-stream": string;
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3910,7 +4123,11 @@ export interface components {
             /** @enum {string} */
             resultado: "SIN_ADEUDO" | "CON_ADEUDO";
             adeudoMonto?: number;
-            referenciaOuc?: string;
+            evidenciaOuc: {
+                base64: string;
+                nombreOriginal: string;
+                mimeType: string;
+            };
         };
         ValidacionNoRegistroRequest: {
             /** @enum {string} */
@@ -3919,7 +4136,11 @@ export interface components {
             momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
             /** @enum {string} */
             resultado: "SIN_REGISTRO" | "CON_REGISTRO";
-            referenciaOuc?: string;
+            evidenciaOuc: {
+                base64: string;
+                nombreOriginal: string;
+                mimeType: string;
+            };
         };
         CobroRequest: {
             /** Format: uuid */
@@ -3939,7 +4160,7 @@ export interface components {
              * @default false
              */
             facturaSolicitadaEnVentanilla: boolean;
-            referenciaPago?: string;
+            referenciaPago: string;
             /** @description Obligatorio: se reenvía a GAF al capturar la solicitud de factura */
             comprobante: {
                 /** @description Comprobante de pago (voucher) codificado en Base64 */
@@ -3961,6 +4182,10 @@ export interface components {
         /** @description Sólo se usa en la acción "rechazar" */
         TransicionTramiteRequest: {
             motivo?: string;
+        };
+        VerificarConstanciaManual: {
+            folio: string;
+            codigo: string;
         };
         ActorMe: {
             /** Format: uuid */
@@ -4275,7 +4500,11 @@ export interface components {
                 /** @enum {string} */
                 resultado: "SIN_ADEUDO" | "CON_ADEUDO";
                 adeudoMonto: string | null;
-                referenciaOuc: string | null;
+                evidenciaOuc: {
+                    /** Format: uuid */
+                    archivoUuid: string;
+                    mimeType: string;
+                };
                 /** Format: uuid */
                 validadoPorId: string | null;
                 validadoAt: string;
@@ -4291,7 +4520,11 @@ export interface components {
                 momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
                 /** @enum {string} */
                 resultado: "SIN_REGISTRO" | "CON_REGISTRO";
-                referenciaOuc: string | null;
+                evidenciaOuc: {
+                    /** Format: uuid */
+                    archivoUuid: string;
+                    mimeType: string;
+                };
                 /** Format: uuid */
                 validadoPorId: string | null;
                 validadoAt: string;
@@ -4325,7 +4558,7 @@ export interface components {
                 metodoPago: "PUE" | "PPD";
                 moneda: string;
                 facturaSolicitadaEnVentanilla: boolean;
-                referenciaPago: string | null;
+                referenciaPago: string;
                 /** Format: uuid */
                 comprobanteArchivoUuid: string | null;
                 comprobanteNombreOriginal: string | null;
@@ -4387,7 +4620,11 @@ export interface components {
             /** @enum {string} */
             resultado: "SIN_ADEUDO" | "CON_ADEUDO";
             adeudoMonto: string | null;
-            referenciaOuc: string | null;
+            evidenciaOuc: {
+                /** Format: uuid */
+                archivoUuid: string;
+                mimeType: string;
+            };
             /** Format: uuid */
             validadoPorId: string | null;
             validadoAt: string;
@@ -4403,7 +4640,11 @@ export interface components {
             momento: "VALIDACION_INICIAL" | "REVALIDACION_COBRO";
             /** @enum {string} */
             resultado: "SIN_REGISTRO" | "CON_REGISTRO";
-            referenciaOuc: string | null;
+            evidenciaOuc: {
+                /** Format: uuid */
+                archivoUuid: string;
+                mimeType: string;
+            };
             /** Format: uuid */
             validadoPorId: string | null;
             validadoAt: string;
@@ -4463,7 +4704,7 @@ export interface components {
             metodoPago: "PUE" | "PPD";
             moneda: string;
             facturaSolicitadaEnVentanilla: boolean;
-            referenciaPago: string | null;
+            referenciaPago: string;
             /** Format: uuid */
             comprobanteArchivoUuid: string | null;
             comprobanteNombreOriginal: string | null;
@@ -4492,7 +4733,7 @@ export interface components {
                 metodoPago: "PUE" | "PPD";
                 moneda: string;
                 facturaSolicitadaEnVentanilla: boolean;
-                referenciaPago: string | null;
+                referenciaPago: string;
                 /** Format: uuid */
                 comprobanteArchivoUuid: string | null;
                 comprobanteNombreOriginal: string | null;
@@ -4560,7 +4801,7 @@ export interface components {
                 metodoPago: "PUE" | "PPD";
                 moneda: string;
                 facturaSolicitadaEnVentanilla: boolean;
-                referenciaPago: string | null;
+                referenciaPago: string;
                 /** Format: uuid */
                 comprobanteArchivoUuid: string | null;
                 comprobanteNombreOriginal: string | null;
@@ -4603,7 +4844,7 @@ export interface components {
             formaPago: string;
             /** @enum {string} */
             metodoPago: "PUE" | "PPD";
-            referenciaPago: string | null;
+            referenciaPago: string;
             comprobante: {
                 nombreOriginal: string | null;
                 mimeType: string | null;

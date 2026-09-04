@@ -24,7 +24,8 @@ export function createCobrosRouter(storage: NfsStorage): Router {
       if (!mimeRealCoincide(contenidoComprobante, input.comprobante.mimeType)) {
         throw new AppError(422, 'FILE_INVALID', 'El tipo de archivo del comprobante no coincide con su contenido');
       }
-      archivo = await storage.save('comprobantes', contenidoComprobante);
+      const tramite = await prisma.tramite.findUniqueOrThrow({ where: { id: tramiteId }, select: { createdAt: true } });
+      archivo = await storage.save('comprobantes', { tramiteId, creadoEn: tramite.createdAt }, contenidoComprobante);
       const archivoGuardado = archivo;
       const data = await withBusinessTransaction(context, async (tx) => {
         const tarifa = await tx.tarifa.findUniqueOrThrow({ where: { id: input.tarifaId } });
@@ -54,12 +55,12 @@ export function createCobrosRouter(storage: NfsStorage): Router {
       const tramiteId = routeParam((request.params as { tramiteId?: string }).tramiteId, 'tramiteId');
       const cobro = await prisma.cobro.findFirst({
         where: { tramiteId },
-        select: { comprobanteArchivoUuid: true, comprobanteMimeType: true, comprobanteNombreOriginal: true },
+        select: { comprobanteArchivoUuid: true, comprobanteMimeType: true, comprobanteNombreOriginal: true, tramite: { select: { createdAt: true } } },
       });
       if (!cobro?.comprobanteArchivoUuid || !cobro.comprobanteMimeType) {
         throw new AppError(404, 'NOT_FOUND', 'El cobro de este trámite no tiene comprobante adjunto');
       }
-      const contenido = await storage.leerPorUuid('comprobantes', cobro.comprobanteArchivoUuid);
+      const contenido = await storage.leerPorUuid('comprobantes', { tramiteId, creadoEn: cobro.tramite.createdAt }, cobro.comprobanteArchivoUuid);
       response.setHeader('content-type', cobro.comprobanteMimeType);
       response.setHeader('content-disposition', `attachment; filename="${cobro.comprobanteNombreOriginal ?? 'comprobante'}"`);
       response.send(contenido);

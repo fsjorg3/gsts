@@ -26,25 +26,27 @@ export function PanelPlazos() {
   }, [vigente.data, editado]);
 
   return (
-    <Card titulo="Plazos operativos">
+    <Card titulo="Configuración de plazos">
       <Typography sx={{ fontSize: 12.5, color: 'text.secondary', mb: 2 }}>
-        El plazo de pago se estampa al aprobar un trámite. El plazo para solicitar factura ya no se configura aquí: lo
-        calcula el sistema Finanzas desde la fecha de pago.
+        Define los plazos aplicables al proceso de pago y validación de los trámites.
       </Typography>
       {!vigente.isPending && !vigente.data ? (
         <Alert severity="info" icon={<MsIcon name="info" size={20} />} sx={{ mb: 2 }}>
           Aún no hay una configuración guardada; se creará al guardar por primera vez.
         </Alert>
       ) : null}
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <TextField label="Plazo de pago (días)" value={pago} onChange={(e) => { setEditado(true); setPago(e.target.value.replace(/\D/g, '')); }} sx={{ width: 200 }} />
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'start', flexWrap: 'wrap' }}>
+        
+        <TextField label="Plazo para realizar el pago (días)" helperText="Número de días disponibles para realizar el pago después de la aprobación del trámite." value={pago} onChange={(e) => { setEditado(true); setPago(e.target.value.replace(/\D/g, '')); }} sx={{ width: 200 }} />
+
         <TextField
-          label="Ventana de gracia de revalidación (minutos)"
-          helperText="Si el cobro ocurre dentro de estos minutos desde la aprobación, no se exige revalidar. 0 = exigirla siempre."
+          label="Periodo sin revalidación (minutos)"
+          helperText="Durante este periodo posterior a la aprobación, el pago puede realizarse sin revalidar el trámite. Ingresa 0 para requerir revalidación en todos los casos."
           value={gracia}
           onChange={(e) => { setEditado(true); setGracia(e.target.value.replace(/\D/g, '')); }}
           sx={{ width: 280 }}
         />
+
         <Button
           variant="contained"
           disabled={!Number(pago) || gracia === '' || guardar.isPending}
@@ -57,6 +59,7 @@ export function PanelPlazos() {
         >
           Guardar plazos
         </Button>
+
       </Box>
     </Card>
   );

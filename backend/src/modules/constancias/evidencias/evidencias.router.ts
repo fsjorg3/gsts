@@ -18,8 +18,10 @@ export function createEvidenciasRouter(storage: NfsStorage, maxBytes: number): R
     try {
       const input = evidenciaSchema.parse(request.body); const contenido = Buffer.from(input.contenidoBase64, 'base64');
       if (contenido.byteLength > maxBytes) throw new AppError(422, 'FILE_TOO_LARGE', 'La evidencia excede el limite permitido');
-      const archivoGuardado = await storage.save('evidencias', contenido); archivo = archivoGuardado; const context = requestContext(request);
-      const data = await withBusinessTransaction(context, async (tx) => { const evidencia = await tx.evidencia.create({ data: { tramiteId: routeParam((request.params as { tramiteId?: string }).tramiteId, 'tramiteId'), opcionDocumentoId: input.opcionDocumentoId, archivoUuid: archivoGuardado.archivoUuid, nombreOriginal: input.nombreOriginal, hashSha256: archivoGuardado.hashSha256, mimeType: input.mimeType, tamanoBytes: archivoGuardado.tamanoBytes, creadoPorId: context.actorId } }); await auditarUsuario(tx, context, { entidad: 'evidencia', entidadId: evidencia.id, accion: 'CARGAR', detalle: { mimeType: evidencia.mimeType, tamanoBytes: evidencia.tamanoBytes } }); return evidencia; });
+      const tramiteId = routeParam((request.params as { tramiteId?: string }).tramiteId, 'tramiteId');
+      const tramite = await prisma.tramite.findUniqueOrThrow({ where: { id: tramiteId }, select: { createdAt: true } });
+      const archivoGuardado = await storage.save('evidencias', { tramiteId, creadoEn: tramite.createdAt }, contenido); archivo = archivoGuardado; const context = requestContext(request);
+      const data = await withBusinessTransaction(context, async (tx) => { const evidencia = await tx.evidencia.create({ data: { tramiteId, opcionDocumentoId: input.opcionDocumentoId, archivoUuid: archivoGuardado.archivoUuid, nombreOriginal: input.nombreOriginal, hashSha256: archivoGuardado.hashSha256, mimeType: input.mimeType, tamanoBytes: archivoGuardado.tamanoBytes, creadoPorId: context.actorId } }); await auditarUsuario(tx, context, { entidad: 'evidencia', entidadId: evidencia.id, accion: 'CARGAR', detalle: { mimeType: evidencia.mimeType, tamanoBytes: evidencia.tamanoBytes } }); return evidencia; });
       response.status(201).json({ data, requestId: request.id });
     } catch (error) { if (archivo) await storage.remove(archivo.ruta).catch(() => undefined); next(error); }
   });
@@ -45,10 +47,10 @@ export function createEvidenciasRouter(storage: NfsStorage, maxBytes: number): R
       const evidenciaId = routeParam((request.params as { id?: string }).id, 'id');
       const evidencia = await prisma.evidencia.findFirst({
         where: { id: evidenciaId, tramiteId },
-        select: { archivoUuid: true, mimeType: true, nombreOriginal: true },
+        select: { archivoUuid: true, mimeType: true, nombreOriginal: true, tramite: { select: { createdAt: true } } },
       });
       if (!evidencia) throw new AppError(404, 'NOT_FOUND', 'Evidencia no encontrada en el trámite');
-      const contenido = await storage.leerPorUuid('evidencias', evidencia.archivoUuid);
+      const contenido = await storage.leerPorUuid('evidencias', { tramiteId, creadoEn: evidencia.tramite.createdAt }, evidencia.archivoUuid);
       response.setHeader('content-type', evidencia.mimeType);
       response.setHeader('content-disposition', `attachment; filename="${evidencia.nombreOriginal}"`);
       response.send(contenido);

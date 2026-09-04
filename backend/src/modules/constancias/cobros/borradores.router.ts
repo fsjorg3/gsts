@@ -42,7 +42,10 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
       const tramiteId = tramiteIdDe(request);
       const abierto = await prisma.borradorCobro.findFirst({ where: { tramiteId, estado: 'ABIERTO' }, select: { id: true } });
       if (abierto) throw new AppError(409, 'DRAFT_ALREADY_OPEN', 'El trámite ya tiene un borrador de cobro abierto');
-      if (input.comprobante) archivo = await storage.save('comprobantes', validarComprobante(input.comprobante));
+      if (input.comprobante) {
+        const tramite = await prisma.tramite.findUniqueOrThrow({ where: { id: tramiteId }, select: { createdAt: true } });
+        archivo = await storage.save('comprobantes', { tramiteId, creadoEn: tramite.createdAt }, validarComprobante(input.comprobante));
+      }
       const data = await withBusinessTransaction(context, async (tx) => {
         const { motivoReduccionId, comprobante, ...resto } = input;
         const motivo = 'motivoReduccionId' in input ? await resolverMotivoReduccion(tx, motivoReduccionId) : {};
@@ -62,7 +65,18 @@ export function createBorradoresCobroRouter(storage: NfsStorage): Router {
       const input = guardarBorradorCobroSchema.parse(request.body);
       const context = requestContext(request);
       const borradorId = routeParam(request.params.borradorId, 'borradorId');
-      if (input.comprobante) archivo = await storage.save('comprobantes', validarComprobante(input.comprobante));
+      const tramiteId = tramiteIdDe(request);
+      if (input.comprobante) {
+        // El borrador no traía verificación de pertenencia al tramiteId de la
+        // URL (a diferencia de /aplicar); consultarlo aquí es subproducto
+        // gratis de obtener el año del trámite dueño para el guardado.
+        const borrador = await prisma.borradorCobro.findUniqueOrThrow({
+          where: { id: borradorId },
+          select: { tramiteId: true, tramite: { select: { createdAt: true } } },
+        });
+        if (borrador.tramiteId !== tramiteId) throw new AppError(404, 'NOT_FOUND', 'El borrador no pertenece al trámite');
+        archivo = await storage.save('comprobantes', { tramiteId, creadoEn: borrador.tramite.createdAt }, validarComprobante(input.comprobante));
+      }
       const data = await withBusinessTransaction(context, async (tx) => {
         const { motivoReduccionId, comprobante, ...resto } = input;
         const motivo = 'motivoReduccionId' in input ? await resolverMotivoReduccion(tx, motivoReduccionId) : {};

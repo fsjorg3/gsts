@@ -96,8 +96,10 @@ export function createConsultaCobroRouter(internal: RequestHandler[], storage: N
       const constancia = await prisma.constancia.findUnique({
         where: { folioUnico: folio },
         select: {
+          tramiteId: true,
           tramite: {
             select: {
+              createdAt: true,
               cobro: {
                 select: { comprobanteArchivoUuid: true, comprobanteNombreOriginal: true, comprobanteMimeType: true },
               },
@@ -107,13 +109,17 @@ export function createConsultaCobroRouter(internal: RequestHandler[], storage: N
       });
 
       const cobro = constancia?.tramite.cobro;
-      if (!cobro?.comprobanteArchivoUuid || !cobro.comprobanteMimeType) {
+      if (!constancia || !cobro?.comprobanteArchivoUuid || !cobro.comprobanteMimeType) {
         throw new AppError(404, 'NOT_FOUND', 'El cobro de ese folio no tiene comprobante adjunto');
       }
 
       // Los comprobantes se guardan con el UUID como nombre y sin extensión, así
       // que el tipo no puede inferirse de la ruta: se fija explícitamente.
-      const contenido = await storage.leerPorUuid('comprobantes', cobro.comprobanteArchivoUuid);
+      const contenido = await storage.leerPorUuid(
+        'comprobantes',
+        { tramiteId: constancia.tramiteId, creadoEn: constancia.tramite.createdAt },
+        cobro.comprobanteArchivoUuid,
+      );
       response.setHeader('content-type', cobro.comprobanteMimeType);
       response.setHeader('content-disposition', `attachment; filename="comprobante-${folio}"`);
       response.send(contenido);

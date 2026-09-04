@@ -49,7 +49,7 @@ export function createConstanciasRouter(storage: NfsStorage, env: Env): Router {
       const tramite = await prisma.tramite.findUniqueOrThrow({
         where: { id: tramiteId },
         select: {
-          estado: true, tipoConstancia: true, nis: true,
+          estado: true, tipoConstancia: true, nis: true, createdAt: true,
           domicilioCalle: true, domicilioNumero: true, domicilioColonia: true,
           domicilioPerteneceA: true, domicilioPerteneceANombre: true,
           personas: { where: { rol: 'TITULAR' }, select: { personaId: true, persona: { select: { nombreRazonSocial: true } } }, take: 1 },
@@ -103,7 +103,7 @@ export function createConstanciasRouter(storage: NfsStorage, env: Env): Router {
           codigoVerificacion,
         });
 
-        const archivoGuardado = await storage.save('constancias', pdf); archivo = archivoGuardado;
+        const archivoGuardado = await storage.save('constancias', { tramiteId, creadoEn: tramite.createdAt }, pdf); archivo = archivoGuardado;
         const hashContenido = calcularHashContenido({ folioUnico, tipoConstancia: tramite.tipoConstancia, personaTitularId: titular.personaId, emitidaAt, vigenciaInicio, vigenciaFin });
         const constancia = await tx.constancia.create({ data: { tramiteId, folioUnico, archivoUuid: archivoGuardado.archivoUuid, hashPdf: archivoGuardado.hashSha256, hashContenido, versionToken, firmaDigital: null, certificadoId: null, emitidaAt, vigenciaInicio, vigenciaFin } });
         await tx.archivoGenerado.create({ data: { constanciaId: constancia.id, tipo: 'PDF', archivoUuid: archivoGuardado.archivoUuid, ruta: archivoGuardado.ruta, hashSha256: archivoGuardado.hashSha256, mimeType: 'application/pdf', tamanoBytes: archivoGuardado.tamanoBytes } });

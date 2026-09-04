@@ -139,11 +139,10 @@ KEYCLOAK_JWKS_URL=https://<KEYCLOAK_HOST>/realms/SOAPAP/protocol/openid-connect/
 KEYCLOAK_CLIENT_ID=gsts
 KEYCLOAK_AUDIENCE=gsts
 
-# Archivos NFS (namespaceadas por dominio: si "quejas" llega a necesitar NFS, sería /mnt/gsts/quejas/... al lado)
+# Archivos NFS: raíz única, jerarquía año/tramiteId/scope debajo
+# ({NFS_BASE_PATH}/{año}/{tramiteId}/{evidencias|constancias|comprobantes}/{archivoUuid});
+# año es el de Tramite.createdAt, fijo para todo el ciclo de vida del trámite.
 NFS_BASE_PATH=/mnt/gsts
-NFS_EVIDENCIAS_PATH=/mnt/gsts/constancias/evidencias
-NFS_CONSTANCIAS_PATH=/mnt/gsts/constancias/constancias
-NFS_COMPROBANTES_PATH=/mnt/gsts/constancias/comprobantes
 MAX_EVIDENCIA_TOTAL_BYTES=31457280
 
 # Servicio de Firma

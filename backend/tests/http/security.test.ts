@@ -11,7 +11,7 @@ const env: Env = {
   KEYCLOAK_ISSUER_URL: 'https://keycloak.test/realms/SOAPAP',
   KEYCLOAK_JWKS_URL: 'https://keycloak.test/realms/SOAPAP/protocol/openid-connect/certs',
   KEYCLOAK_CLIENT_ID: 'sicef', KEYCLOAK_AUDIENCE: 'sicef',
-  NFS_BASE_PATH: '/tmp/sicef', NFS_EVIDENCIAS_PATH: '/tmp/sicef/evidencias', NFS_CONSTANCIAS_PATH: '/tmp/sicef/constancias', NFS_COMPROBANTES_PATH: '/tmp/sicef/comprobantes',
+  NFS_BASE_PATH: '/tmp/sicef',
   MAX_EVIDENCIA_TOTAL_BYTES: 31_457_280,
   SIGNING_SERVICE_URL: 'https://signing.test', SIGNING_SERVICE_AUTH_TOKEN: 'test-token', SIGNING_SERVICE_TIMEOUT_MS: 1_000,
   OUC_API_URL: 'https://ouc.test', OUC_API_TOKEN: 'test-token',

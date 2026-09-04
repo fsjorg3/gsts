@@ -34,7 +34,8 @@ export function createValidacionesNoRegistroRouter(storage: NfsStorage): Router 
       if (!mimeRealCoincide(contenido, evidenciaOuc.mimeType)) {
         throw new AppError(422, 'FILE_INVALID', 'El tipo de archivo de la evidencia no coincide con su contenido');
       }
-      archivo = await storage.save('evidencias', contenido);
+      const tramite = await prisma.tramite.findUniqueOrThrow({ where: { id: tramiteId }, select: { createdAt: true } });
+      archivo = await storage.save('evidencias', { tramiteId, creadoEn: tramite.createdAt }, contenido);
       const archivoGuardado = archivo;
       const evidenciaCampos = {
         evidenciaOucArchivoUuid: archivoGuardado.archivoUuid,
@@ -61,10 +62,10 @@ export function createValidacionesNoRegistroRouter(storage: NfsStorage): Router 
       const { momento } = momentoQuerySchema.parse(request.query);
       const validacion = await prisma.validacionNoRegistro.findUnique({
         where: { tramiteId_momento: { tramiteId, momento } },
-        select: { evidenciaOucArchivoUuid: true, evidenciaOucMimeType: true, evidenciaOucNombreOriginal: true },
+        select: { evidenciaOucArchivoUuid: true, evidenciaOucMimeType: true, evidenciaOucNombreOriginal: true, tramite: { select: { createdAt: true } } },
       });
       if (!validacion) throw new AppError(404, 'NOT_FOUND', 'Validación no encontrada en el trámite');
-      const contenido = await storage.leerPorUuid('evidencias', validacion.evidenciaOucArchivoUuid);
+      const contenido = await storage.leerPorUuid('evidencias', { tramiteId, creadoEn: validacion.tramite.createdAt }, validacion.evidenciaOucArchivoUuid);
       response.setHeader('content-type', validacion.evidenciaOucMimeType);
       response.setHeader('content-disposition', `attachment; filename="${validacion.evidenciaOucNombreOriginal}"`);
       response.send(contenido);

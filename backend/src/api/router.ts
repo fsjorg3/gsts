@@ -24,11 +24,7 @@ import { createValidacionesRouter } from '../modules/constancias/validaciones/va
 export function createApiRouter(env: Env): Router {
   const router = Router();
   const internal: RequestHandler[] = [createAuthenticate(env), bindActor];
-  const storage = new NfsStorage({
-    evidencias: env.NFS_EVIDENCIAS_PATH,
-    constancias: env.NFS_CONSTANCIAS_PATH,
-    comprobantes: env.NFS_COMPROBANTES_PATH,
-  });
+  const storage = new NfsStorage(env.NFS_BASE_PATH);
 
   router.use(createSistemaRouter());
   router.use('/public', createPublicoRouter(env));

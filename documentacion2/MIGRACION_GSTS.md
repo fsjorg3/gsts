@@ -181,28 +181,33 @@ instalación no cambia: `prisma migrate deploy` → re-otorgar permisos (`init_p
 
 ---
 
-## §5 · NFS — 3 de 4, y con mejor forma que la propuesta original
+## §5 · NFS — resuelto: raíz única, jerarquía año/trámite/scope
 
-`backend/.env.example:14-16` ya dice `/mnt/gsts/constancias/{evidencias,constancias,comprobantes}` —
-mejor que mi propuesta original (`/mnt/gsts/...` a secas): namespacea por dominio, coherente con
-`modules/constancias/` de §7. Si `quejas/` llega a necesitar NFS, sería
-`/mnt/gsts/quejas/...` al lado, sin chocar.
+**Cierre de las notas anteriores de esta sección**: `NFS_BASE_PATH` dejó de ser la variable muerta que
+documentaban las dos entradas previas de este párrafo. Motivo del cambio: con ~18,000 constancias/año
+proyectadas, el layout plano por scope (`{scope}/{archivoUuid}`, uno por cada una de
+`NFS_EVIDENCIAS_PATH`/`NFS_CONSTANCIAS_PATH`/`NFS_COMPROBANTES_PATH`) acumulaba todos los archivos de
+todos los años en un mismo directorio — no penaliza una lectura puntual (siempre es un `open()` directo
+por UUID), pero sí cualquier operación que enumera el directorio (respaldos, verificación de
+integridad, restauraciones sobre NFS), y no daba una forma directa de reunir el expediente completo de
+un trámite para una solicitud de transparencia.
 
-**Corrección a una nota anterior de esta misma sección**: llegué a documentar aquí que
-`NFS_BASE_PATH` "sigue en `/mnt/sicef`" — ya no es cierto, ninguno de los dos `.env` dice "sicef" en
-esa variable (`backend/.env.example:13` dice `/mnt/gsts`; `backend/.env:13` real dice `/assets/gsts`,
-ya sin la barra final que tenía antes). Lo que sigue siendo real: `NFS_BASE_PATH` no tiene el
-segmento `/constancias/` que sí tienen sus tres vecinas en `.env.example`, y **nada en el código la
-consume** más allá de la validación de arranque (`env.ts:23`, `z.string().min(1)`) — sigue siendo una
-variable exigida pero muerta. Bajo riesgo; decidir entre alinearla a `/mnt/gsts/constancias` por
-consistencia o quitarla del schema si de verdad no la usa nada sigue fuera del alcance de este
-documento.
+Layout nuevo: `{NFS_BASE_PATH}/{año}/{tramiteId}/{evidencias|constancias|comprobantes}/{archivoUuid}`.
+`año` es el de `Tramite.createdAt`, fijado una sola vez y reutilizado para evidencias, comprobante y
+constancia del mismo trámite sin importar cuándo se guarde cada archivo — así el trámite nunca queda
+partido entre dos carpetas de año así cruce el límite de diciembre-enero entre captura y cobro.
+`NFS_EVIDENCIAS_PATH`, `NFS_CONSTANCIAS_PATH` y `NFS_COMPROBANTES_PATH` se eliminaron del schema de
+entorno (`env.ts`) y de `.env.example`: `NFS_BASE_PATH` es ahora la única raíz NFS, construida en
+`router.ts` como `new NfsStorage(env.NFS_BASE_PATH)`. `NfsStorage` (`infrastructure/storage/nfs-storage.ts`)
+reconstruye la ruta de lectura a partir del trámite dueño (`tramiteId` + año) en vez de sólo el UUID del
+archivo, y valida además que el segmento de scope de la ruta coincida con el scope pedido — garantía que
+antes daba gratis tener una raíz de directorio por scope.
 
-**Hallazgo nuevo, documentado y no ejecutado**: 3 archivos de test siguen hardcodeando fixtures con
-`/tmp/sicef/...` para las 4 rutas NFS — `backend/tests/contract/openapi.test.ts`,
-`backend/tests/http/security.test.ts`, `backend/tests/http/verificacion.test.ts`. Es código de
-pruebas, no una ruta real, así que no afecta a producción ni bloquea nada; se deja anotado para
-cuando se cierre el resto de §5.
+Los 3 archivos de test que hardcodeaban fixtures con las 4 rutas NFS (`backend/tests/contract/openapi.test.ts`,
+`backend/tests/http/security.test.ts`, `backend/tests/http/verificacion.test.ts`) se actualizaron a sólo
+`NFS_BASE_PATH`. Fuera de alcance de este cambio, a propósito: la migración de los archivos ya
+guardados bajo el layout plano — sin ella, las lecturas de esos archivos preexistentes fallan con
+`ENOENT` hasta que se relocalicen a la nueva ruta.
 
 
 ---

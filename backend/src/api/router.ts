@@ -17,6 +17,7 @@ import { createMotivosReduccionRouter } from '../modules/constancias/motivos-red
 import { createPadronRouter } from '../modules/constancias/padron/padron.router.js';
 import { createPersonasRouter } from '../modules/personas/personas.router.js';
 import { createPublicoRouter } from '../modules/constancias/publico/publico.router.js';
+import { createVerificacionPortalRouter } from '../modules/constancias/publico/portal.router.js';
 import { createSistemaRouter } from '../modules/sistema/sistema.router.js';
 import { createTramitesRouter } from '../modules/constancias/tramites/tramites.router.js';
 import { createValidacionesNoRegistroRouter } from '../modules/constancias/validaciones/no-registro.router.js';
@@ -40,6 +41,11 @@ export function createApiRouter(env: Env): Router {
   // a nivel raíz no colisiona con `/tramites/:tramiteId/constancias`.
   router.use('/constancias', createConsultaCobroRouter(internal, storage));
   router.use('/direccion', createDireccionRouter(internal));
+  // Mismo resultado que /public/constancias/..., pero autenticado: lo llama el
+  // backend del portal institucional servidor a servidor, nunca el navegador
+  // del ciudadano (ese sigue yendo por /public, sin auth). `portal-institucional`
+  // es rol de *realm* (realm_access.roles), como ti/direccion — no de cliente.
+  router.use('/portal/constancias', ...internal, requireRoles('portal-institucional'), createVerificacionPortalRouter(env));
 
   // Las rutas especializadas se montan antes de /tramites/:id/:accion y sólo
   // ejecutan autenticación para su propio caso de uso.

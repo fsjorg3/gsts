@@ -69,6 +69,10 @@ describe('controles HTTP', () => {
       request(app).get('/api/v1/constancias/GSTS-1-ABCD1234/cobro'),
       request(app).get('/api/v1/constancias/GSTS-1-ABCD1234/cobro/comprobante'),
       request(app).get('/api/v1/direccion/metricas'),
+      // Verificación pública, canal del portal institucional: sólo service
+      // account, a diferencia de /public/constancias/... (anónima, sin cambios).
+      request(app).get('/api/v1/portal/constancias/GSTS-1-ABCD1234/verificar/v1.abc123'),
+      request(app).post('/api/v1/portal/constancias/verificar'),
     ];
     const responses = await Promise.all(requests);
     for (const response of responses) expect(response.status).toBe(401);

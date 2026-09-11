@@ -44,4 +44,11 @@ describe('roles de SICEF tras el recorte', () => {
     expect(rolesCliente).toContain('consulta-metricas');
     expect(rolesRealm).not.toContain('consulta-cobros');
   });
+
+  it('declara portal-institucional como rol de realm, no de cliente', () => {
+    // A diferencia de consulta-cobros/consulta-metricas: éste viaja en
+    // realm_access.roles, como ti/direccion, no en resource_access.<cliente>.
+    expect(rolesRealm).toContain('portal-institucional');
+    expect(rolesCliente).not.toContain('portal-institucional');
+  });
 });

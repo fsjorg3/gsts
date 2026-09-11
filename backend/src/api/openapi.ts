@@ -588,5 +588,32 @@ export const openApiDocument = {
         responses: { '200': envelope(MetricasDireccion, { description: 'Indicadores del periodo' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION },
       },
     },
+
+    // ---------- Verificación pública, canal autenticado (portal institucional) ----------
+    // Mismo resultado que /public/constancias/..., pero servidor a servidor: lo
+    // llama el backend del portal institucional con su service account (rol de
+    // realm portal-institucional), nunca el navegador del ciudadano — ese sigue
+    // yendo por /public, sin autenticar.
+    '/portal/constancias/{folio}/verificar/{token}': {
+      get: {
+        tags: ['Integración Portal institucional'], security: bearer,
+        summary: 'Verificar una constancia por folio y token del QR (rol portal-institucional)',
+        description: 'Misma verificación que la ruta pública homónima bajo /public, para cuando la consulta la releva el backend del portal institucional en vez del navegador del ciudadano. El token del QR se sigue exigiendo: sin él no hay forma de consultar un folio, para impedir la enumeración. Token inválido y folio inexistente devuelven un 404 idéntico.',
+        parameters: [
+          { name: 'folio', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'token', in: 'path', required: true, schema: { type: 'string', pattern: '^v\\d+\\.[0-9a-f]+$' } },
+        ],
+        responses: { '200': envelope(VerificacionConstanciaPublica, { description: 'Constancia encontrada y token válido (incluye vencidas y anuladas)' }), ...ERRORES_AUTENTICACION, '404': errorResponse('Folio inexistente o token inválido — indistinguibles a propósito'), '429': errorResponse('Límite de tasa excedido') },
+      },
+    },
+    '/portal/constancias/verificar': {
+      post: {
+        tags: ['Integración Portal institucional'], security: bearer,
+        summary: 'Verificar una constancia sin QR, folio + código (rol portal-institucional)',
+        description: 'Misma verificación que /public/constancias/verificar, para cuando la consulta la releva el backend del portal institucional. `codigo` acepta el token completo del QR o el código corto impreso en texto bajo él. Folio inexistente y código inválido devuelven un 404 idéntico, por la misma razón que en la ruta por QR.',
+        requestBody: body(VerificarConstanciaManual),
+        responses: { '200': envelope(VerificacionConstanciaPublica, { description: 'Constancia encontrada y código válido (incluye vencidas y anuladas)' }), ...ERRORES_AUTENTICACION, '404': errorResponse('Folio inexistente o código inválido — indistinguibles a propósito'), '422': errorResponse('Falta folio o código'), '429': errorResponse('Límite de tasa excedido') },
+      },
+    },
   },
 } as const;

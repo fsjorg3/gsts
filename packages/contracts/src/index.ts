@@ -6,15 +6,20 @@ import { z } from 'zod';
 // el backend de Finanzas para las dos consultas de sólo lectura que SICEF le
 // expone. `jefatura` es de persona, como `ventanilla`, pero de client: exporta
 // datos (GET /tramites/export) y no debe poder colarse vía `realm_access`.
-export const rolesSicef = ['ventanilla', 'ti', 'direccion', 'consulta-cobros', 'consulta-metricas', 'jefatura'] as const;
+// `portal-institucional` es también de service account, pero de *realm* (no de
+// cliente `sicef`): lo usa el backend del portal institucional para verificar
+// constancias servidor a servidor, igual resultado que `/public` pero
+// autenticado — ver `/portal/constancias/...`.
+export const rolesSicef = ['ventanilla', 'ti', 'direccion', 'consulta-cobros', 'consulta-metricas', 'jefatura', 'portal-institucional'] as const;
 export const roleSicefSchema = z.enum(rolesSicef);
 export type RoleSicef = z.infer<typeof roleSicefSchema>;
 
 // Origen literal de cada rol en el token de Keycloak. Los roles de cliente sólo
-// son válidos desde `resource_access.sicef.roles`; `ti` y `direccion` sólo desde
-// `realm_access.roles`. Un rol colocado en la fuente equivocada se ignora.
+// son válidos desde `resource_access.sicef.roles`; `ti`, `direccion` y
+// `portal-institucional` sólo desde `realm_access.roles`. Un rol colocado en la
+// fuente equivocada se ignora.
 export const rolesCliente = ['ventanilla', 'consulta-cobros', 'consulta-metricas', 'jefatura'] as const satisfies readonly RoleSicef[];
-export const rolesRealm = ['ti', 'direccion'] as const satisfies readonly RoleSicef[];
+export const rolesRealm = ['ti', 'direccion', 'portal-institucional'] as const satisfies readonly RoleSicef[];
 
 export const paginationSchema = z.object({
   take: z.coerce.number().int().min(1).max(100).default(25),

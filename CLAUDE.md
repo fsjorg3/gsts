@@ -16,6 +16,8 @@ todavía no construida. Monorepo npm workspaces:
 
 GSTS expone a Finanzas **tres rutas de sólo lectura** y no consume nada de él: `GET /constancias/{folio}/cobro`, `GET /constancias/{folio}/cobro/comprobante` y `GET /direccion/metricas`. Se llavean por el folio de la constancia —único e impreso en el documento—, nunca por `cobro.referenciaPago`, que es texto libre, opcional y sin unicidad.
 
+GSTS expone además al **portal institucional** dos rutas bajo `/portal/constancias/...` —mismo resultado que `GET /public/constancias/{folio}/verificar/{token}` y `POST /public/constancias/verificar`, pero autenticadas: las llama el backend del portal servidor a servidor con el rol de **realm** `portal-institucional`, nunca el navegador del ciudadano. `/public` sigue sin auth, íntegra: el ciudadano puede seguir verificando directo desde el frontend de GSTS (`frontend/src/features/verificacion-publica/`) o desde el portal, sin que uno reemplace al otro.
+
 Fuera de alcance: la integración OUC (sólo se define su puerto en `backend/src/infrastructure/ouc`) y el Servicio de Firma (retirado del flujo: su cliente HTTP se conserva sin uso).
 
 ## Commands
@@ -51,7 +53,7 @@ Monolito modular. `backend/src/modules/` se divide en transversales de primer ni
 
 ### Request flow for internal routes
 
-1. `createAuthenticate(env)` ([auth/middleware.ts](backend/src/modules/auth/middleware.ts)) verifies the Keycloak JWT (realm `SOAPAP`, client/audience `gsts`) via JWKS. Roles come straight from claims — `ventanilla` y los de service account `consulta-cobros`/`consulta-metricas` from `resource_access.gsts.roles`, `ti`/`direccion` from `realm_access.roles` — and are never persisted or mapped to local roles. El rol `finanzas` **ya no existe en GSTS**: pertenece al otro sistema, y un token que sólo lo traiga recibe `403 MISSING_ROLE`.
+1. `createAuthenticate(env)` ([auth/middleware.ts](backend/src/modules/auth/middleware.ts)) verifies the Keycloak JWT (realm `SOAPAP`, client/audience `gsts`) via JWKS. Roles come straight from claims — `ventanilla` y los de service account `consulta-cobros`/`consulta-metricas` from `resource_access.gsts.roles`, `ti`/`direccion`/`portal-institucional` (service account del backend del portal institucional) from `realm_access.roles` — and are never persisted or mapped to local roles. El rol `finanzas` **ya no existe en GSTS**: pertenece al otro sistema, y un token que sólo lo traiga recibe `403 MISSING_ROLE`.
 2. `bindActor` upserts a pseudonymous `actor` row keyed only by `sub` (`resolveActor`). No name/email/roles are ever stored.
 3. `requireRoles(...)` gates by claim.
 4. Handlers build a `DatabaseContext` via `requestContext(request)` and run mutations inside `withBusinessTransaction` ([prisma.ts](backend/src/infrastructure/database/prisma.ts)), which sets `app.actor_id`, `app.roles`, `app.request_id` with `set_config(..., true)` so SQL triggers can enforce/audit.

@@ -54,6 +54,20 @@ describe('resolveGstsClaims', () => {
     }, 'gsts')).toThrow('rol autorizado');
   });
 
+  it('portal-institucional sólo es válido desde realm_access.roles, nunca desde resource_access', () => {
+    // El backend del portal institucional llega con un rol de realm, como
+    // ti/direccion — no de cliente, a diferencia de consulta-cobros/consulta-metricas.
+    expect(resolveGstsClaims({
+      sub: 'subject-8',
+      realm_access: { roles: ['portal-institucional'] },
+    }, 'gsts')).toEqual({ sub: 'subject-8', roles: ['portal-institucional'] });
+
+    expect(() => resolveGstsClaims({
+      sub: 'subject-9',
+      resource_access: { gsts: { roles: ['portal-institucional'] } },
+    }, 'gsts')).toThrow('rol autorizado');
+  });
+
   it('usa el clienteId configurado, no un nombre fijo: ignora roles bajo otro client_id', () => {
     // Si el token trae los roles bajo un client_id distinto al configurado
     // (p. ej. resabios de 'sicef' mientras se termina la migración), no cuentan.

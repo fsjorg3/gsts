@@ -55,12 +55,14 @@ const OPERACIONES_ESPERADAS: Array<[string, string]> = [
   // Superficie de sólo lectura hacia el sistema Finanzas (service account).
   ['get', '/constancias/{folio}/cobro'], ['get', '/constancias/{folio}/cobro/comprobante'],
   ['get', '/direccion/metricas'],
+  // Verificación pública, canal autenticado (backend del portal institucional).
+  ['get', '/portal/constancias/{folio}/verificar/{token}'], ['post', '/portal/constancias/verificar'],
 ];
 
 // Mutaciones donde el router realmente valida un body (evidencia extraída de cada
 // router.*.ts). Publicar y aplicar no reciben body: son disparadores de transición.
 const RUTAS_CON_REQUEST_BODY = new Set([
-  'post /public/constancias/verificar',
+  'post /public/constancias/verificar', 'post /portal/constancias/verificar',
   'post /catalogos/requisitos', 'post /catalogos/requisitos/{id}/grupos', 'post /catalogos/grupos/{id}/opciones',
   'post /catalogos/opciones/{id}/documentos', 'post /catalogos/tarifas', 'put /administracion/plazos',
   'patch /catalogos/grupos/{id}', 'patch /catalogos/opciones/{id}', 'patch /catalogos/documentos/{id}',

@@ -24,6 +24,10 @@ export function createApp(env: Env) {
   // su sobrecarga, mientras que PostgreSQL conserva el límite real acumulado.
   app.use(express.json({ limit: '42mb' }));
   app.use(`${env.API_PREFIX}/public`, rateLimit({ windowMs: env.PUBLIC_RATE_LIMIT_WINDOW_MS, limit: env.PUBLIC_RATE_LIMIT_MAX, standardHeaders: 'draft-8', legacyHeaders: false }));
+  // Mismo backstop de prefijo que /public, para /portal: el límite por folio
+  // de portal.router.ts protege un folio puntual, pero no acota el volumen
+  // total que el backend del portal —un único caller identificable— manda.
+  app.use(`${env.API_PREFIX}/portal`, rateLimit({ windowMs: env.PUBLIC_RATE_LIMIT_WINDOW_MS, limit: env.PUBLIC_RATE_LIMIT_MAX, standardHeaders: 'draft-8', legacyHeaders: false }));
   app.use(env.API_PREFIX, createApiRouter(env));
   app.use(notFound);
   app.use(errorHandler);

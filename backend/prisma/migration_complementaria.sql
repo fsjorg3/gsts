@@ -19,6 +19,7 @@ DROP TRIGGER IF EXISTS trg_cobro_sin_borrado ON cobro;
 DROP TRIGGER IF EXISTS trg_evidencia_sin_borrado ON evidencia;
 DROP TRIGGER IF EXISTS trg_configuracion_plazos_integridad ON configuracion_plazos;
 DROP TRIGGER IF EXISTS trg_borrador_cobro_integridad ON borrador_cobro;
+DROP TRIGGER IF EXISTS trg_padron_offline_integridad ON padron_offline;
 -- La identidad y los roles se validan en Keycloak. Esta capa sólo recibe el
 -- contexto transaccional que el backend ya autenticó criptográficamente.
 
@@ -79,6 +80,14 @@ ALTER TABLE borrador_cobro ADD CONSTRAINT chk_borrador_cobro_montos CHECK (
   AND (porcentaje_reduccion IS NULL OR (porcentaje_reduccion >= 0 AND porcentaje_reduccion <= 100))
   AND (monto_base IS NULL OR porcentaje_reduccion IS NULL OR monto_final IS NULL
        OR monto_final = round(monto_base * (1 - porcentaje_reduccion / 100), 2))
+);
+-- Prisma solo bloquea NULL, no cadenas vacías: sin esto una fila con domicilio
+-- vacío rompería en silencio el único propósito de la tabla (autocompletar un
+-- domicilio que sí se imprime en la constancia).
+ALTER TABLE padron_offline DROP CONSTRAINT IF EXISTS chk_padron_offline_no_vacio;
+ALTER TABLE padron_offline ADD CONSTRAINT chk_padron_offline_no_vacio CHECK (
+  btrim(nis) <> '' AND btrim(propietario) <> ''
+  AND btrim(domicilio_calle) <> '' AND btrim(domicilio_numero) <> '' AND btrim(domicilio_colonia) <> ''
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_version_catalogo_unica_activa
@@ -484,6 +493,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_cobro_integridad BEFORE INSERT OR UPDATE ON cobro FOR EACH ROW EXECUTE FUNCTION fn_cobro_integridad();
+
+-- padron_offline es un catálogo vivo (no inmutable, a diferencia de Tarifa o
+-- Constancia): se alimenta tanto del extracto trimestral oficial (origen
+-- IMPORTADO, rol ti) como de lo que ventanilla captura a mano cuando un NIS de
+-- No Adeudo no aparece en el extracto (origen CAPTURADO_MANUAL, rol
+-- ventanilla). La única transición de origen sin sentido de negocio es que un
+-- registro ya confirmado por el extracto oficial "regrese" a capturado a
+-- mano; la dirección inversa sí es válida (el siguiente extracto trae ese NIS).
+CREATE OR REPLACE FUNCTION fn_padron_offline_integridad()
+RETURNS trigger AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM fn_contexto_exige_rol('ti');
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.origen = 'IMPORTADO' AND NEW.origen = 'CAPTURADO_MANUAL' THEN
+    RAISE EXCEPTION 'Un registro importado no puede reclasificarse como capturado manualmente';
+  END IF;
+  IF NEW.origen = 'CAPTURADO_MANUAL' THEN
+    PERFORM fn_contexto_exige_rol('ventanilla');
+  ELSIF NEW.origen = 'IMPORTADO' THEN
+    PERFORM fn_contexto_exige_rol('ti');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_padron_offline_integridad
+  BEFORE INSERT OR UPDATE OR DELETE ON padron_offline
+  FOR EACH ROW EXECUTE FUNCTION fn_padron_offline_integridad();
 
 CREATE OR REPLACE FUNCTION fn_archivo_generado_inmutable()
 RETURNS trigger AS $$

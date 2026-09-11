@@ -16,6 +16,13 @@ export function folioTramite(t: Pick<Tramite, 'tipoConstancia' | 'numeroTramite'
   return `${prefijo}-${anio}-${String(t.numeroTramite).padStart(5, '0')}`;
 }
 
+// Un trámite puede traer una segunda persona (REPRESENTANTE/APODERADO) además
+// del titular, así que el orden del arreglo no identifica al titular — hay
+// que buscarlo por rol, mismo criterio que `titularDe` en export.ts (backend).
+export function titularDe(tramite: Pick<TramiteDetalle, 'personas'>) {
+  return tramite.personas.find((p) => p.rol === 'TITULAR')?.persona;
+}
+
 // `folio` es excluyente en el backend: cuando viene, el resto de los filtros se
 // ignora. La UI lo refleja deshabilitando los demás campos, pero la regla la
 // impone el servidor, no la pantalla.

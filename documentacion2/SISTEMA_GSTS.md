@@ -401,3 +401,34 @@ Actualizar `documentacion/CONTRATO_API_GSTS.md` (§4.3, §4.4, la guardia de §4
 **Despliegue.** Finanzas corre en una VM/LXC aparte, con backend y frontend propios.
 
 **Portal ciudadano.** Consume los endpoints de ambos backends —y de más, si en su momento se requieren—, sin gateway intermedio.
+
+## 11. Catálogo offline del padrón (puente hacia OUC/SII-Cart)
+
+La integración real con OUC (validación automática de no adeudo) y SII-Cart (Sistema Integral Cartográfico, validación de no registro) sigue bloqueada por trámites burocráticos ajenos al desarrollo — ver `backend/src/infrastructure/ouc/port.ts`, que sólo define el puerto. Mientras tanto, SOAPAP entrega **trimestralmente** un extracto del padrón de usuarios de agua/drenaje, que GSTS carga como catálogo offline para resolver nombre y domicilio por NIS al capturar un trámite de **No Adeudo**.
+
+**Qué resuelve y qué no.** El extracto trae identidad y domicilio de cuentas ya contratadas, no información de adeudo (no hay montos) ni es el sistema cartográfico que decide si un predio está o no registrado. Por eso alimenta únicamente la captura de No Adeudo — la validación de no adeudo en sí y la validación de no registro contra SII-Cart siguen siendo manuales, con evidencia obligatoria, como hoy.
+
+**De paso cerró un hueco real**: el cuerpo legal de la constancia de No Adeudo (`documentacion/constancia_no-adeudo.txt`) imprime `[Domicilio]`, pero antes de esto `Tramite.domicilioCalle/Numero/Colonia` sólo se capturaban para No Registro — un No Adeudo podía emitirse con ese dato en blanco. Ahora es obligatorio en ambos tipos (contrato + guarda de emisión).
+
+### Modelo: `PadronOffline`
+
+Domicilio normalizado a la misma forma que ya usa `Tramite`/`DomicilioPredio` (VIA+CALLE combinados, NUMERO_INTERIOR/DUPLICADOR plegados en el número), para que el resultado del lookup se copie tal cual al capturar. Dos orígenes:
+
+- `IMPORTADO` — viene del extracto trimestral oficial (rol `ti`, `POST /padron/importar`).
+- `CAPTURADO_MANUAL` — lo agrega ventanilla al crear un trámite de No Adeudo cuyo NIS no aparece en el catálogo (rol `ventanilla`, dentro de la misma transacción de `POST /tramites`).
+
+`fn_padron_offline_integridad` (en `migration_complementaria.sql`) impone ambos roles y bloquea la única transición sin sentido de negocio: un registro `IMPORTADO` no puede "regresar" a `CAPTURADO_MANUAL`. La dirección inversa sí es válida y es justamente el merge del reimport.
+
+**Regla legal de identidad**: sólo `propietario` (dueño de la cuenta) puede sugerirse como titular de una constancia. `titularPago` únicamente acredita responsabilidad de pago — se conserva como dato de contexto para ventanilla, nunca alimenta el nombre sugerido. Cuando `propietario` es el valor genérico del padrón (`"AL PROPIETARIO DEL PREDIO"`), no hay nombre que sugerir: ventanilla lo captura a mano.
+
+### Refresh trimestral: merge, no reemplazo
+
+`POST /padron/importar` (rol `ti`) recibe `rutaArchivo` — una ruta en el filesystem del servidor, no el contenido del CSV en el body: TI coloca el extracto ahí y dispara la importación. El merge nunca pisa una fila `CAPTURADO_MANUAL`, salvo que el extracto nuevo sí traiga ese NIS (entonces gana el extracto oficial y se reclasifica a `IMPORTADO`). Procesado en lotes de 500 filas, cada uno en su propia transacción — 500K+ filas no caben en una sola transacción interactiva sin arriesgar el timeout; el costo es que un lote inválido revierte sólo ese lote, no todo el archivo, aceptable porque la operación es idempotente (upsert por `nis`).
+
+**Columnas del extracto** (acordadas para acotar el padrón completo a lo que este catálogo necesita): `NIS, FECHA_CONTRATO, PROPIETARIO, TITULAR DE PAGO, VIA, CALLE, NUMERO, DUPLICADOR, NUMERO_INTERIOR, MUNICIPIO, COLONIA`. Sin `ESTADO`: el extracto tiene en promedio 3 meses de atraso frente al padrón real (se entrega como parte del reporte trimestral de desempeño), así que no es fuente confiable de vigencia de la cuenta.
+
+**Validado end-to-end** contra una muestra real de 16,182 filas (no el extracto completo de ~500,292, que SOAPAP aún no ha entregado en este formato): carga inicial, reimport con reclasificación de un `CAPTURADO_MANUAL` que el extracto trae de vuelta, y preservación de uno que no trae. ~36 segundos para 16,182 filas — el extracto completo tomaría del orden de 15-20 minutos.
+
+### Camino hacia la integración real
+
+Cuando OUC/SII-Cart estén disponibles, el cambio es de adaptador, no de modelo: un `PadronOucAdapter`/equivalente implementando el mismo puerto que hoy resuelve `PadronOfflineAdapter`, intercambiado en el composition root (`backend/src/api/router.ts`). La automatización de la validación de no adeudo en sí tampoco exige tocar `EstadoTramite` — `MetodoValidacion.API` ya está reservado en el enum sin usarse; pasar de manual a automático es dejar de exigir el paso humano en la misma transición `CAPTURA → EN_VALIDACION`, no una máquina de estados nueva.

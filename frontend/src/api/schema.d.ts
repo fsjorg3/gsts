@@ -2308,6 +2308,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/padron/{nis}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar nombre y domicilio por NIS en el catálogo offline (rol ventanilla)
+         * @description Resuelve nombre y domicilio del catálogo offline del padrón de usuarios mientras la integración real con OUC sigue bloqueada. 404 si el NIS no está en el catálogo: ventanilla captura los datos a mano y quedan en CAPTURADO_MANUAL al crear el trámite.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    nis: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["PadronRegistro"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No encontrado */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/padron/importar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Importar el extracto trimestral oficial del padrón (rol ti)
+         * @description `rutaArchivo` apunta a un CSV ya colocado en el filesystem del servidor, no al contenido del archivo. Hace merge por NIS: solo reemplaza filas de origen IMPORTADO; una fila CAPTURADO_MANUAL se preserva salvo que este mismo extracto ya traiga ese NIS, caso en el que se reclasifica a IMPORTADO.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ImportarPadron"];
+                };
+            };
+            responses: {
+                /** @description Resultado del merge */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["PadronImportacionResultado"];
+                            requestId?: string;
+                        };
+                    };
+                };
+                /** @description No autenticado */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sin permisos suficientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Entrada inválida */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tramites": {
         parameters: {
             query?: never;
@@ -4047,6 +4191,9 @@ export interface components {
             /** Format: uuid */
             clonarDesdeId?: string;
         };
+        ImportarPadron: {
+            rutaArchivo: string;
+        };
         GuardarBorradorCobro: {
             /** Format: uuid */
             tarifaId?: string;
@@ -4356,6 +4503,26 @@ export interface components {
             actualizadoPorId: string;
             createdAt: string;
             updatedAt: string;
+        };
+        PadronRegistro: {
+            nis: string;
+            nombreSugerido: string | null;
+            titularPago: string | null;
+            domicilio: {
+                calle: string;
+                numero: string;
+                colonia: string;
+                /** @enum {string|null} */
+                perteneceA: "JUNTA_AUXILIAR" | "MUNICIPIO" | null;
+                perteneceANombre: string | null;
+            };
+            /** @enum {string} */
+            origen: "IMPORTADO" | "CAPTURADO_MANUAL";
+        };
+        PadronImportacionResultado: {
+            importados: number;
+            preservados: number;
+            reclasificados: number;
         };
         Tramite: {
             /** Format: uuid */

@@ -11,6 +11,7 @@ import { AppError } from '../../../shared/errors.js';
 import { routeParam } from '../../../api/shared/params.js';
 import { whereDeFolio } from './folio.js';
 import { generarExportTramites } from './export.js';
+import { requierePadronOfflineManual } from './padron-manual.js';
 import { calcularRequiereRevalidacionCobro } from './revalidacion-cobro.js';
 
 const isTramiteState = new Set(['EN_VALIDACION', 'APROBADO', 'RECHAZADO', 'EXPIRADO', 'FINALIZADO']);
@@ -95,7 +96,49 @@ export function createTramitesRouter(internal: RequestHandler[], env: Env): Rout
     }
   });
   router.post('/', requireRoles('ventanilla'), async (request, response, next) => {
-    try { const input = crearTramiteSchema.parse(request.body); const context = requestContext(request); const data = await withBusinessTransaction(context, async (tx) => { const version = await tx.versionCatalogo.findFirst({ where: { activa: true, publicada: true }, select: { id: true } }); if (!version) throw new AppError(409, 'NO_ACTIVE_CATALOG', 'No existe un catálogo activo para crear el trámite'); const tramite = await tx.tramite.create({ data: { ...input, versionCatalogoId: version.id, creadoPorId: context.actorId, personas: { create: input.personas } }, include: { personas: true } }); await auditarUsuario(tx, context, { entidad: 'tramite', entidadId: tramite.id, accion: 'CREAR', estadoNuevo: 'CAPTURA' }); return tramite; }); response.status(201).json({ data, requestId: request.id }); } catch (error) { next(error); }
+    try {
+      const input = crearTramiteSchema.parse(request.body);
+      const context = requestContext(request);
+      const data = await withBusinessTransaction(context, async (tx) => {
+        const version = await tx.versionCatalogo.findFirst({ where: { activa: true, publicada: true }, select: { id: true } });
+        if (!version) throw new AppError(409, 'NO_ACTIVE_CATALOG', 'No existe un catálogo activo para crear el trámite');
+        const tramite = await tx.tramite.create({
+          data: { ...input, versionCatalogoId: version.id, creadoPorId: context.actorId, personas: { create: input.personas } },
+          include: { personas: true },
+        });
+        // No Adeudo con NIS que no estaba en el catálogo offline del padrón: lo
+        // que ventanilla acaba de capturar a mano se agrega, para que el
+        // próximo GET /padron/:nis lo resuelva. Sin bitácora aparte: la entrada
+        // CREAR de abajo ya cubre esta mutación (mismo criterio que el resto
+        // de la transacción).
+        if (requierePadronOfflineManual(input)) {
+          const existente = await tx.padronOffline.findUnique({ where: { nis: input.nis }, select: { nis: true } });
+          if (!existente) {
+            const titular = input.personas.find((persona) => persona.rol === 'TITULAR');
+            const persona = titular ? await tx.persona.findUnique({ where: { id: titular.personaId }, select: { nombreRazonSocial: true } }) : null;
+            // Sin persona TITULAR en el payload no hay nombre que sugerir a
+            // futuro: se omite el alta en vez de inventar un propietario.
+            if (persona) {
+              await tx.padronOffline.create({
+                data: {
+                  nis: input.nis,
+                  propietario: persona.nombreRazonSocial,
+                  domicilioCalle: input.domicilioCalle,
+                  domicilioNumero: input.domicilioNumero,
+                  domicilioColonia: input.domicilioColonia,
+                  domicilioPerteneceA: input.domicilioPerteneceA ?? null,
+                  domicilioPerteneceANombre: input.domicilioPerteneceANombre ?? null,
+                  origen: 'CAPTURADO_MANUAL',
+                },
+              });
+            }
+          }
+        }
+        await auditarUsuario(tx, context, { entidad: 'tramite', entidadId: tramite.id, accion: 'CREAR', estadoNuevo: 'CAPTURA' });
+        return tramite;
+      });
+      response.status(201).json({ data, requestId: request.id });
+    } catch (error) { next(error); }
   });
   // Antes de '/:id': si no, Express leería "export" como el parámetro `id`.
   // Rol `jefatura` exclusivamente — es un client role (ver rolesCliente en

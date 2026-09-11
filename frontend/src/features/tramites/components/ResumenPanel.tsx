@@ -1,14 +1,14 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { formatFecha, formatMxn } from '@/api/serializers';
-import { folioTramite, type TramiteDetalle } from '../api';
+import { folioTramite, titularDe, type TramiteDetalle } from '../api';
 
 // Contenido puro del resumen del expediente: se reutiliza tal cual dentro del
 // aside fijo (lg+) y dentro del Drawer temporal que lo sustituye en móvil/tablet
 // (ver TramiteWizard.tsx). La bitácora completa vive en el backend (append-only)
 // y aún no expone endpoint de consulta.
 export function ResumenPanelContenido({ tramite }: { tramite: TramiteDetalle }) {
-  const titular = tramite.personas[0]?.persona;
+  const titular = titularDe(tramite);
   const filas: Array<[string, string]> = [
     ['Folio', folioTramite(tramite)],
     ['Tipo', tramite.tipoConstancia === 'NO_ADEUDO' ? 'No adeudo' : 'No registro'],

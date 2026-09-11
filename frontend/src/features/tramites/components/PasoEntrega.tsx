@@ -9,7 +9,7 @@ import { EstadoBadge, MsIcon } from '@/shared/components';
 import { abrirBlobEnPestana, descargarBlob, nombreArchivoConstancia } from '@/shared/descargarArchivo';
 import { useDescargarConstancia } from '@/features/constancias/api';
 import { SolicitudFacturaForm } from '@/features/gaf/SolicitudFacturaForm';
-import type { TramiteDetalle } from '../api';
+import { titularDe, type TramiteDetalle } from '../api';
 
 // Paso 4 · Entrega: la constancia emitida, único documento que ventanilla
 // entrega. Si el ciudadano dijo querer factura, aquí es donde se captura y se
@@ -19,7 +19,7 @@ import type { TramiteDetalle } from '../api';
 // Finalizar el trámite no depende de que la solicitud se haya enviado.
 export function PasoEntrega({ tramite }: { tramite: TramiteDetalle }) {
   const constancia = tramite.constancia;
-  const titular = tramite.personas[0]?.persona;
+  const titular = titularDe(tramite);
   const finalizado = tramite.estado === 'FINALIZADO';
   const notificar = useNotificar();
   const descargar = useDescargarConstancia(tramite.id);

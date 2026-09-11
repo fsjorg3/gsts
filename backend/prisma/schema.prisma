@@ -1,5 +1,5 @@
 // ============================================================
-//  SICNAF — Sistema Integrado de Constancias de No Adeudo y Facturación
+//  GSTS — Gerencia de Supervisión Técnica de los Servicios
 //  SOAPAP · Esquema físico (Prisma)
 //
 //  Principio de dos territorios:
@@ -36,9 +36,9 @@ enum Representacion {
   APODERADO
 }
 
-/// A qué división administrativa pertenece el domicilio de un predio (solo
-/// No Registro). Sin catálogo de nombres: la zona de cobertura abarca Puebla
-/// y 4 municipios más, sin lista manejable; el nombre va en domicilioPerteneceANombre.
+/// A qué división administrativa pertenece el domicilio de un predio. Sin
+/// catálogo de nombres: la zona de cobertura abarca Puebla y 4 municipios
+/// más, sin lista manejable; el nombre va en domicilioPerteneceANombre.
 enum PerteneceA {
   JUNTA_AUXILIAR
   MUNICIPIO
@@ -121,6 +121,17 @@ enum EstadoEvidencia {
 enum MetodoPago {
   PUE
   PPD
+}
+
+/// Procedencia de una fila de PadronOffline: IMPORTADO viene del extracto
+/// trimestral oficial; CAPTURADO_MANUAL lo escribió ventanilla cuando un NIS
+/// de No Adeudo no aparecía en el extracto. Una fila IMPORTADO nunca puede
+/// reclasificarse como CAPTURADO_MANUAL (lo impide el trigger de la SQL
+/// complementaria); la dirección inversa sí es válida y ocurre cuando el
+/// siguiente extracto trae ese NIS.
+enum OrigenPadron {
+  IMPORTADO
+  CAPTURADO_MANUAL
 }
 
 // ===================== IDENTIDAD =====================
@@ -260,7 +271,7 @@ model Tramite {
   personalidad              Personalidad
   representacion            Representacion
   nis                       String? // referencia a la cuenta/predio en OUC (solo No Adeudo)
-  domicilioCalle            String?        @map("domicilio_calle") // solo No Registro
+  domicilioCalle            String?        @map("domicilio_calle") // impreso en la constancia: requerido en No Registro y en No Adeudo (crearTramiteSchema.superRefine)
   domicilioNumero           String?        @map("domicilio_numero") // string, no int: "612-1", "S/N"
   domicilioColonia          String?        @map("domicilio_colonia")
   domicilioPerteneceA       PerteneceA?    @map("domicilio_pertenece_a")
@@ -400,6 +411,45 @@ model ConsultaConcesionaria {
 
   @@index([tramiteId])
   @@map("consulta_concesionaria")
+}
+
+// ===================== PADRÓN OFFLINE (puente hacia OUC/SII-Cart) =====================
+
+/// Catálogo offline del padrón de usuarios de agua/drenaje (SOAPAP): resuelve
+/// nombre y domicilio por NIS mientras la integración real con OUC (no
+/// adeudo) y SII-Cart (no registro) sigue bloqueada por trámites burocráticos
+/// ajenos al desarrollo. Vivo, no inmutable — se alimenta del extracto
+/// trimestral oficial (origen IMPORTADO) y de lo que ventanilla captura a
+/// mano cuando un NIS de No Adeudo no aparece en el extracto (origen
+/// CAPTURADO_MANUAL); el reimport hace merge y nunca pisa una fila
+/// CAPTURADO_MANUAL, salvo que el propio extracto ya traiga ese NIS.
+///
+/// El domicilio se guarda normalizado a la misma forma que usa
+/// Tramite/DomicilioPredio (VIA+CALLE combinados en domicilioCalle,
+/// NUMERO_INTERIOR/DUPLICADOR plegados en domicilioNumero) para que el
+/// resultado de la consulta se copie tal cual al capturar o emitir un
+/// trámite, sin transformación adicional.
+///
+/// propietario es la única fuente aceptada para sugerir el titular de una
+/// constancia: solo el dueño de la cuenta puede acreditarse como tal.
+/// titularPago únicamente acredita responsabilidad de pago — se conserva
+/// como dato de contexto para ventanilla, nunca para sugerir el nombre del
+/// titular.
+model PadronOffline {
+  nis                       String       @id
+  fechaContrato             DateTime?    @map("fecha_contrato") @db.Timestamptz(3)
+  propietario               String
+  titularPago               String?      @map("titular_pago")
+  domicilioCalle            String       @map("domicilio_calle")
+  domicilioNumero           String       @map("domicilio_numero")
+  domicilioColonia          String       @map("domicilio_colonia")
+  domicilioPerteneceA       PerteneceA?  @map("domicilio_pertenece_a")
+  domicilioPerteneceANombre String?      @map("domicilio_pertenece_a_nombre")
+  origen                    OrigenPadron
+  createdAt                 DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("padron_offline")
 }
 
 // ===================== TARIFAS (versionadas) =====================

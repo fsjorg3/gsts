@@ -49,9 +49,13 @@ export const crearTramiteSchema = z.object({
   personalidad: z.enum(['FISICA', 'MORAL']),
   representacion: z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO']),
   nis: z.string().trim().min(1).max(100).optional(),
-  // Domicilio del predio (solo No Registro): va impreso en la constancia. Sin
-  // catálogo de juntas auxiliares/municipios (la zona de cobertura abarca
-  // Puebla y 4 municipios más); domicilioPerteneceANombre es texto libre.
+  // Domicilio del predio: va impreso en la constancia de ambos tipos — en No
+  // Registro es el dato principal (capturado a mano); en No Adeudo lo resuelve
+  // el catálogo offline del padrón por NIS (o lo captura ventanilla a mano si
+  // el NIS no aparece ahí), porque el cuerpo legal también trae [Domicilio]
+  // (ver documentacion/constancia_no-adeudo.txt). Sin catálogo de juntas
+  // auxiliares/municipios (la zona de cobertura abarca Puebla y 4 municipios
+  // más); domicilioPerteneceANombre es texto libre.
   domicilioCalle: z.string().trim().min(1).max(200).optional(),
   domicilioNumero: z.string().trim().min(1).max(50).optional(),
   domicilioColonia: z.string().trim().min(1).max(200).optional(),
@@ -61,6 +65,42 @@ export const crearTramiteSchema = z.object({
     personaId: z.string().uuid(),
     rol: z.enum(['TITULAR', 'REPRESENTANTE', 'APODERADO']),
   })).min(1),
+}).superRefine((value, ctx) => {
+  // No Adeudo exige nis y domicilio completo: antes nada lo garantizaba y un
+  // No Adeudo podía emitirse con el domicilio del cuerpo legal en blanco.
+  if (value.tipoConstancia !== 'NO_ADEUDO') return;
+  if (!value.nis) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['nis'], message: 'Requerido para No Adeudo' });
+  }
+  for (const campo of ['domicilioCalle', 'domicilioNumero', 'domicilioColonia'] as const) {
+    if (!value[campo]) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [campo], message: 'Requerido para No Adeudo' });
+    }
+  }
+}).superRefine((value, ctx) => {
+  // La constancia sólo puede emitirse con una persona TITULAR en el trámite
+  // (ver CONTRATO_API_GSTS.md); antes nada lo garantizaba y un trámite
+  // presentado por representante/apoderado nacía sin titular, irrecuperable
+  // hasta el 409 INVALID_STATE del paso de emisión. Cuando quien se presenta
+  // no es el titular, se exige además la persona que sí se presenta, con su
+  // propio rol — ni una ni tres.
+  const titulares = value.personas.filter((p) => p.rol === 'TITULAR');
+  if (titulares.length !== 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['personas'], message: 'El trámite requiere exactamente una persona con rol TITULAR' });
+  }
+  if (value.representacion === 'TITULAR') {
+    if (value.personas.length !== 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['personas'], message: 'Cuando el titular se presenta, no debe capturarse otra persona' });
+    }
+    return;
+  }
+  const presentantes = value.personas.filter((p) => p.rol === value.representacion);
+  if (presentantes.length !== 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['personas'], message: `El trámite requiere exactamente una persona con rol ${value.representacion}` });
+  }
+  if (value.personas.length !== 2) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['personas'], message: 'El trámite requiere exactamente dos personas: TITULAR y quien se presenta' });
+  }
 });
 
 export const crearCatalogoSchema = z.object({
@@ -185,6 +225,9 @@ export const resultadoValidacionRegistroSchema = z.enum(['SIN_REGISTRO', 'CON_RE
 export const tipoConfirmacionSchema = z.enum(['SIN_ADEUDO_OUC', 'FIRMAS_LEGIBLES', 'FACULTADES_PODER']);
 export const metodoPagoSchema = z.enum(['PUE', 'PPD']);
 export const perteneceASchema = z.enum(['JUNTA_AUXILIAR', 'MUNICIPIO']);
+// IMPORTADO viene del extracto trimestral oficial del padrón; CAPTURADO_MANUAL
+// lo escribió ventanilla cuando un NIS de No Adeudo no aparecía en el extracto.
+export const origenPadronSchema = z.enum(['IMPORTADO', 'CAPTURADO_MANUAL']);
 
 // --- Estructura del borrador de catálogo: grupo → opción → documento ---
 // Se definen aquí, después de los enums que usan. Sólo se aceptan mientras la
@@ -541,6 +584,48 @@ export const constanciaDto = z.object({
   // Derivado, no columna: URL que codifica el QR impreso en la constancia.
   // null si la versión de clave con la que se emitió ya fue retirada.
   urlVerificacion: z.string().nullable(),
+});
+
+// ===================== PADRÓN OFFLINE (puente hacia OUC/SII-Cart) =====================
+// Resuelve nombre y domicilio por NIS mientras la integración real con OUC
+// sigue bloqueada. El domicilio ya viene normalizado a la misma forma que usa
+// Tramite, para copiarse tal cual al capturar. `nombreSugerido` es null
+// cuando el propietario del extracto es el valor genérico ("AL PROPIETARIO
+// DEL PREDIO"): solo el dueño de la cuenta puede acreditarse como titular de
+// la constancia, así que en ese caso ventanilla lo captura a mano.
+// `titularPago` es solo contexto (acredita responsabilidad de pago, no
+// titularidad) y nunca alimenta el nombre sugerido.
+
+export const padronDomicilioDto = z.object({
+  calle: z.string(),
+  numero: z.string(),
+  colonia: z.string(),
+  perteneceA: perteneceASchema.nullable(),
+  perteneceANombre: z.string().nullable(),
+});
+
+export const padronRegistroDto = z.object({
+  nis: z.string(),
+  nombreSugerido: z.string().nullable(),
+  titularPago: z.string().nullable(),
+  domicilio: padronDomicilioDto,
+  origen: origenPadronSchema,
+});
+
+// Importación del extracto trimestral oficial (rol ti). rutaArchivo apunta a
+// un CSV ya colocado en el filesystem del servidor: el body no lleva el
+// contenido, para no forzar el límite de 42 MB pensado para evidencias
+// Base64. Hace merge por nis: solo pisa filas de origen IMPORTADO; una fila
+// CAPTURADO_MANUAL se preserva salvo que este mismo extracto ya traiga ese
+// NIS, caso en el que se reclasifica a IMPORTADO.
+export const importarPadronSchema = z.object({
+  rutaArchivo: z.string().trim().min(1).max(500),
+});
+
+export const padronImportacionResultadoDto = z.object({
+  importados: z.number().int(),
+  preservados: z.number().int(),
+  reclasificados: z.number().int(),
 });
 
 export const tramiteDto = z.object({

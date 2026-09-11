@@ -14,6 +14,7 @@ import { createConsultaCobroRouter } from '../modules/constancias/constancias/co
 import { createDireccionRouter } from '../modules/constancias/direccion/direccion.router.js';
 import { createEvidenciasRouter } from '../modules/constancias/evidencias/evidencias.router.js';
 import { createMotivosReduccionRouter } from '../modules/constancias/motivos-reduccion/motivos-reduccion.router.js';
+import { createPadronRouter } from '../modules/constancias/padron/padron.router.js';
 import { createPersonasRouter } from '../modules/personas/personas.router.js';
 import { createPublicoRouter } from '../modules/constancias/publico/publico.router.js';
 import { createSistemaRouter } from '../modules/sistema/sistema.router.js';
@@ -30,6 +31,7 @@ export function createApiRouter(env: Env): Router {
   router.use('/public', createPublicoRouter(env));
   router.use('/auth', createAuthRouter(internal));
   router.use('/catalogos', createCatalogosRouter(internal));
+  router.use('/padron', createPadronRouter(internal));
   router.use('/administracion', createAdministracionRouter(internal));
   router.use('/personas', createPersonasRouter(internal));
   router.use('/motivos-reduccion', createMotivosReduccionRouter(internal));

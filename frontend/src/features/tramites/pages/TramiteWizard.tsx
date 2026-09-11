@@ -16,7 +16,7 @@ import { EstadoBadge, EstadoDeBadge, ESTADO_TRAMITE, MsIcon, type IconoNombre } 
 import { catalogoVistaPreviaOptions, gruposAplicables } from '@/features/catalogos/api';
 import { ChecklistRequisitos, checklistSatisfecho } from '@/features/evidencias/ChecklistRequisitos';
 import { tieneValidacionInicial } from '@/features/validaciones/api';
-import { folioTramite, tramiteOptions, useTransicionarTramite, type TramiteDetalle } from '../api';
+import { folioTramite, titularDe, tramiteOptions, useTransicionarTramite, type TramiteDetalle } from '../api';
 import { PasoAprobacion } from '../components/PasoAprobacion';
 import { PasoCobro } from '../components/PasoCobro';
 import { PasoEntrega } from '../components/PasoEntrega';
@@ -95,7 +95,7 @@ export function TramiteWizard() {
 
   const paso = derivarPaso(tramite, subVistaCobro);
   const terminadoMal = tramite.estado === 'RECHAZADO' || tramite.estado === 'EXPIRADO';
-  const titular = tramite.personas[0]?.persona;
+  const titular = titularDe(tramite);
 
   const ejecutar = (accion: 'iniciar-validacion' | 'aprobar' | 'rechazar' | 'expirar' | 'finalizar', motivo?: string) => {
     transicionar.mutate(

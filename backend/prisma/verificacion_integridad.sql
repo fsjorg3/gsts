@@ -1085,6 +1085,74 @@ SELECT pg_temp.debe_pasar('L.7 · cobro con referencia de pago', $q$
 
 
 -- =====================================================================
+-- M · Catálogo offline del padrón (padron_offline)
+-- =====================================================================
+-- Cierra el hueco de No Adeudo sin domicilio: este catálogo es lo que lo
+-- resuelve por NIS mientras la integración real con OUC/SII-Cart sigue
+-- bloqueada. Ejercita el control de rol por origen y la guarda de transición
+-- que impide "desconfirmar" un registro ya importado.
+
+SELECT pg_temp.afirmar('M.0 · la estructura de padron_offline existe',
+  to_regclass('public.padron_offline') IS NOT NULL
+  AND EXISTS (SELECT 1 FROM pg_type WHERE typname = 'OrigenPadron'),
+  'tabla padron_offline y enum OrigenPadron');
+
+SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');
+
+SELECT pg_temp.debe_pasar('M.1 · ti importa un registro del extracto oficial', $q$
+  INSERT INTO padron_offline (nis, propietario, domicilio_calle, domicilio_numero, domicilio_colonia, origen, updated_at)
+    VALUES ('VERIF-NIS-0001', 'PEREZ GUERRERO, SANDRA', 'CALLE MIRASOLES', '9', 'BARRANCA HONDA', 'IMPORTADO', now());
+  $q$);
+
+SELECT pg_temp.debe_fallar_ctx('M.2 · ventanilla no puede insertar un registro IMPORTADO',
+  '22222222-2222-2222-2222-222222222222', '["ventanilla"]', $q$
+  INSERT INTO padron_offline (nis, propietario, domicilio_calle, domicilio_numero, domicilio_colonia, origen, updated_at)
+    VALUES ('VERIF-NIS-00ff', 'INTRUSO', 'CALLE X', '1', 'COLONIA X', 'IMPORTADO', now());
+  $q$);
+
+SELECT pg_temp.contexto('22222222-2222-2222-2222-222222222222', '["ventanilla"]');
+
+SELECT pg_temp.debe_pasar('M.3 · ventanilla captura a mano un NIS no encontrado', $q$
+  INSERT INTO padron_offline (nis, propietario, domicilio_calle, domicilio_numero, domicilio_colonia, origen, updated_at)
+    VALUES ('VERIF-NIS-0002', 'AL PROPIETARIO DEL PREDIO', 'CALLE NUEVO LEON', '329', 'CERRITO, EL', 'CAPTURADO_MANUAL', now());
+  $q$);
+
+SELECT pg_temp.debe_fallar_ctx('M.4 · ti no puede insertar un registro CAPTURADO_MANUAL',
+  '11111111-1111-1111-1111-111111111111', '["ti"]', $q$
+  INSERT INTO padron_offline (nis, propietario, domicilio_calle, domicilio_numero, domicilio_colonia, origen, updated_at)
+    VALUES ('VERIF-NIS-00fe', 'INTRUSO', 'CALLE X', '1', 'COLONIA X', 'CAPTURADO_MANUAL', now());
+  $q$);
+
+SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');
+
+SELECT pg_temp.debe_fallar('M.5 · un registro importado no se reclasifica como capturado a mano', $q$
+  UPDATE padron_offline SET origen = 'CAPTURADO_MANUAL' WHERE nis = 'VERIF-NIS-0001';
+  $q$);
+
+SELECT pg_temp.debe_pasar('M.6 · un registro capturado a mano sí se reclasifica cuando el extracto lo trae', $q$
+  UPDATE padron_offline SET origen = 'IMPORTADO' WHERE nis = 'VERIF-NIS-0002';
+  $q$);
+
+SELECT pg_temp.debe_fallar('M.7 · domicilio vacío queda rechazado', $q$
+  INSERT INTO padron_offline (nis, propietario, domicilio_calle, domicilio_numero, domicilio_colonia, origen, updated_at)
+    VALUES ('VERIF-NIS-00fd', 'ALGUIEN', '', '1', 'COLONIA X', 'IMPORTADO', now());
+  $q$);
+
+SELECT pg_temp.debe_fallar_ctx('M.8 · ventanilla no puede borrar del catálogo',
+  '22222222-2222-2222-2222-222222222222', '["ventanilla"]', $q$
+  DELETE FROM padron_offline WHERE nis = 'VERIF-NIS-0001';
+  $q$);
+
+SELECT pg_temp.contexto('11111111-1111-1111-1111-111111111111', '["ti"]');
+
+SELECT pg_temp.debe_pasar('M.9 · ti sí puede borrar un registro erróneo', $q$
+  DELETE FROM padron_offline WHERE nis = 'VERIF-NIS-0001';
+  $q$);
+
+SELECT pg_temp.contexto('22222222-2222-2222-2222-222222222222', '["ventanilla"]');
+
+
+-- =====================================================================
 -- Veredicto
 -- =====================================================================
 

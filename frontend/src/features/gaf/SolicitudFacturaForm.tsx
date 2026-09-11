@@ -11,7 +11,7 @@ import { formatMxn } from '@/api/serializers';
 import { EstadoBadge, MsIcon } from '@/shared/components';
 import { useDescargarComprobante } from '@/features/cobros/api';
 import { MIME_PERMITIDOS } from '@/features/evidencias/api';
-import type { TramiteDetalle } from '@/features/tramites/api';
+import { titularDe, type TramiteDetalle } from '@/features/tramites/api';
 import { catalogosSatOptions, origenesGafOptions, useCrearSolicitudGaf } from './api';
 import { ComprobanteInvalidoError, TOTAL_MAX_BYTES, normalizarComprobante } from './comprobante';
 import { copyGaf, detalleGafPorCampo } from './errors';
@@ -45,7 +45,7 @@ interface CamposFiscales {
 export function SolicitudFacturaForm({ tramite }: { tramite: TramiteDetalle }) {
   const constancia = tramite.constancia;
   const cobro = tramite.cobro;
-  const titular = tramite.personas[0]?.persona;
+  const titular = titularDe(tramite);
 
   const [campos, setCampos] = useState<CamposFiscales>({
     rfcReceptor: '',

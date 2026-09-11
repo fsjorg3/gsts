@@ -8,6 +8,9 @@ import {
   crearTramiteSchema,
   crearCatalogoSchema,
   crearTarifaSchema,
+  importarPadronSchema,
+  padronRegistroDto,
+  padronImportacionResultadoDto,
   guardarBorradorCobroSchema,
   paginationSchema,
   tipoConstanciaSchema,
@@ -118,6 +121,7 @@ const ActualizarMotivoReduccion = def('ActualizarMotivoReduccion', actualizarMot
 const CrearTramite = def('CrearTramite', crearTramiteSchema);
 const CrearCatalogo = def('CrearCatalogo', crearCatalogoSchema);
 const CrearTarifa = def('CrearTarifa', crearTarifaSchema);
+const ImportarPadron = def('ImportarPadron', importarPadronSchema);
 const GuardarBorradorCobro = def('GuardarBorradorCobro', guardarBorradorCobroSchema);
 const GrupoRequest = def('GrupoRequest', grupoRequestSchema);
 const OpcionRequest = def('OpcionRequest', opcionRequestSchema);
@@ -149,6 +153,8 @@ const CatalogoValidacion = def('CatalogoValidacion', catalogoValidacionDto);
 const Tarifa = def('Tarifa', tarifaDto);
 const ConfiguracionPlazos = def('ConfiguracionPlazos', configuracionPlazosDto);
 const ConfiguracionConstancia = def('ConfiguracionConstancia', configuracionConstanciaDto);
+const PadronRegistro = def('PadronRegistro', padronRegistroDto);
+const PadronImportacionResultado = def('PadronImportacionResultado', padronImportacionResultadoDto);
 const Tramite = def('Tramite', tramiteDto);
 const TramiteConPersonas = def('TramiteConPersonas', tramiteConPersonasDto);
 const TramiteDetalle = def('TramiteDetalle', tramiteDetalleDto);
@@ -377,6 +383,26 @@ export const openApiDocument = {
           { name: 'cursor', in: 'query', schema: { type: 'string', format: 'uuid' } },
         ],
         responses: { '200': envelopeLista(Bitacora, 'Entradas de bitácora, más reciente primero', { total: true }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION },
+      },
+    },
+
+    // ---------- Padrón offline (puente hacia OUC/SII-Cart) ----------
+    '/padron/{nis}': {
+      get: {
+        tags: ['Padrón'], security: bearer,
+        summary: 'Consultar nombre y domicilio por NIS en el catálogo offline (rol ventanilla)',
+        description: 'Resuelve nombre y domicilio del catálogo offline del padrón de usuarios mientras la integración real con OUC sigue bloqueada. 404 si el NIS no está en el catálogo: ventanilla captura los datos a mano y quedan en CAPTURADO_MANUAL al crear el trámite.',
+        parameters: [{ name: 'nis', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': envelope(PadronRegistro), ...ERRORES_AUTENTICACION, ...ERRORES_NO_ENCONTRADO },
+      },
+    },
+    '/padron/importar': {
+      post: {
+        tags: ['Padrón'], security: bearer,
+        summary: 'Importar el extracto trimestral oficial del padrón (rol ti)',
+        description: '`rutaArchivo` apunta a un CSV ya colocado en el filesystem del servidor, no al contenido del archivo. Hace merge por NIS: solo reemplaza filas de origen IMPORTADO; una fila CAPTURADO_MANUAL se preserva salvo que este mismo extracto ya traiga ese NIS, caso en el que se reclasifica a IMPORTADO.',
+        requestBody: body(ImportarPadron),
+        responses: { '200': envelope(PadronImportacionResultado, { description: 'Resultado del merge' }), ...ERRORES_AUTENTICACION, ...ERRORES_VALIDACION },
       },
     },
 

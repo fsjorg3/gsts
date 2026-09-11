@@ -108,7 +108,7 @@ export function PasoValidacion({ tramite }: { tramite: TramiteDetalle }) {
             <Typography sx={{ fontSize: 14, fontWeight: 700, flex: 1 }}>Validación de no adeudo — OUC</Typography>
           </Box>
           <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'text.disabled', mb: 2 }}>
-            Cuenta {tramite.nis ?? '—'} · Cruce manual en el Organismo Único de Cobro.
+            Cuenta {tramite.nis ?? '—'} · Cruce manual en el OUC (One Site Coustumers).
           </Typography>
 
           {validacionInicial ? (
